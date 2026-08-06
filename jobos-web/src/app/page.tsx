@@ -1,23 +1,22 @@
 import Navbar from "./components/Navbar";
+import Sidebar from "./components/Sidebar";
 
 export default function Home() {
   return (
     <>
       <Navbar />
 
-      <main className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
-        <div className="text-center px-6">
-          <h1 className="text-5xl font-bold mb-4">Welcome to JobOS</h1>
+      <div className="flex">
+        <Sidebar />
 
-          <p className="text-xl text-slate-300 mb-8">
-            Your AI Career Operating System
+        <main className="flex-1 min-h-screen bg-slate-950 text-white p-8">
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+
+          <p className="mt-3 text-slate-400">
+            Welcome to JobOS 🚀
           </p>
-
-          <button className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold">
-            Get Started
-          </button>
-        </div>
-      </main>
+        </main>
+      </div>
     </>
   );
 }
