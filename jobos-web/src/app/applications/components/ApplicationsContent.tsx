@@ -6,7 +6,7 @@ import type {
   ApplicationStatusFilter,
   ApplicationFormData,
 } from "../types";
-import { computeApplicationStats, formDataToApplication } from "../utils";
+import { computeApplicationStats } from "../utils";
 import ApplicationFormModal from "./ApplicationFormModal";
 import ApplicationList from "./ApplicationList";
 import ApplicationSearch from "./ApplicationSearch";
@@ -116,6 +116,11 @@ export default function ApplicationsContent() {
   }
 
   async function handleDeleteApplication(application: Application) {
+    const confirmed = window.confirm(
+      `Delete the application for "${application.role}" at "${application.company}"? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
     try {
       await deleteApplication(supabase, application.id);
       setApplications((prev) => prev.filter((app) => app.id !== application.id));
