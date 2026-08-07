@@ -1,6 +1,5 @@
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
-import { applications } from "./applications/data";
 import {
   computeDashboardStats,
   generateRecentActivity,
@@ -10,8 +9,20 @@ import DashboardStats from "./dashboard/components/DashboardStats";
 import WeeklyProgressChart from "./dashboard/components/WeeklyProgressChart";
 import RecentActivity from "./dashboard/components/RecentActivity";
 import QuickActions from "./dashboard/components/QuickActions";
+import { createClient } from "@/lib/supabase/server";
+import { fetchApplications } from "@/lib/api/applications";
+import type { Application } from "./applications/types";
 
-export default function Home() {
+export default async function Home() {
+  const supabase = await createClient();
+
+  let applications: Application[] = [];
+  try {
+    applications = await fetchApplications(supabase);
+  } catch (error) {
+    console.error("Error fetching applications:", error);
+  }
+
   const stats = computeDashboardStats(applications);
   const recentActivity = generateRecentActivity(applications);
   const weeklyData = generateWeeklyData();
