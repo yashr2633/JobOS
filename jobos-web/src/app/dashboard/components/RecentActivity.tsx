@@ -111,37 +111,60 @@ const activityConfig = {
 export default function RecentActivity({ activities }: RecentActivityProps) {
   if (activities.length === 0) {
     return (
-      <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
-        <h2 className="text-lg font-semibold text-white">Recent Activity</h2>
-        <p className="mt-4 text-center text-sm text-slate-400">
-          No recent activity to display
-        </p>
+      <div className="h-full rounded-xl border border-slate-800/50 bg-slate-900/50 p-6 backdrop-blur-sm">
+        <h2 className="text-base font-semibold text-white">Recent Activity</h2>
+        <div className="mt-8 flex flex-col items-center justify-center py-8">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-800/50">
+            <svg
+              className="h-8 w-8 text-slate-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
+              />
+            </svg>
+          </div>
+          <p className="mt-4 text-sm font-medium text-slate-400">
+            No recent activity
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            Your activity will appear here
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
-      <h2 className="text-lg font-semibold text-white">Recent Activity</h2>
-      <div className="mt-4 space-y-4">
+    <div className="h-full rounded-xl border border-slate-800/50 bg-slate-900/50 p-6 backdrop-blur-sm">
+      <h2 className="text-base font-semibold text-white">Recent Activity</h2>
+      <div className="mt-5 space-y-3">
         {activities.map((activity) => {
           const config = activityConfig[activity.type];
           return (
-            <div key={activity.id} className="flex items-start gap-3">
+            <div
+              key={activity.id}
+              className="group flex items-start gap-3 rounded-lg p-2.5 transition-colors duration-150 hover:bg-slate-800/50"
+            >
               <div
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${config.bgColor} ${config.color}`}
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${config.bgColor} ${config.color} transition-transform duration-150 group-hover:scale-110`}
               >
                 {config.icon}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-white">
-                  <span className="font-medium">{config.label}</span>{" "}
-                  <span className="font-semibold">{activity.company}</span>
+                  <span className="text-slate-400">{config.label}</span>{" "}
+                  <span className="font-medium">{activity.company}</span>
                 </p>
-                <p className="mt-0.5 text-xs text-slate-400">
+                <p className="mt-0.5 text-xs text-slate-500 truncate">
                   {activity.role}
                 </p>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1.5 text-xs text-slate-600">
                   {formatRelativeTime(activity.timestamp)}
                 </p>
               </div>

@@ -23,20 +23,22 @@ export default function Home() {
       <div className="flex">
         <Sidebar />
 
-        <main className="flex-1 min-h-screen bg-slate-950 text-white p-6 sm:p-8">
+        <main className="flex-1 min-h-screen bg-slate-950 p-6 sm:p-8 lg:p-10">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-            <p className="mt-2 text-slate-400">
-              Welcome back! Here's what's happening with your job search.
+          <div className="mb-10">
+            <h1 className="text-3xl font-semibold tracking-tight text-white">
+              Dashboard
+            </h1>
+            <p className="mt-2 text-sm text-slate-500">
+              Track your job search progress and recent activity
             </p>
           </div>
 
           {/* Stats Grid */}
           <DashboardStats stats={stats} />
 
-          {/* Charts and Activity */}
-          <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {/* Charts and Activity Grid */}
+          <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
             <div className="lg:col-span-2">
               <WeeklyProgressChart data={weeklyData} />
             </div>
@@ -46,7 +48,7 @@ export default function Home() {
           </div>
 
           {/* Quick Actions */}
-          <div className="mt-8">
+          <div className="mt-6">
             <QuickActions />
           </div>
         </main>
