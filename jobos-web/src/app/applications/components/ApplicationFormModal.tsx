@@ -17,7 +17,7 @@ interface ApplicationFormModalProps {
   mode: "add" | "edit";
   application?: Application;
   onClose: () => void;
-  onSave: (data: ApplicationFormData) => void;
+  onSave: (data: ApplicationFormData) => Promise<void>;
 }
 
 export default function ApplicationFormModal({
@@ -28,6 +28,7 @@ export default function ApplicationFormModal({
   onSave,
 }: ApplicationFormModalProps) {
   const [form, setForm] = useState<ApplicationFormData>(getEmptyApplicationForm);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -57,10 +58,19 @@ export default function ApplicationFormModal({
   const submitLabel =
     mode === "add" ? "Save Application" : "Update Application";
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    onSave(form);
-    onClose();
+    setIsSaving(true);
+
+    try {
+      await onSave(form);
+      onClose();
+    } catch {
+      // The caller has already surfaced the Supabase error. Keep the modal
+      // open so the user can correct the form and retry.
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function updateField<K extends keyof ApplicationFormData>(
@@ -255,7 +265,8 @@ export default function ApplicationFormModal({
             </button>
             <button
               type="submit"
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+              disabled={isSaving}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitLabel}
             </button>

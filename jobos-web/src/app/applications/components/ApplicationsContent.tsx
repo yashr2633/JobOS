@@ -84,6 +84,7 @@ export default function ApplicationsContent() {
       setApplications((prev) => [newApp, ...prev]);
     } catch (err: any) {
       alert(err.message || "Failed to create application");
+      throw err;
     }
   }
 
@@ -101,6 +102,7 @@ export default function ApplicationsContent() {
       );
     } catch (err: any) {
       alert(err.message || "Failed to update application");
+      throw err;
     }
   }
 
