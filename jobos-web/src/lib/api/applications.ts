@@ -76,6 +76,14 @@ export async function updateApplication(
   id: string,
   formData: ApplicationFormData
 ): Promise<Application> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+
   const { data, error } = await supabase
     .from("applications")
     .update({
@@ -88,6 +96,7 @@ export async function updateApplication(
       salary: formData.salary || null,
     })
     .eq("id", id)
+    .eq("user_id", user.id)
     .select()
     .single();
 
@@ -112,7 +121,19 @@ export async function deleteApplication(
   supabase: SupabaseClient,
   id: string
 ): Promise<void> {
-  const { error } = await supabase.from("applications").delete().eq("id", id);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("User not authenticated");
+  }
+
+  const { error } = await supabase
+    .from("applications")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id);
 
   if (error) {
     console.error("Error deleting application:", error);
