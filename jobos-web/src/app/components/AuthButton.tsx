@@ -26,13 +26,13 @@ export default function AuthButton({ userEmail }: AuthButtonProps) {
 
   return (
     <div className="flex items-center gap-3">
-      <span className="hidden text-sm text-slate-400 sm:inline">
+      <span className="hidden text-sm text-text-secondary sm:inline">
         {userEmail}
       </span>
       <button
         onClick={handleLogout}
         disabled={loading}
-        className="rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-2 hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
       >
         {loading ? "..." : "Log out"}
       </button>

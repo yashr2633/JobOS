@@ -11,6 +11,9 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
+    // Lets *.test.ts use explicit ".ts" import specifiers so the Node built-in
+    // test runner can resolve them. Safe with noEmit; app code is unaffected.
+    "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "incremental": true,
     "plugins": [

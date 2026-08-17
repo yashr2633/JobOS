@@ -1,19 +1,29 @@
-import Navbar from "../components/Navbar";
-import Sidebar from "../components/Sidebar";
+import AppShell from "../components/AppShell";
 import ApplicationsContent from "./components/ApplicationsContent";
+import { createClient } from "@/lib/supabase/server";
+import { countUnknownBucket } from "@/lib/api/gmailActivity";
 
-export default function ApplicationsPage() {
+export default async function ApplicationsPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // The Unknown_Bucket count is resolved here, on the server, and handed down
+  // as a plain number. A read failure is not worth blanking the page over: the
+  // entry point is secondary, so treat it as an empty bucket and render nothing.
+  let unknownBucketCount = 0;
+  if (user) {
+    try {
+      unknownBucketCount = await countUnknownBucket(supabase, user.id);
+    } catch (error) {
+      console.error("[applications] Unknown-bucket count failed:", error);
+    }
+  }
+
   return (
-    <>
-      <Navbar />
-
-      <div className="flex">
-        <Sidebar />
-
-        <main className="min-h-screen flex-1 bg-slate-950 p-6 text-white sm:p-8">
-          <ApplicationsContent />
-        </main>
-      </div>
-    </>
+    <AppShell>
+      <ApplicationsContent unknownBucketCount={unknownBucketCount} />
+    </AppShell>
   );
 }

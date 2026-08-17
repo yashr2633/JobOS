@@ -2,62 +2,29 @@
 
 import Link from "next/link";
 
+/**
+ * Shortcuts to pages that exist, labelled with what they actually do.
+ *
+ * Flat, bordered rows rather than glowing hover cards — a quiet secondary
+ * surface, consistent with the rest of the dashboard's restrained treatment.
+ */
 export default function QuickActions() {
   return (
-    <div className="rounded-xl border border-slate-800/50 bg-slate-900/50 p-6 backdrop-blur-sm">
-      <h2 className="text-base font-semibold text-white">Quick Actions</h2>
-      <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="rounded-md border border-border bg-surface p-4">
+      <h2 className="text-sm font-semibold text-text">Quick actions</h2>
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         <Link
           href="/applications"
-          className="group flex items-center gap-3 rounded-lg border border-slate-800/50 bg-slate-800/30 p-4 transition-all duration-200 hover:border-slate-700/50 hover:bg-slate-800/50 hover:shadow-lg hover:shadow-slate-950/50"
+          className="group flex items-center gap-3 rounded-md border border-border p-3 transition-colors hover:border-border-strong hover:bg-surface-2"
         >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400 transition-colors duration-200 group-hover:bg-blue-500/20">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-accent/10 text-accent">
             <svg
-              className="h-5 w-5"
+              className="h-4 w-4"
               fill="none"
               viewBox="0 0 24 24"
               strokeWidth={2}
               stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 4.5v15m7.5-7.5h-15"
-              />
-            </svg>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white">Add Application</p>
-            <p className="mt-0.5 text-xs text-slate-500">
-              Track a new job
-            </p>
-          </div>
-          <svg
-            className="h-4 w-4 shrink-0 text-slate-600 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-slate-500"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={2}
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="m8.25 4.5 7.5 7.5-7.5 7.5"
-            />
-          </svg>
-        </Link>
-
-        <Link
-          href="/applications"
-          className="group flex items-center gap-3 rounded-lg border border-slate-800/50 bg-slate-800/30 p-4 transition-all duration-200 hover:border-slate-700/50 hover:bg-slate-800/50 hover:shadow-lg hover:shadow-slate-950/50"
-        >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400 transition-colors duration-200 group-hover:bg-amber-500/20">
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-              stroke="currentColor"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
@@ -66,67 +33,40 @@ export default function QuickActions() {
               />
             </svg>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white">
-              View All
-            </p>
-            <p className="mt-0.5 text-xs text-slate-500">
-              Manage applications
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-text">View applications</p>
+            <p className="mt-0.5 text-xs text-text-muted">
+              Browse, edit, and add from the list
             </p>
           </div>
-          <svg
-            className="h-4 w-4 shrink-0 text-slate-600 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-slate-500"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={2}
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="m8.25 4.5 7.5 7.5-7.5 7.5"
-            />
-          </svg>
         </Link>
 
         <Link
-          href="/applications"
-          className="group flex items-center gap-3 rounded-lg border border-slate-800/50 bg-slate-800/30 p-4 transition-all duration-200 hover:border-slate-700/50 hover:bg-slate-800/50 hover:shadow-lg hover:shadow-slate-950/50"
+          href="/resumes"
+          className="group flex items-center gap-3 rounded-md border border-border p-3 transition-colors hover:border-border-strong hover:bg-surface-2"
         >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-400 transition-colors duration-200 group-hover:bg-violet-500/20">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-accent/10 text-accent">
             <svg
-              className="h-5 w-5"
+              className="h-4 w-4"
               fill="none"
               viewBox="0 0 24 24"
               strokeWidth={2}
               stroke="currentColor"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"
+                d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5A3.375 3.375 0 0 0 10.125 2.25H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
               />
             </svg>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white">Export Data</p>
-            <p className="mt-0.5 text-xs text-slate-500">
-              Download as CSV
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-text">Resume Match</p>
+            <p className="mt-0.5 text-xs text-text-muted">
+              Analyze and tailor your resume
             </p>
           </div>
-          <svg
-            className="h-4 w-4 shrink-0 text-slate-600 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-slate-500"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={2}
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="m8.25 4.5 7.5 7.5-7.5 7.5"
-            />
-          </svg>
         </Link>
       </div>
     </div>

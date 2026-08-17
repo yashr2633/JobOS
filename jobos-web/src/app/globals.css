@@ -1,26 +1,189 @@
 @import "tailwindcss";
 
+/**
+ * JobOS design tokens.
+ *
+ * A small, deliberate set of semantic colors — not a slate-950 hardcoded
+ * everywhere. Both themes are defined as real values, not one theme inverted:
+ * light is a professional off-white surface system, dark is a calm charcoal
+ * system with subtle (never glowing) borders. Every page should be built from
+ * these tokens (bg-bg, bg-surface, bg-surface-2, border-border, text-text,
+ * text-text-secondary, text-text-muted, bg-accent/text-accent, bg-success,
+ * bg-warning, bg-danger) rather than literal Tailwind palette classes, so a
+ * future theme change is a token edit, not a find-and-replace across the app.
+ *
+ * THEMING
+ *
+ * Three states, resolved in this order:
+ *   1. `data-theme="light"` / `data-theme="dark"` on <html> — an explicit user
+ *      choice, persisted by `ThemeProvider` and applied before first paint by
+ *      the inline script in `layout.tsx` (so there is no flash of wrong theme).
+ *   2. no attribute -> follow the OS `prefers-color-scheme`.
+ *
+ * The dark values are declared twice on purpose: once for "OS says dark and the
+ * user has not overridden it", once for "the user explicitly chose dark". CSS
+ * has no way to share a declaration block between a media query and an
+ * attribute selector without a preprocessor, and duplicating twenty custom
+ * properties is clearer than importing a build step.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #f8f8f9;
+  --surface: #ffffff;
+  --surface-2: #f2f2f4;
+  --border: #e4e4e8;
+  --border-strong: #d4d4db;
+  --text: #14141a;
+  --text-secondary: #55555f;
+  --text-muted: #8b8b96;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-fg: #ffffff;
+  --success: #15803d;
+  --success-bg: #f0fdf4;
+  --warning: #b45309;
+  --warning-bg: #fffbeb;
+  --danger: #b91c1c;
+  --danger-bg: #fef2f2;
+  --focus: #4f46e5;
+  color-scheme: light;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
+/* OS preference, unless the user explicitly chose light. */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --bg: #0c0c0f;
+    --surface: #151518;
+    --surface-2: #1c1c21;
+    --border: #26262c;
+    --border-strong: #34343b;
+    --text: #f1f1f3;
+    --text-secondary: #a3a3ad;
+    --text-muted: #6d6d78;
+    --accent: #6366f1;
+    --accent-hover: #7a7df0;
+    --accent-fg: #ffffff;
+    --success: #34d399;
+    --success-bg: #052e1c;
+    --warning: #fbbf24;
+    --warning-bg: #3a2a06;
+    --danger: #f87171;
+    --danger-bg: #3a0d0d;
+    --focus: #818cf8;
+    color-scheme: dark;
   }
 }
 
+/* Explicit user choice. Same values as the media-query block above. */
+:root[data-theme="dark"] {
+  --bg: #0c0c0f;
+  --surface: #151518;
+  --surface-2: #1c1c21;
+  --border: #26262c;
+  --border-strong: #34343b;
+  --text: #f1f1f3;
+  --text-secondary: #a3a3ad;
+  --text-muted: #6d6d78;
+  --accent: #6366f1;
+  --accent-hover: #7a7df0;
+  --accent-fg: #ffffff;
+  --success: #34d399;
+  --success-bg: #052e1c;
+  --warning: #fbbf24;
+  --warning-bg: #3a2a06;
+  --danger: #f87171;
+  --danger-bg: #3a0d0d;
+  --focus: #818cf8;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  /* Semantic tokens, registered as real Tailwind color utilities:
+     bg-bg, bg-surface, border-border, text-text-secondary, etc. */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-focus: var(--focus);
+}
+
+html {
+  /* In-page anchors (the Dashboard's "Track My Applications" jump) glide rather
+     than teleport, so the user keeps their sense of place. The reduced-motion
+     block below resets this to `auto` for users who ask for that. */
+  scroll-behavior: smooth;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  /* A phone must never scroll sideways because one long string (a job URL, an
+     employer name) is wider than the viewport. */
+  overflow-x: hidden;
+}
+
+/* Long unbroken strings — URLs, email addresses — wrap instead of forcing the
+   layout wide. Applied broadly because these appear in user data everywhere. */
+h1, h2, h3, h4, p, dd, li, span, a, td, th, label {
+  overflow-wrap: break-word;
+}
+
+/* One consistent focus ring, instead of every component inventing its own. */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/**
+ * Safe-area helpers for the mobile bottom navigation.
+ *
+ * On notched devices the home indicator overlaps the bottom of the viewport, so
+ * fixed bottom navigation needs real padding rather than a guessed constant.
+ * `env()` resolves to 0 everywhere else, so these are inert on desktop.
+ */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Clears the fixed bottom bar so page content is never hidden behind it. */
+.pb-mobile-nav {
+  padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  .pb-mobile-nav {
+    padding-bottom: 0;
+  }
+}
+
+/* Respect a user's reduced-motion preference across every transition. */
+@media (prefers-reduced-motion: reduce) {
+  html,
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    /* Overrides the smooth scrolling set on `html` above. */
+    scroll-behavior: auto !important;
+  }
 }

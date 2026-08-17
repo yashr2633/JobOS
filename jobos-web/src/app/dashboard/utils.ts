@@ -1,87 +1,34 @@
-import type { Application } from "../applications/types";
-import type { DashboardStats, ActivityItem, WeeklyData } from "./types";
+/*
+ * `computeDashboardStats` used to live here and shaped an unlinked five-figure
+ * stat row. The dashboard's KPI row is now computed by `computeWindowReport` in
+ * `report.ts`, over the window-filtered application set, and every card links
+ * into /applications with that filter applied — so the intermediate shape and its
+ * derived response-rate figure had no remaining caller.
+ */
 
-export function computeDashboardStats(
-  applications: Application[]
-): DashboardStats {
-  const total = applications.length;
-  const interviews = applications.filter(
-    (app) => app.status === "Interview"
-  ).length;
-  const offers = applications.filter((app) => app.status === "Offer").length;
-  const rejections = applications.filter(
-    (app) => app.status === "Rejected"
-  ).length;
+/*
+ * Recent activity used to be derived here, one "Applied to X" row per
+ * application dated with `applied_date`, because no status history existed.
+ * `application_status_history` records real events now, so the feed is built
+ * from those rows in `recentActivity.ts` and nothing about it is inferred from
+ * an application row.
+ */
 
-  // Response rate = (Interviews + Offers + Rejections) / Total * 100
-  const responded = interviews + offers + rejections;
-  const responseRate = total > 0 ? Math.round((responded / total) * 100) : 0;
-
-  return {
-    totalApplications: total,
-    interviews,
-    offers,
-    rejections,
-    responseRate,
-  };
-}
-
-export function generateRecentActivity(
-  applications: Application[]
-): ActivityItem[] {
-  // Sort by date (most recent first) and take top 5
-  const sorted = [...applications].sort(
-    (a, b) =>
-      new Date(b.appliedDate).getTime() - new Date(a.appliedDate).getTime()
-  );
-
-  return sorted.slice(0, 5).map((app) => ({
-    id: app.id,
-    type: getActivityType(app.status),
-    company: app.company,
-    role: app.role,
-    timestamp: app.appliedDate,
-    status: app.status,
-  }));
-}
-
-function getActivityType(
-  status: string
-): "applied" | "interview" | "offer" | "rejected" | "updated" {
-  switch (status) {
-    case "Interview":
-      return "interview";
-    case "Offer":
-      return "offer";
-    case "Rejected":
-      return "rejected";
-    case "Applied":
-      return "applied";
-    default:
-      return "updated";
-  }
-}
-
-export function generateWeeklyData(): WeeklyData[] {
-  // Mock data for weekly application progress (last 8 weeks)
-  return [
-    { week: "Week 1", applications: 3 },
-    { week: "Week 2", applications: 5 },
-    { week: "Week 3", applications: 4 },
-    { week: "Week 4", applications: 7 },
-    { week: "Week 5", applications: 6 },
-    { week: "Week 6", applications: 8 },
-    { week: "Week 7", applications: 5 },
-    { week: "Week 8", applications: 9 },
-  ];
-}
-
+/**
+ * Relative age of a persisted date. An unparseable value reports `—`: it is
+ * unknown, and rendering it as "Today" would invent a timestamp.
+ */
 export function formatRelativeTime(dateString: string): string {
   const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return "—";
+
   const now = new Date();
   const diffInMs = now.getTime() - date.getTime();
   const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
 
+  // A date in the future has no "ago" reading, so show the date itself rather
+  // than a negative age.
+  if (diffInDays < 0) return date.toLocaleDateString();
   if (diffInDays === 0) return "Today";
   if (diffInDays === 1) return "Yesterday";
   if (diffInDays < 7) return `${diffInDays} days ago`;

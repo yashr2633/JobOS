@@ -5,86 +5,206 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { MIN_PASSWORD_LENGTH, validateNewPassword } from "@/lib/account/profile";
+import {
+  VERIFY_OTP_TYPE,
+  describeOtpError,
+  isPlausibleEmail,
+} from "@/lib/account/otp";
+import OtpStep from "../OtpStep";
+
+/** Turn a provider error into something actionable. */
+function describeSignUpError(message: string): string {
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("already registered") || normalized.includes("already been registered")) {
+    return "An account already exists for that email. Try logging in instead.";
+  }
+  if (normalized.includes("invalid email")) {
+    return "That email address does not look valid. Please check it.";
+  }
+  if (normalized.includes("weak password") || normalized.includes("password should be")) {
+    return `Choose a stronger password of at least ${MIN_PASSWORD_LENGTH} characters.`;
+  }
+  if (normalized.includes("rate limit") || normalized.includes("too many")) {
+    return "Too many attempts. Please wait a moment and try again.";
+  }
+  if (
+    normalized.includes("error sending confirmation email") ||
+    normalized.includes("confirmation email") ||
+    normalized.includes("sending email")
+  ) {
+    return "We could not send your confirmation code. Check the configured email provider and try again.";
+  }
+  if (normalized.includes("failed to fetch") || normalized.includes("network")) {
+    return "We could not reach the server. Check your connection and try again.";
+  }
+  return message;
+}
+
 export default function SignupPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [revealPassword, setRevealPassword] = useState(false);
+  const [loading, setLoading] = useState<"email" | "google" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [confirmationSent, setConfirmationSent] = useState(false);
+  /**
+   * True once the account is created and Supabase has emailed a confirmation
+   * code. The form is replaced by the code step — the account is not usable
+   * until the code is verified.
+   */
+  const [awaitingCode, setAwaitingCode] = useState(false);
+  /** When the last code was sent, for the resend cooldown. */
+  const [codeSentAt, setCodeSentAt] = useState<number | null>(null);
 
   const supabase = createClient();
+  const busy = loading !== null;
+
+  /**
+   * Verify the emailed signup code.
+   *
+   * `verifyOtp` with type 'signup' is Supabase's own confirmation mechanism: it
+   * validates the code server-side and returns a session. We never see, store, or
+   * compare the code ourselves.
+   */
+  async function verifySignupCode(code: string): Promise<void> {
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: code,
+      type: VERIFY_OTP_TYPE.signup,
+    });
+
+    if (verifyError) throw new Error(describeOtpError(verifyError.message));
+
+    // Verified: a session now exists, so land the user in the product.
+    router.push("/");
+    router.refresh();
+  }
+
+  /** Ask Supabase to email another signup code. */
+  async function resendSignupCode(): Promise<void> {
+    const { error: resendError } = await supabase.auth.resend({
+      type: "signup",
+      email: email.trim(),
+    });
+
+    if (resendError) throw new Error(describeOtpError(resendError.message));
+    setCodeSentAt(Date.now());
+  }
 
   async function handleEmailSignup(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setLoading(true);
+
+    if (!isPlausibleEmail(email)) {
+      setError("Enter a valid email address.");
+      return;
+    }
+
+    // Checked locally first so the rule is stated once and the user gets an
+    // immediate, specific message. The provider remains authoritative.
+    const check = validateNewPassword(password, password);
+    if (!check.ok) {
+      setError(check.error);
+      return;
+    }
+
+    setLoading("email");
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: email.trim(),
         password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
       });
 
-      if (error) throw error;
+      if (signUpError) throw new Error(signUpError.message);
 
-      // When email confirmation is required, Supabase returns no session.
-      // Prompt the user to confirm instead of redirecting into a protected route.
+      // No session means Supabase requires email confirmation, and has just
+      // emailed a code. Move to the code step rather than redirecting into a
+      // protected route the user cannot reach yet.
       if (!data.session) {
-        setConfirmationSent(true);
+        setCodeSentAt(Date.now());
+        setAwaitingCode(true);
+        setLoading(null);
         return;
       }
 
+      // Confirmation is disabled on this project, so the account is already
+      // usable and there is no code to enter.
       router.push("/");
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "Failed to sign up");
-    } finally {
-      setLoading(false);
+    } catch (err: unknown) {
+      setError(
+        describeSignUpError(
+          err instanceof Error ? err.message : "Failed to sign up."
+        )
+      );
+      setLoading(null);
     }
   }
 
   async function handleGoogleSignup() {
     setError(null);
-    setLoading(true);
+    setLoading("google");
 
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
       });
 
-      if (error) throw error;
-    } catch (err: any) {
-      setError(err.message || "Failed to sign up with Google");
-      setLoading(false);
+      if (oauthError) throw new Error(oauthError.message);
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Failed to sign up with Google."
+      );
+      setLoading(null);
     }
   }
 
+  const inputClass =
+    "mt-1 w-full rounded-md border border-border bg-surface px-3 py-2.5 text-sm text-text placeholder:text-text-muted focus:border-accent focus:outline-none";
+
+  // The code step replaces the form entirely: the account exists but is not
+  // verified, so re-submitting the form would only error.
+  if (awaitingCode) {
+    return (
+      <div className="rounded-md border border-border bg-surface p-6 sm:p-8">
+        <OtpStep
+          email={email}
+          lastSentAt={codeSentAt}
+          onVerify={verifySignupCode}
+          onResend={resendSignupCode}
+          onBack={() => {
+            setAwaitingCode(false);
+            setCodeSentAt(null);
+            setError(null);
+          }}
+          title="Confirm your email"
+          description={undefined}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="rounded-xl border border-slate-800/50 bg-slate-900/50 p-8 backdrop-blur-sm">
-      <div className="mb-8 text-center">
-        <h1 className="text-3xl font-semibold text-white">Create account</h1>
-        <p className="mt-2 text-sm text-slate-400">
-          Start tracking your job applications
+    <div className="rounded-md border border-border bg-surface p-6 sm:p-8">
+      <div className="mb-6 text-center">
+        <h1 className="text-2xl font-semibold tracking-tight text-text">
+          Create your JobTrackOS account
+        </h1>
+        <p className="mt-1 text-sm text-text-secondary">
+          Know where your career stands.
         </p>
       </div>
 
       {error && (
-        <div className="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
+        <div
+          role="alert"
+          className="mb-4 rounded-md border border-danger/20 bg-danger-bg px-3 py-2.5 text-sm text-danger"
+        >
           {error}
-        </div>
-      )}
-
-      {confirmationSent && (
-        <div className="mb-4 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-400">
-          Check your inbox at <span className="font-medium">{email}</span> and
-          confirm your email address, then log in.
         </div>
       )}
 
@@ -92,7 +212,7 @@ export default function SignupPage() {
         <div>
           <label
             htmlFor="email"
-            className="block text-sm font-medium text-slate-300"
+            className="block text-sm font-medium text-text-secondary"
           >
             Email
           </label>
@@ -102,59 +222,69 @@ export default function SignupPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            autoComplete="email"
+            className={inputClass}
             placeholder="you@example.com"
           />
         </div>
 
         <div>
-          <label
-            htmlFor="password"
-            className="block text-sm font-medium text-slate-300"
-          >
-            Password
-          </label>
+          <div className="flex items-baseline justify-between gap-2">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-text-secondary"
+            >
+              Password
+            </label>
+            <button
+              type="button"
+              onClick={() => setRevealPassword((prev) => !prev)}
+              className="text-xs font-medium text-text-muted transition-colors hover:text-text-secondary"
+            >
+              {revealPassword ? "Hide" : "Show"}
+            </button>
+          </div>
           <input
             id="password"
-            type="password"
+            type={revealPassword ? "text" : "password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            minLength={6}
-            className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-            placeholder="••••••••"
+            minLength={MIN_PASSWORD_LENGTH}
+            autoComplete="new-password"
+            aria-describedby="password-requirements"
+            className={inputClass}
+            placeholder="Choose a password"
           />
-          <p className="mt-1 text-xs text-slate-500">
-            Must be at least 6 characters
+          {/* The stated rule is the one actually enforced, from the shared policy. */}
+          <p id="password-requirements" className="mt-1 text-xs text-text-muted">
+            At least {MIN_PASSWORD_LENGTH} characters, including a letter and a
+            number.
           </p>
         </div>
 
         <button
           type="submit"
-          disabled={loading}
-          className="w-full rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={busy}
+          className="min-h-[44px] w-full rounded-md bg-accent px-4 py-2.5 text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loading ? "Creating account..." : "Sign up"}
+          {loading === "email" ? "Creating account..." : "Sign up"}
         </button>
       </form>
 
-      <div className="relative my-6">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-slate-700"></div>
-        </div>
-        <div className="relative flex justify-center text-sm">
-          <span className="bg-slate-900 px-2 text-slate-400">
-            Or continue with
-          </span>
-        </div>
+      <div className="my-5 flex items-center gap-3">
+        <span className="h-px flex-1 bg-border" />
+        <span className="text-xs text-text-muted">Or continue with</span>
+        <span className="h-px flex-1 bg-border" />
       </div>
 
       <button
-        onClick={handleGoogleSignup}
-        disabled={loading}
-        className="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 font-medium text-white transition-colors hover:bg-slate-750 disabled:cursor-not-allowed disabled:opacity-50"
+        type="button"
+        onClick={() => void handleGoogleSignup()}
+        disabled={busy}
+        className="flex min-h-[44px] w-full items-center justify-center gap-3 rounded-md border border-border-strong bg-surface px-4 py-2.5 text-sm font-medium text-text transition-colors hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <svg className="h-5 w-5" viewBox="0 0 24 24">
+        <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
           <path
             fill="currentColor"
             d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -172,14 +302,14 @@ export default function SignupPage() {
             d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
           />
         </svg>
-        Continue with Google
+        {loading === "google" ? "Redirecting..." : "Continue with Google"}
       </button>
 
-      <p className="mt-6 text-center text-sm text-slate-400">
+      <p className="mt-5 text-center text-sm text-text-secondary">
         Already have an account?{" "}
         <Link
           href="/login"
-          className="font-medium text-blue-400 hover:text-blue-300"
+          className="font-medium text-accent hover:text-accent-hover"
         >
           Log in
         </Link>

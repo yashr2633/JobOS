@@ -48,7 +48,7 @@ export default function ApplicationCardMenu({
         aria-label="More options"
         aria-expanded={isOpen}
         onClick={() => setIsOpen((prev) => !prev)}
-        className="rounded-lg border border-slate-700 p-1.5 text-slate-400 transition-colors hover:border-slate-600 hover:bg-slate-800 hover:text-white"
+        className="rounded-md border border-border-strong p-1.5 text-text-secondary transition-colors hover:border-border-strong hover:bg-surface-2 hover:text-text"
       >
         <svg
           className="h-5 w-5"
@@ -61,18 +61,18 @@ export default function ApplicationCardMenu({
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full z-10 mt-1 w-40 overflow-hidden rounded-lg border border-slate-700 bg-slate-900 py-1 shadow-xl">
+        <div className="absolute right-0 top-full z-10 mt-1 w-40 overflow-hidden rounded-md border border-border-strong bg-surface py-1 shadow-xl">
           <button
             type="button"
             onClick={() => handleAction(onDuplicate)}
-            className="block w-full px-4 py-2 text-left text-sm text-slate-300 transition-colors hover:bg-slate-800 hover:text-white"
+            className="block w-full px-4 py-2 text-left text-sm text-text-secondary transition-colors hover:bg-surface-2 hover:text-text"
           >
             Duplicate
           </button>
           <button
             type="button"
             onClick={() => handleAction(onDelete)}
-            className="block w-full px-4 py-2 text-left text-sm text-red-400 transition-colors hover:bg-slate-800 hover:text-red-300"
+            className="block w-full px-4 py-2 text-left text-sm text-danger transition-colors hover:bg-surface-2 hover:text-danger"
           >
             Delete
           </button>

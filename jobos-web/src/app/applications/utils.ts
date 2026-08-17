@@ -3,6 +3,9 @@ import type {
   ApplicationFormData,
   ApplicationStats,
 } from "./types";
+// Relative + explicit .ts extension so this module stays runnable under
+// `node --test`, matching the convention in filters.ts and dashboard/metrics.ts.
+import { summarizeApplicationStatuses } from "../dashboard/metrics.ts";
 
 export function formatApplicationDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString("en-US", {
@@ -12,18 +15,18 @@ export function formatApplicationDate(dateString: string): string {
   });
 }
 
+/**
+ * Application-page stats.
+ *
+ * A thin delegation to the canonical `summarizeApplicationStatuses`, so this
+ * page and the Dashboard cannot compute status counts differently. It is kept as
+ * a named function because call sites already import it; it deliberately adds no
+ * logic of its own, since any logic here would be a second definition.
+ */
 export function computeApplicationStats(
   applications: Application[]
 ): ApplicationStats {
-  return {
-    total: applications.length,
-    active: applications.filter((app) =>
-      ["Applied", "Interview", "Offer"].includes(app.status)
-    ).length,
-    interviews: applications.filter((app) => app.status === "Interview")
-      .length,
-    rejected: applications.filter((app) => app.status === "Rejected").length,
-  };
+  return summarizeApplicationStatuses(applications);
 }
 
 export function formDataToApplication(
@@ -39,6 +42,9 @@ export function formDataToApplication(
     appliedDate: data.appliedDate,
     status: data.status,
     ...(data.salary.trim() ? { salary: data.salary.trim() } : {}),
+    ...(data.jobDescription.trim()
+      ? { jobDescription: data.jobDescription.trim() }
+      : {}),
   };
 }
 
@@ -53,6 +59,7 @@ export function applicationToFormData(
     appliedDate: application.appliedDate,
     status: application.status,
     salary: application.salary ?? "",
+    jobDescription: application.jobDescription ?? "",
   };
 }
 
@@ -65,6 +72,7 @@ export function getEmptyApplicationForm(): ApplicationFormData {
     appliedDate: new Date().toISOString().split("T")[0],
     status: "Applied",
     salary: "",
+    jobDescription: "",
   };
 }
 

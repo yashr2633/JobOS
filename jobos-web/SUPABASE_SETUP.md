@@ -119,6 +119,42 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxxxxxxxxxxxxxxxxxxx
 
 ⚠️ **CRITICAL**: These values MUST be exact - copy-paste from Supabase dashboard!
 
+### Email confirmation codes with Resend SMTP
+
+The application uses Supabase Auth for both issuing and verifying email codes. It
+never generates or stores OTPs locally. Password signup calls `signUp` without an
+email redirect option, then verifies the submitted code with
+`verifyOtp({ email, token, type: "signup" })`. The login code path uses
+`signInWithOtp({ email, options: { shouldCreateUser: false } })` and verifies with
+type `"email"`; this also works for an existing Google-created account without
+silently creating a user.
+
+In Supabase Dashboard, configure the following before testing signup or email-code
+login:
+
+1. **Authentication → Providers → Email**: enable Email. Keep email confirmation
+   enabled if signup must require verification, and keep signups enabled.
+2. **Authentication → SMTP Settings**: configure the Resend SMTP credentials
+   using your verified sending domain:
+   - Host: `smtp.resend.com`
+   - Port: `465` (TLS) or `587` (STARTTLS), according to the Supabase form
+   - Username: `resend`
+   - Password: a Resend API key (store it only in Supabase, never in this repo)
+   - Sender address: an address on a domain verified in Resend
+3. **Authentication → Email Templates → Confirm signup**: use the OTP token
+   placeholder `{{ .Token }}` in the email body. Do not make the signup flow
+   depend on `{{ .ConfirmationURL }}`; that is the link-based flow and is not what
+   the application asks the user to enter.
+4. Add the deployed site origin to Supabase **Authentication → URL Configuration**
+   (and `http://localhost:3000` for local testing). The callback URL is still used
+   by Google OAuth; email-code signup and login do not add a redirect URL.
+
+If Supabase returns `Error sending confirmation email`, the application now shows
+an actionable configuration message, but SMTP delivery, sender-domain
+verification, provider limits, and the email template can only be corrected in
+Supabase/Resend. A live email delivery check is still required after these
+settings are applied.
+
 ### Verify the connection
 
 ```bash
