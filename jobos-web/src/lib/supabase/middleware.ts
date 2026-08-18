@@ -66,9 +66,30 @@ export async function updateSession(request: NextRequest) {
 
   const isAuthPage =
     pathname.startsWith("/login") || pathname.startsWith("/signup");
-  const isProtectedPage =
-    pathname === "/" ||
-    PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+
+  // The root "/" is a PUBLIC homepage (required for Google OAuth brand
+  // verification): signed-out visitors must be able to read it. The page itself
+  // renders the public marketing landing for anonymous visitors and the
+  // dashboard for signed-in users, so "/" is intentionally NOT protected here.
+  // Every authenticated application page below stays protected exactly as before.
+  const isProtectedPage = PROTECTED_PREFIXES.some((prefix) =>
+    pathname.startsWith(prefix)
+  );
+
+  // Supabase can deliver an OAuth "code" to the Site URL ("/") when its Redirect
+  // URLs allow-list falls back to it. Preserve the existing hand-off to the
+  // canonical exchange route BEFORE "/" is allowed to render publicly, so
+  // opening the homepage does not regress Google sign-in.
+  if (pathname === "/" && !user) {
+    const code = request.nextUrl.searchParams.get("code");
+    if (code) {
+      const exchangeUrl = request.nextUrl.clone();
+      exchangeUrl.pathname = "/auth/callback";
+      exchangeUrl.searchParams.set("next", "/");
+      return NextResponse.redirect(exchangeUrl);
+    }
+    // No code: fall through and let the public homepage render.
+  }
 
   if (isProtectedPage && !user) {
     // A Supabase OAuth code can land on a page instead of /auth/callback when

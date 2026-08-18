@@ -63,6 +63,17 @@ export default async function Home({ searchParams }: HomeProps) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // PUBLIC HOMEPAGE (required for Google OAuth brand verification).
+  //
+  // Signed-out visitors — including Google's verification reviewers — get a
+  // public marketing landing that names the product, explains what it does, and
+  // links to the legal pages, with NO authenticated data access. Signed-in users
+  // fall through to the dashboard below. This is a server-side branch, so the
+  // homepage's primary content never depends on client-side authentication.
+  if (!user) {
+    return <PublicHome />;
+  }
+
   // The window param is read here and narrowed below. It is never trusted raw.
   const params = await searchParams;
   const requestedWindow = firstParamValue(params.window);
@@ -369,5 +380,149 @@ export default async function Home({ searchParams }: HomeProps) {
         </div>
       </>
     </AppShell>
+  );
+}
+
+/**
+ * Public, unauthenticated homepage.
+ *
+ * Rendered for signed-out visitors at `/` (see the early return in `Home`).
+ * Its job is to satisfy Google OAuth brand verification: it presents the exact
+ * product name "JobTrackOS", the tagline, a clear explanation of what the app
+ * does, a truthful description of the optional read-only Gmail use, and visible
+ * links to the Privacy Policy and Terms. It composes no authenticated shell and
+ * reads no user data. Uses semantic design tokens only, matching the app UI.
+ */
+function PublicHome() {
+  return (
+    <main className="min-h-full bg-bg text-text">
+      {/* Top bar — the wordmark establishes the OAuth app name on the homepage. */}
+      <header className="border-b border-border">
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
+          <span className="text-lg font-semibold tracking-tight text-text">
+            JobTrackOS
+          </span>
+          <nav className="flex items-center gap-2 text-sm" aria-label="Account">
+            <a
+              href="/login"
+              className="rounded-md px-3 py-1.5 font-medium text-text-secondary transition-colors hover:bg-surface-2 hover:text-text"
+            >
+              Log in
+            </a>
+            <a
+              href="/signup"
+              className="rounded-md bg-accent px-3 py-1.5 font-medium text-accent-fg transition-colors hover:bg-accent-hover"
+            >
+              Sign up
+            </a>
+          </nav>
+        </div>
+      </header>
+
+      {/* Hero — brand, tagline, and a plain-language description of the product. */}
+      <section className="mx-auto w-full max-w-5xl px-4 py-16 sm:px-6">
+        <h1 className="text-4xl font-semibold tracking-tight text-text sm:text-5xl">
+          JobTrackOS
+        </h1>
+        <p className="mt-3 text-lg text-text-secondary">
+          Know where your career stands.
+        </p>
+        <p className="mt-6 max-w-2xl text-base leading-7 text-text-secondary">
+          JobTrackOS is a job application tracking platform. It helps you keep
+          all of your job applications in one place, monitor each
+          application&apos;s status from applied through interview, offer, or
+          rejection, and understand your job search at a glance — so you always
+          know where things stand.
+        </p>
+
+        <div className="mt-8 flex flex-wrap gap-3">
+          <a
+            href="/signup"
+            className="inline-flex items-center rounded-md bg-accent px-5 py-2.5 text-sm font-semibold text-accent-fg transition-colors hover:bg-accent-hover"
+          >
+            Get started
+          </a>
+          <a
+            href="/login"
+            className="inline-flex items-center rounded-md border border-border-strong px-5 py-2.5 text-sm font-semibold text-text transition-colors hover:bg-surface-2"
+          >
+            Log in
+          </a>
+        </div>
+      </section>
+
+      {/* What it does — concise, truthful feature summary. */}
+      <section className="border-t border-border bg-surface">
+        <div className="mx-auto grid w-full max-w-5xl gap-6 px-4 py-14 sm:grid-cols-3 sm:px-6">
+          <div>
+            <h2 className="text-base font-semibold text-text">
+              Track every application
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-text-secondary">
+              Add the roles you apply to and keep company, title, and source
+              details organized in one place.
+            </p>
+          </div>
+          <div>
+            <h2 className="text-base font-semibold text-text">
+              Monitor status
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-text-secondary">
+              See where each application stands — applied, interview, offer,
+              rejected, or gone quiet — and what needs attention.
+            </p>
+          </div>
+          <div>
+            <h2 className="text-base font-semibold text-text">
+              Optional Gmail assist
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-text-secondary">
+              Connect Gmail if you want JobTrackOS to help identify job-related
+              emails and keep your tracking up to date. It is entirely optional.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Gmail disclosure — the exact, truthful purpose statement. */}
+      <section className="mx-auto w-full max-w-5xl px-4 py-14 sm:px-6">
+        <h2 className="text-xl font-semibold text-text">
+          How the optional Gmail connection works
+        </h2>
+        <p className="mt-4 max-w-2xl text-base leading-7 text-text-secondary">
+          JobTrackOS can optionally use read-only Gmail access to identify job
+          application-related emails and help keep your application tracking
+          information up to date.
+        </p>
+        <ul className="mt-4 max-w-2xl list-disc space-y-1.5 pl-5 text-sm leading-6 text-text-secondary">
+          <li>Gmail is optional — JobTrackOS works without connecting it.</li>
+          <li>Access is read-only. JobTrackOS never sends or modifies your email.</li>
+          <li>Gmail data is never sold and is never used for advertising.</li>
+          <li>You can disconnect and revoke access at any time.</li>
+        </ul>
+        <p className="mt-4 text-sm text-text-muted">
+          Read more in our{" "}
+          <a href="/privacy-policy" className="text-accent hover:text-accent-hover">
+            Privacy Policy
+          </a>
+          .
+        </p>
+      </section>
+
+      {/* Footer — visible legal links required for verification. */}
+      <footer className="border-t border-border">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 px-4 py-8 text-sm text-text-muted sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <span>© {new Date().getFullYear()} JobTrackOS</span>
+          <nav className="flex items-center gap-4" aria-label="Legal">
+            <a href="/privacy-policy" className="text-accent hover:text-accent-hover">
+              Privacy Policy
+            </a>
+            <a href="/terms" className="text-accent hover:text-accent-hover">
+              Terms of Service
+            </a>
+          </nav>
+        </div>
+      </footer>
+    </main>
   );
 }
