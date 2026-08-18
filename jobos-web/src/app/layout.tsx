@@ -20,6 +20,9 @@ export const metadata: Metadata = {
     template: "%s · JobTrackOS",
   },
   applicationName: "JobTrackOS",
+  verification: {
+    google: "u1gIp8A23DWVeW47dbsKaoFSsMXwIGvH9LyRQcEFSPw",
+  },
   description:
     "Know where your career stands. Track job applications, organize Gmail job activity, and tailor resumes with JobTrackOS.",
 };
