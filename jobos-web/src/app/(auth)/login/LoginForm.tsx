@@ -10,6 +10,7 @@ import {
   describeOtpError,
   isPlausibleEmail,
 } from "@/lib/account/otp";
+import { buildSupabaseOAuthCallbackUrl } from "@/lib/supabase/oauthRedirect";
 import OtpStep from "../OtpStep";
 
 /** Why a previous sign-in attempt did not produce a session. */
@@ -176,12 +177,14 @@ export default function LoginForm() {
     try {
       // Supabase Auth flow only. The `next` hop is carried through the
       // callback so the user resumes their intended destination.
-      const callbackUrl = new URL("/auth/callback", window.location.origin);
-      callbackUrl.searchParams.set("next", next);
+      const callbackUrl = buildSupabaseOAuthCallbackUrl(
+        window.location.origin,
+        next
+      );
 
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: callbackUrl.toString() },
+        options: { redirectTo: callbackUrl },
       });
 
       if (oauthError) throw new Error(oauthError.message);

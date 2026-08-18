@@ -11,6 +11,7 @@ import {
   describeOtpError,
   isPlausibleEmail,
 } from "@/lib/account/otp";
+import { buildSupabaseOAuthCallbackUrl } from "@/lib/supabase/oauthRedirect";
 import OtpStep from "../OtpStep";
 
 /** Turn a provider error into something actionable. */
@@ -151,7 +152,9 @@ export default function SignupPage() {
     try {
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: {
+          redirectTo: buildSupabaseOAuthCallbackUrl(window.location.origin),
+        },
       });
 
       if (oauthError) throw new Error(oauthError.message);

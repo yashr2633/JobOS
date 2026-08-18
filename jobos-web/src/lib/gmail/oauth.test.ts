@@ -13,6 +13,7 @@ import {
   buildOAuthUrl,
   decodePendingState,
   encodePendingState,
+  exchangeCodeForTokens,
   generateOAuthState,
   getGmailRedirectUri,
   safeEqual,
@@ -163,9 +164,13 @@ test("requested scopes are read-only Gmail plus the minimum needed for sub", () 
   });
 });
 
-test("redirect URI points at the GET callback and is overridable by env", () => {
+test("redirect URI defaults to the local callback outside Vercel production", () => {
   withEnv(
-    { GOOGLE_CLIENT_ID: "test-client-id", GMAIL_OAUTH_REDIRECT_URI: undefined },
+    {
+      GOOGLE_CLIENT_ID: "test-client-id",
+      GMAIL_OAUTH_REDIRECT_URI: undefined,
+      VERCEL_ENV: undefined,
+    },
     () => {
       assert.equal(
         getGmailRedirectUri(),
@@ -178,14 +183,37 @@ test("redirect URI points at the GET callback and is overridable by env", () => 
       );
     }
   );
+});
 
+test("redirect URI defaults to the production callback on Vercel production", () => {
+  withEnv(
+    {
+      GOOGLE_CLIENT_ID: "test-client-id",
+      GMAIL_OAUTH_REDIRECT_URI: undefined,
+      VERCEL_ENV: "production",
+    },
+    () => {
+      const expected = "https://jobtrackos.vercel.app/api/gmail/callback";
+      assert.equal(getGmailRedirectUri(), expected);
+      const url = new URL(buildOAuthUrl(generateOAuthState()));
+      assert.equal(url.searchParams.get("redirect_uri"), expected);
+    }
+  );
+});
+
+test("an explicit Gmail redirect URI overrides every environment default", () => {
   withEnv(
     {
       GOOGLE_CLIENT_ID: "test-client-id",
       GMAIL_OAUTH_REDIRECT_URI: "https://app.example.com/api/gmail/callback",
+      VERCEL_ENV: "production",
     },
     () => {
       const url = new URL(buildOAuthUrl(generateOAuthState()));
+      assert.equal(
+        getGmailRedirectUri(),
+        "https://app.example.com/api/gmail/callback"
+      );
       assert.equal(
         url.searchParams.get("redirect_uri"),
         "https://app.example.com/api/gmail/callback"
@@ -215,4 +243,56 @@ test("missing client id fails loudly instead of building a broken URL", () => {
       /GOOGLE_CLIENT_ID is not configured/
     );
   });
+});
+
+test("authorize and token exchange use the same redirect URI", async () => {
+  const previousClientId = process.env.GOOGLE_CLIENT_ID;
+  const previousSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const previousRedirect = process.env.GMAIL_OAUTH_REDIRECT_URI;
+  const previousVercelEnv = process.env.VERCEL_ENV;
+  const previousFetch = globalThis.fetch;
+  let tokenRedirectUri: string | null = null;
+  const idToken = `header.${Buffer.from(
+    JSON.stringify({ sub: "google-subject" })
+  ).toString("base64url")}.signature`;
+
+  process.env.GOOGLE_CLIENT_ID = "test-client-id";
+  process.env.GOOGLE_CLIENT_SECRET = "test-client-secret";
+  delete process.env.GMAIL_OAUTH_REDIRECT_URI;
+  process.env.VERCEL_ENV = "production";
+  globalThis.fetch = async (_input, init) => {
+    tokenRedirectUri = new URLSearchParams(String(init?.body)).get(
+      "redirect_uri"
+    );
+    return new Response(
+      JSON.stringify({
+        access_token: "access-token",
+        id_token: idToken,
+        expires_in: 3600,
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  };
+
+  try {
+    const authorizeRedirectUri = new URL(
+      buildOAuthUrl(generateOAuthState())
+    ).searchParams.get("redirect_uri");
+    await exchangeCodeForTokens("authorization-code");
+    assert.equal(tokenRedirectUri, authorizeRedirectUri);
+    assert.equal(
+      tokenRedirectUri,
+      "https://jobtrackos.vercel.app/api/gmail/callback"
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousClientId === undefined) delete process.env.GOOGLE_CLIENT_ID;
+    else process.env.GOOGLE_CLIENT_ID = previousClientId;
+    if (previousSecret === undefined) delete process.env.GOOGLE_CLIENT_SECRET;
+    else process.env.GOOGLE_CLIENT_SECRET = previousSecret;
+    if (previousRedirect === undefined) delete process.env.GMAIL_OAUTH_REDIRECT_URI;
+    else process.env.GMAIL_OAUTH_REDIRECT_URI = previousRedirect;
+    if (previousVercelEnv === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = previousVercelEnv;
+  }
 });

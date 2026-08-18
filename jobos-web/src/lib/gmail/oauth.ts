@@ -30,18 +30,30 @@ export const GMAIL_STATE_COOKIE = "gmail_oauth_state";
 /** Pending-state lifetime. Short enough to bound replay, long enough to consent. */
 export const GMAIL_STATE_MAX_AGE_SECONDS = 600;
 
+/** The canonical production callback used when Vercel has no explicit override. */
+export const PRODUCTION_GMAIL_REDIRECT_URI =
+  "https://jobtrackos.vercel.app/api/gmail/callback";
+
+/** The local callback used outside Vercel production. */
+export const LOCAL_GMAIL_REDIRECT_URI =
+  "http://localhost:3000/api/gmail/callback";
+
 /**
  * Redirect URI Google sends the browser back to.
  *
  * Must exactly match an Authorized redirect URI in the Google Cloud OAuth
  * client, and must be identical on the authorize and token-exchange calls or
- * Google rejects the exchange with redirect_uri_mismatch.
+ * Google rejects the exchange with redirect_uri_mismatch. An explicit value
+ * always wins; otherwise Vercel production uses the deployed callback and
+ * local/non-Vercel development uses localhost.
  */
 export function getGmailRedirectUri(): string {
-  return (
-    process.env.GMAIL_OAUTH_REDIRECT_URI?.trim() ||
-    "http://localhost:3000/api/gmail/callback"
-  );
+  const configured = process.env.GMAIL_OAUTH_REDIRECT_URI?.trim();
+  if (configured) return configured;
+
+  return process.env.VERCEL_ENV === "production"
+    ? PRODUCTION_GMAIL_REDIRECT_URI
+    : LOCAL_GMAIL_REDIRECT_URI;
 }
 
 /** Cryptographically secure, unpredictable state value. */
