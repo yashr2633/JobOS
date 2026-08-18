@@ -1043,3 +1043,342 @@ test("no module sends status history to an AI provider", () => {
   assert.equal(/\bfetch\(/.test(dataLayer), false);
   assert.equal(/_API_KEY/.test(dataLayer), false);
 });
+
+// ===========================================================================
+// SPRINT 13 — Gmail OAuth token isolation (C-001)
+// ===========================================================================
+//
+// The browser and the server share one publishable/anon key, so a signed-in
+// user's session could read the OAuth secret columns off their own
+// gmail_connections row. These tests lock in the fix: token columns are read
+// and written only through a server-only service-role client, the ordinary
+// metadata read never selects them, and the migration revokes their SELECT from
+// the two client-facing roles — all without weakening RLS or ownership.
+
+const ADMIN_CLIENT = join(SRC_ROOT, "lib", "supabase", "admin.ts");
+const GMAIL_DATA_LAYER = join(SRC_ROOT, "lib", "api", "gmail.ts");
+const SPRINT13_MIGRATION = join(
+  process.cwd(),
+  "supabase-schema-sprint13-gmail-token-isolation.sql"
+);
+
+// ---------------------------------------------------------------------------
+// The service-role client is server-only and never public
+// ---------------------------------------------------------------------------
+
+test("the service-role admin client exists and is server-only", () => {
+  const source = readOptional(ADMIN_CLIENT);
+  assert.ok(source, "src/lib/supabase/admin.ts should exist");
+
+  // Reads the SERVER-ONLY key name, never a NEXT_PUBLIC_ one.
+  assert.match(source, /process\.env\.SUPABASE_SERVICE_ROLE_KEY/);
+  assert.equal(
+    /NEXT_PUBLIC_[A-Z_]*SERVICE_ROLE/.test(source),
+    false,
+    "the service-role key must never be exposed under a NEXT_PUBLIC_ name"
+  );
+
+  // Fails fast if ever pulled into a browser bundle.
+  assert.match(source, /typeof window !== "undefined"/);
+
+  // Non-persistent: no browser cookie session, nothing to auto-refresh.
+  assert.match(source, /persistSession:\s*false/);
+  assert.match(source, /autoRefreshToken:\s*false/);
+});
+
+test("no client component imports the service-role admin client", () => {
+  const offenders: string[] = [];
+
+  for (const file of sourceFiles()) {
+    const contents = read(file);
+    if (!isClientComponent(contents)) continue;
+
+    if (/from\s+["'][^"']*lib\/supabase\/admin["']|from\s+["'][^"']*supabase\/admin\.ts["']/.test(contents)) {
+      offenders.push(relative(file));
+    }
+  }
+
+  assert.deepEqual(
+    offenders,
+    [],
+    `the service-role client leaked into the client bundle:\n${offenders.join("\n")}`
+  );
+});
+
+test("SUPABASE_SERVICE_ROLE_KEY is never referenced under a NEXT_PUBLIC_ name", () => {
+  for (const file of sourceFiles()) {
+    const contents = read(file);
+    assert.equal(
+      /NEXT_PUBLIC_[A-Z_]*SERVICE_ROLE_KEY/.test(contents),
+      false,
+      `${relative(file)} exposes the service-role key to the browser`
+    );
+  }
+});
+
+// ---------------------------------------------------------------------------
+// The metadata read never selects the token columns
+// ---------------------------------------------------------------------------
+
+test("the token-free column list excludes both OAuth secret columns", () => {
+  const source = read(GMAIL_DATA_LAYER);
+
+  const match = source.match(/const TOKEN_FREE_COLUMNS\s*=\s*"([^"]*)"/);
+  assert.ok(match, "gmail.ts should define a TOKEN_FREE_COLUMNS list");
+
+  const columns = match[1];
+  assert.equal(
+    /\baccess_token\b/.test(columns),
+    false,
+    "the metadata column list must not include access_token"
+  );
+  assert.equal(
+    /\brefresh_token\b/.test(columns),
+    false,
+    "the metadata column list must not include refresh_token"
+  );
+
+  // The metadata read uses that list, not `*`.
+  assert.match(source, /\.select\(TOKEN_FREE_COLUMNS\)/);
+});
+
+test("the token-free metadata read routes through the service-role client", () => {
+  const source = read(GMAIL_DATA_LAYER);
+  const stripped = stripTsComments(source);
+
+  // Isolate `findRowForUser` — the read behind getGmailConnection /
+  // getGmailConnectionGoogleSub — from the token-row read that follows it.
+  const start = stripped.indexOf("async function findRowForUser");
+  const end = stripped.indexOf("async function findTokenRowForUser");
+  assert.ok(start >= 0, "findRowForUser should exist");
+  assert.ok(end > start, "findTokenRowForUser should follow findRowForUser");
+  const metadataRead = stripped.slice(start, end);
+
+  // Sprint 14 removed table-level SELECT on gmail_connections from the
+  // authenticated/anon roles, so a metadata read under the caller's
+  // authenticated client raises `42501 permission denied for table
+  // gmail_connections`. The read must therefore obtain the service-role client,
+  // exactly as the token read does — this assertion is the corrected, more
+  // secure behaviour (the read previously ran on the passed-in authenticated
+  // client, which is what produced the production permission error).
+  assert.match(
+    metadataRead,
+    /const admin = createAdminClient\(\)/,
+    "findRowForUser must read via the service-role client, not the authenticated client"
+  );
+
+  // It still selects ONLY the token-free columns — never `*` — so no OAuth
+  // secret is ever read on this path even with a privileged client.
+  assert.match(metadataRead, /\.select\(TOKEN_FREE_COLUMNS\)/);
+  assert.doesNotMatch(
+    metadataRead,
+    /\.select\(\s*"\*"\s*\)/,
+    "the metadata read must never select all columns"
+  );
+
+  // And the ownership predicate is preserved: the privileged client only ever
+  // reads the caller's own row.
+  assert.match(metadataRead, /\.eq\("user_id", userId\)/);
+});
+
+// ---------------------------------------------------------------------------
+// Token I/O goes through the service-role client, ownership predicates intact
+// ---------------------------------------------------------------------------
+
+test("token reads and writes route through the service-role client", () => {
+  const source = read(GMAIL_DATA_LAYER);
+  const stripped = stripTsComments(source);
+
+  // The data layer obtains the admin client and uses it for the token row read.
+  assert.match(stripped, /import\s*\{\s*createAdminClient\s*\}\s*from\s+["'][^"']*supabase\/admin\.ts["']/);
+  assert.match(stripped, /async function findTokenRowForUser/);
+  assert.match(stripped, /const admin = createAdminClient\(\)/);
+
+  // The token read is still owner-scoped.
+  assert.match(
+    stripped,
+    /findTokenRowForUser[\s\S]*?\.from\("gmail_connections"\)[\s\S]*?\.eq\("user_id", userId\)/
+  );
+
+  // getGmailTokensForServer reads via the token row, not the metadata read.
+  assert.match(
+    stripped,
+    /getGmailTokensForServer[\s\S]*?findTokenRowForUser\(resolvedUserId\)/
+  );
+
+  // Every token-column write goes through `admin.from`, never the passed-in
+  // authenticated client, and keeps its user_id predicate.
+  assert.match(stripped, /await admin\s*\n?\s*\.from\("gmail_connections"\)\s*\n?\s*\.insert/);
+  const adminUpdates = stripped.match(/await admin\s*\.from\("gmail_connections"\)\s*\.update/g) ?? [];
+  assert.ok(
+    adminUpdates.length >= 3,
+    "upsert, refresh, disconnect and deactivate token writes must use the service-role client"
+  );
+});
+
+test("the public GmailConnection shape still carries no token fields", () => {
+  const source = read(GMAIL_DATA_LAYER);
+  const iface = source.match(/export interface GmailConnection \{[\s\S]*?\n\}/);
+  assert.ok(iface, "the GmailConnection interface should exist");
+  assert.equal(
+    /access_token|refresh_token|accessToken|refreshToken/.test(iface[0]),
+    false,
+    "no token field may ever be returned to callers"
+  );
+});
+
+// ---------------------------------------------------------------------------
+// The migration revokes token-column SELECT without weakening RLS
+// ---------------------------------------------------------------------------
+
+test("the Sprint 13 migration revokes token-column SELECT from both client roles", () => {
+  const sql = readOptional(SPRINT13_MIGRATION);
+  assert.ok(sql, "supabase-schema-sprint13-gmail-token-isolation.sql should exist");
+
+  const executable = stripSqlComments(sql);
+
+  for (const role of ["authenticated", "anon"]) {
+    assert.match(
+      executable,
+      new RegExp(
+        `REVOKE\\s+SELECT\\s*\\(\\s*access_token\\s*,\\s*refresh_token\\s*\\)\\s*ON\\s+public\\.gmail_connections\\s*FROM\\s+${role}`,
+        "i"
+      ),
+      `the migration must revoke token-column SELECT from ${role}`
+    );
+  }
+});
+
+test("the Sprint 13 migration does not weaken RLS or ownership", () => {
+  const sql = readOptional(SPRINT13_MIGRATION);
+  assert.ok(sql, "supabase-schema-sprint13-gmail-token-isolation.sql should exist");
+
+  const executable = stripSqlComments(sql);
+
+  assert.equal(/DISABLE ROW LEVEL SECURITY/i.test(executable), false);
+  assert.equal(/DROP POLICY/i.test(executable), false);
+  assert.equal(/DROP TABLE/i.test(executable), false);
+  assert.equal(/DROP COLUMN/i.test(executable), false);
+  assert.equal(/ALTER COLUMN/i.test(executable), false);
+  // A blanket re-grant would undo the revoke.
+  assert.equal(
+    /GRANT\s+SELECT[\s\S]*gmail_connections/i.test(executable),
+    false,
+    "the migration must not re-grant table-wide SELECT"
+  );
+});
+
+// ===========================================================================
+// SPRINT 14 — table-level SELECT correction (C-001 follow-up)
+// ===========================================================================
+//
+// Sprint 13's column-level REVOKE was ineffective while the client roles kept
+// TABLE-LEVEL SELECT: in PostgreSQL a role reads a column if it has EITHER a
+// table-level OR a column-level grant, and a column REVOKE cannot subtract from
+// a table grant. Sprint 14 removes the table-wide SELECT and re-grants SELECT on
+// ONLY the token-free columns to `authenticated`. These tests lock that in.
+
+const SPRINT14_MIGRATION = join(
+  process.cwd(),
+  "supabase-schema-sprint14-gmail-token-grant-fix.sql"
+);
+
+test("the Sprint 14 migration removes table-wide SELECT from both client roles", () => {
+  const sql = readOptional(SPRINT14_MIGRATION);
+  assert.ok(sql, "supabase-schema-sprint14-gmail-token-grant-fix.sql should exist");
+
+  const executable = stripSqlComments(sql);
+
+  for (const role of ["authenticated", "anon"]) {
+    assert.match(
+      executable,
+      new RegExp(
+        `REVOKE\\s+SELECT\\s+ON\\s+public\\.gmail_connections\\s+FROM\\s+${role}`,
+        "i"
+      ),
+      `the migration must revoke table-level SELECT from ${role}`
+    );
+  }
+});
+
+test("the Sprint 14 migration re-grants SELECT on exactly the token-free columns", () => {
+  const sql = readOptional(SPRINT14_MIGRATION);
+  assert.ok(sql, "supabase-schema-sprint14-gmail-token-grant-fix.sql should exist");
+
+  const executable = stripSqlComments(sql);
+
+  // Exactly one GRANT SELECT (...) block, to authenticated only.
+  const grant = executable.match(
+    /GRANT\s+SELECT\s*\(([\s\S]*?)\)\s*ON\s+public\.gmail_connections\s+TO\s+authenticated/i
+  );
+  assert.ok(grant, "the migration must grant column-level SELECT to authenticated");
+
+  const grantedColumns = grant[1]
+    .split(",")
+    .map((column) => column.trim())
+    .filter((column) => column.length > 0)
+    .sort();
+
+  // The list must match TOKEN_FREE_COLUMNS in gmail.ts exactly — no more, no less.
+  const dataLayer = read(GMAIL_DATA_LAYER);
+  const tokenFree = dataLayer.match(/const TOKEN_FREE_COLUMNS\s*=\s*\n?\s*"([^"]*)"/);
+  assert.ok(tokenFree, "gmail.ts should define TOKEN_FREE_COLUMNS");
+
+  const expectedColumns = tokenFree[1]
+    .split(",")
+    .map((column) => column.trim())
+    .filter((column) => column.length > 0)
+    .sort();
+
+  assert.deepEqual(
+    grantedColumns,
+    expectedColumns,
+    "the GRANT column list must exactly match TOKEN_FREE_COLUMNS"
+  );
+});
+
+test("the Sprint 14 migration never grants the OAuth secret columns to a client role", () => {
+  const sql = readOptional(SPRINT14_MIGRATION);
+  assert.ok(sql, "supabase-schema-sprint14-gmail-token-grant-fix.sql should exist");
+
+  const executable = stripSqlComments(sql);
+
+  // No GRANT anywhere may include a token column.
+  const grants = executable.match(/GRANT[\s\S]*?;/gi) ?? [];
+  for (const grant of grants) {
+    assert.equal(
+      /\baccess_token\b/.test(grant),
+      false,
+      "access_token must never be granted to a client role"
+    );
+    assert.equal(
+      /\brefresh_token\b/.test(grant),
+      false,
+      "refresh_token must never be granted to a client role"
+    );
+  }
+
+  // anon is deliberately not re-granted SELECT, and table-wide SELECT is not
+  // restored to either client role.
+  assert.equal(
+    /GRANT\s+SELECT\s*\([\s\S]*?\)\s*ON\s+public\.gmail_connections\s+TO\s+anon/i.test(
+      executable
+    ),
+    false,
+    "anon must not be re-granted column SELECT"
+  );
+  assert.equal(
+    /GRANT\s+SELECT\s+ON\s+public\.gmail_connections\s+TO\s+(?:authenticated|anon)/i.test(
+      executable
+    ),
+    false,
+    "table-wide SELECT must not be re-granted to a client role"
+  );
+
+  // service_role privileges are not touched by this migration.
+  assert.equal(
+    /service_role/i.test(executable),
+    false,
+    "the migration must not alter service_role privileges"
+  );
+});

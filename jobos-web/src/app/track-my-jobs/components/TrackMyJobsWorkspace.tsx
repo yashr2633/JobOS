@@ -608,13 +608,21 @@ export default function TrackMyJobsWorkspace({
         </div>
 
         {scanning && (
-          <div className="mt-4 flex items-center gap-3">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-border-strong border-t-blue-500" />
-            <p className="text-sm text-text-secondary">
-              Scanned {progress?.messagesSeen ?? 0} emails,{" "}
-              {progress?.candidates ?? 0} look job-related. You can leave this
-              page — the scan resumes where it stopped.
-            </p>
+          <div className="mt-4 flex items-start gap-3">
+            <div className="mt-0.5 h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-border-strong border-t-blue-500" />
+            <div>
+              <p className="text-sm font-medium text-text">
+                Scanning your Gmail for applications…
+              </p>
+              <p className="mt-0.5 text-sm text-text-secondary">
+                This can take a little while depending on your mailbox size. You
+                can leave this page — the scan resumes where it stopped.
+              </p>
+              <p className="mt-1 text-xs text-text-muted">
+                Scanned {progress?.messagesSeen ?? 0} emails,{" "}
+                {progress?.candidates ?? 0} look job-related.
+              </p>
+            </div>
           </div>
         )}
 

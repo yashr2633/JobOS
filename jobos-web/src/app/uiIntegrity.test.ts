@@ -581,11 +581,23 @@ test("the shortcut does not duplicate the scanner", () => {
   );
 });
 
-test("the shortcut label reflects connection state", () => {
+test("the primary tracking action always reads Track My Applications", () => {
   const page = read("app/page.tsx");
-  // A user without Gmail cannot "track applications" yet, so the label must not
-  // promise it.
-  assert.match(page, /gmailConnected \? "Track My Applications" : "Connect Gmail"/);
+  // The primary dashboard action is now a single, constant label for both the
+  // connected and not-connected states. The section it targets handles the
+  // difference: it starts the Gmail OAuth connect flow when there is no
+  // connection yet, and runs the scan once connected. So the CTA must never
+  // switch to "Connect Gmail" based on connection state.
+  assert.match(
+    page,
+    /Track My Applications\s*\n?\s*<span aria-hidden="true">↓<\/span>/,
+    "the shortcut label is a constant Track My Applications"
+  );
+  assert.doesNotMatch(
+    page,
+    /gmailConnected \? "Track My Applications" : "Connect Gmail"/,
+    "the label must not toggle to Connect Gmail"
+  );
 });
 
 test("the anchor target clears the sticky header", () => {

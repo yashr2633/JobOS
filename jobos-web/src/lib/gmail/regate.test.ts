@@ -17,6 +17,7 @@ import test from "node:test";
 
 import { runLegacyRegate } from "./regate.ts";
 import type { EmailCategory } from "./heuristics.ts";
+import { __setAdminClientFactoryForTests } from "../supabase/admin.ts";
 
 // ---------------------------------------------------------------------------
 // In-memory Supabase fake (records applied filters)
@@ -313,9 +314,16 @@ class FakeQuery implements PromiseLike<FakeResult> {
 }
 
 function client(db: FakeDatabase): Parameters<typeof runLegacyRegate>[0] {
-  return { from: (table: string) => db.from(table) } as unknown as Parameters<
+  const fake = { from: (table: string) => db.from(table) } as unknown as Parameters<
     typeof runLegacyRegate
   >[0];
+
+  // The token read (getGmailTokensForServer) now goes through the service-role
+  // client, not this passed-in client. Point that privileged client at the same
+  // in-memory fake so the connection row this test seeds is what gets read.
+  __setAdminClientFactoryForTests(() => fake as never);
+
+  return fake;
 }
 
 // ---------------------------------------------------------------------------

@@ -10,6 +10,16 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+// Server-only service-role client. Used by the token-column read/write paths
+// below (Sprint 13 revoked column SELECT on access_token/refresh_token), and
+// ALSO by the token-free metadata read: Sprint 14 removed table-level SELECT on
+// gmail_connections from the authenticated/anon roles, so a metadata read under
+// the authenticated client now fails with `42501 permission denied for table
+// gmail_connections`. The authenticated client passed in by callers is still
+// used by `resolveUserId` to identify the caller, and every statement keeps its
+// user_id/id predicate — the service-role client only restores read access, it
+// is never a general ownership bypass.
+import { createAdminClient } from "../supabase/admin.ts";
 
 /** Raised when a Gmail identity may not be bound to this JobTrackOS account. */
 export class GmailIdentityMismatchError extends Error {
@@ -78,7 +88,30 @@ function normalizeEmailAddress(value: string | null | undefined): string | null 
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function mapConnection(row: GmailConnectionRow): GmailConnection {
+/**
+ * Every column on gmail_connections EXCEPT the two OAuth secret columns.
+ *
+ * Metadata reads select this explicit list rather than `*` so they never touch
+ * `access_token`/`refresh_token` — the columns whose SELECT is revoked from the
+ * authenticated/anon roles. Keeping it exhaustive means the metadata path
+ * behaves exactly as the old `.select("*")` did, minus the secrets.
+ */
+const TOKEN_FREE_COLUMNS =
+  "id, user_id, expires_at, token_type, google_sub, scopes, gmail_address, is_active, created_at, updated_at, last_sync_at, history_id, last_full_sync_at";
+
+/**
+ * The connection row without its OAuth secret columns.
+ *
+ * This is what the token-free metadata read returns. A full `GmailConnectionRow`
+ * is structurally assignable to it, so the token read path can reuse the same
+ * mappers.
+ */
+type GmailConnectionMetadataRow = Omit<
+  GmailConnectionRow,
+  "access_token" | "refresh_token"
+>;
+
+function mapConnection(row: GmailConnectionMetadataRow): GmailConnection {
   return {
     id: row.id,
     userId: row.user_id,
@@ -116,15 +149,67 @@ async function resolveUserId(
   return user.id;
 }
 
-/** Fetch this user's connection row regardless of active state. */
+/**
+ * Fetch this user's connection row (token-free) regardless of active state.
+ *
+ * Uses the server-only SERVICE-ROLE client and selects only the non-secret
+ * columns. This is the read behind `getGmailConnection` /
+ * `getGmailConnectionGoogleSub`: neither needs a token.
+ *
+ * Why the service-role client and not the caller's authenticated client:
+ * Sprint 14 removed TABLE-level SELECT on public.gmail_connections from the
+ * `authenticated`/`anon` roles and re-granted SELECT on only the token-free
+ * columns. In PostgreSQL, once a role holds no table-level SELECT, a metadata
+ * read executed under that role raises `42501 permission denied for table
+ * gmail_connections` (the same class of error `findTokenRowForUser` avoids for
+ * the token columns). The service-role client is not subject to RLS or column
+ * grants, so the read succeeds — while this function still selects ONLY
+ * TOKEN_FREE_COLUMNS (never `*`) so no OAuth secret is ever read here, and still
+ * constrains the read to the caller's own `user_id`. The user id is resolved by
+ * the callers via `resolveUserId` on the AUTHENTICATED client, so ownership is
+ * still established from the real session, not from this privileged client.
+ */
 async function findRowForUser(
-  supabase: SupabaseClient,
   userId: string
-): Promise<GmailConnectionRow | null> {
+): Promise<GmailConnectionMetadataRow | null> {
+  const admin = createAdminClient();
+
   // limit(1) rather than maybeSingle(): maybeSingle throws if more than one
   // row somehow exists, which would make the integration unrecoverable
   // through the UI.
-  const { data, error } = await supabase
+  const { data, error } = await admin
+    .from("gmail_connections")
+    .select(TOKEN_FREE_COLUMNS)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (error) {
+    console.error("Error fetching Gmail connection row:", error);
+    throw error;
+  }
+
+  return (data?.[0] as GmailConnectionMetadataRow | undefined) ?? null;
+}
+
+/**
+ * Fetch this user's connection row INCLUDING the OAuth token columns.
+ *
+ * Uses the server-only service-role client, because SELECT on
+ * `access_token`/`refresh_token` is revoked from the authenticated/anon roles.
+ * This is the ONLY read that returns token values, and it is reachable only
+ * from the server-only token functions below.
+ *
+ * The `user_id` predicate is preserved exactly: the service role is not a
+ * general bypass, it only restores read access to two columns the application
+ * already owned server-side.
+ */
+async function findTokenRowForUser(
+  userId: string
+): Promise<GmailConnectionRow | null> {
+  const admin = createAdminClient();
+
+  const { data, error } = await admin
     .from("gmail_connections")
     .select("*")
     .eq("user_id", userId)
@@ -132,7 +217,7 @@ async function findRowForUser(
     .limit(1);
 
   if (error) {
-    console.error("Error fetching Gmail connection row:", error);
+    console.error("Error fetching Gmail token row:", error);
     throw error;
   }
 
@@ -170,7 +255,11 @@ export async function upsertGmailConnection(
   input: UpsertGmailConnectionInput
 ): Promise<GmailConnection> {
   const userId = await resolveUserId(supabase, input.userId);
-  const existing = await findRowForUser(supabase, userId);
+  // The token columns are read back (refresh-token fallback) and written here,
+  // so this path uses the service-role client throughout. The user_id/id
+  // predicates below are unchanged.
+  const admin = createAdminClient();
+  const existing = await findTokenRowForUser(userId);
 
   const scopes =
     input.scopes && input.scopes.length > 0
@@ -201,7 +290,7 @@ export async function upsertGmailConnection(
 
     // Reusing the row left behind by a disconnect. A different Google identity
     // is permitted here precisely because the user explicitly disconnected.
-    const { data, error } = await supabase
+    const { data, error } = await admin
       .from("gmail_connections")
       .update({
         access_token: input.accessToken,
@@ -250,7 +339,7 @@ export async function upsertGmailConnection(
     );
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from("gmail_connections")
     .insert({
       user_id: userId,
@@ -292,7 +381,7 @@ export async function getGmailConnectionGoogleSub(
   userId?: string
 ): Promise<string | null> {
   const resolvedUserId = await resolveUserId(supabase, userId);
-  const row = await findRowForUser(supabase, resolvedUserId);
+  const row = await findRowForUser(resolvedUserId);
 
   if (!row || !row.is_active) return null;
   return row.google_sub ?? null;
@@ -304,7 +393,7 @@ export async function getGmailConnection(
   userId?: string
 ): Promise<GmailConnection | null> {
   const resolvedUserId = await resolveUserId(supabase, userId);
-  const row = await findRowForUser(supabase, resolvedUserId);
+  const row = await findRowForUser(resolvedUserId);
 
   if (!row || !row.is_active) return null;
   return mapConnection(row);
@@ -323,7 +412,10 @@ export async function disconnectGmail(
 ): Promise<void> {
   const resolvedUserId = await resolveUserId(supabase, userId);
 
-  const { error } = await supabase
+  // Blanks the token columns, so it uses the service-role client. The user_id
+  // predicate is unchanged, so this only ever clears the caller's own row.
+  const admin = createAdminClient();
+  const { error } = await admin
     .from("gmail_connections")
     .update({
       is_active: false,
@@ -372,8 +464,10 @@ export async function getGmailTokensForServer(
   supabase: SupabaseClient,
   userId?: string
 ): Promise<ServerGmailTokens | null> {
+  // resolveUserId still uses the authenticated client to identify the caller;
+  // only the token-column read itself is routed through the service-role client.
   const resolvedUserId = await resolveUserId(supabase, userId);
-  const row = await findRowForUser(supabase, resolvedUserId);
+  const row = await findTokenRowForUser(resolvedUserId);
 
   if (!row || !row.is_active) return null;
   if (!row.access_token || !row.refresh_token) return null;
@@ -470,7 +564,10 @@ export async function saveRefreshedGmailTokens(
     patch.refresh_token = input.refreshToken;
   }
 
-  const { error } = await supabase
+  // Writes the token columns, so it uses the service-role client. The
+  // user_id/is_active predicates are unchanged, so ownership scoping is intact.
+  const admin = createAdminClient();
+  const { error } = await admin
     .from("gmail_connections")
     .update(patch)
     .eq("user_id", userId)
@@ -493,7 +590,10 @@ export async function deactivateGmailConnection(
   supabase: SupabaseClient,
   userId: string
 ): Promise<void> {
-  const { error } = await supabase
+  // Blanks the token columns, so it uses the service-role client. The user_id
+  // predicate is unchanged, so this only ever affects the caller's own row.
+  const admin = createAdminClient();
+  const { error } = await admin
     .from("gmail_connections")
     .update({
       is_active: false,

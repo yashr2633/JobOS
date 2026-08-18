@@ -129,6 +129,46 @@ export default function GmailScanModule({
   const [scanFinished, setScanFinished] = useState(false);
   /** What this session's scan reported. Null fields stay unreported. */
   const [liveTotals, setLiveTotals] = useState<ScanRunTotals | null>(null);
+  /** True while the not-connected CTA is starting the OAuth connect flow. */
+  const [connecting, setConnecting] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
+
+  /**
+   * Start the EXISTING Gmail OAuth connect flow.
+   *
+   * Reuses the same server endpoint the integrations page uses
+   * (`POST /api/gmail/oauth`): the server mints and stores the httpOnly OAuth
+   * state and returns only the Google authorization URL, which this triggers a
+   * top-level navigation to. No OAuth scope, redirect, or security detail is
+   * changed here — this is purely the entry point, so the primary
+   * "Track My Applications" action can begin connecting when there is no
+   * connection yet. After Google returns the user to the integrations page they
+   * come back to the dashboard and this same section runs the scan.
+   */
+  const startConnect = useCallback(async () => {
+    setConnecting(true);
+    setConnectError(null);
+
+    try {
+      const response = await fetch("/api/gmail/oauth", { method: "POST" });
+      const data = (await response.json().catch(() => ({}))) as {
+        oauthUrl?: string;
+        error?: string;
+      };
+
+      if (!response.ok || !data.oauthUrl) {
+        throw new Error(data.error ?? "Could not start the Gmail connection.");
+      }
+
+      // Top-level navigation, required for the Google consent screen.
+      window.location.assign(data.oauthUrl);
+    } catch (err: unknown) {
+      setConnectError(
+        err instanceof Error ? err.message : "Could not connect Gmail."
+      );
+      setConnecting(false);
+    }
+  }, []);
 
   const runScan = useCallback(async () => {
     setScanning(true);
@@ -241,13 +281,26 @@ export default function GmailScanModule({
               made — automatically, read-only.
             </p>
           </div>
-          <Link
-            href="/settings/integrations"
-            className="inline-flex shrink-0 items-center gap-2 rounded-md bg-accent px-3.5 py-2 text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover"
+          {/* The primary action begins the Gmail OAuth connect flow directly, so
+              a not-yet-connected user can start tracking in one click. Styled as
+              the primary action to match the connected state's Track button. */}
+          <button
+            type="button"
+            onClick={() => void startConnect()}
+            disabled={connecting}
+            className="inline-flex shrink-0 items-center gap-2 rounded-md bg-accent px-3.5 py-2 text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Connect Gmail
-          </Link>
+            {connecting ? "Connecting..." : "Track My Applications"}
+          </button>
         </div>
+        {connectError && (
+          <p className="mt-3 rounded-md border border-danger/20 bg-danger-bg px-3 py-2 text-sm text-danger">
+            {connectError}{" "}
+            <Link href="/settings/integrations" className="underline">
+              Open Gmail settings
+            </Link>
+          </p>
+        )}
       </section>
     );
   }
@@ -308,7 +361,7 @@ export default function GmailScanModule({
           disabled={scanning}
           className="rounded-md bg-accent px-3.5 py-1.5 text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {scanning ? "Syncing..." : resumable ? "Resume sync" : "Track applications"}
+          {scanning ? "Syncing..." : resumable ? "Resume sync" : "Track My Applications"}
         </button>
 
         {/* Compact, always-visible counts — the detail an interested user can
@@ -324,12 +377,21 @@ export default function GmailScanModule({
       </div>
 
       {scanning && (
-        <div className="mt-3 flex items-center gap-2.5">
-          <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-border-strong border-t-accent" />
-          <p className="text-xs text-text-secondary">
-            Read {progress?.messagesSeen ?? 0} emails, {progress?.candidates ?? 0}{" "}
-            look job-related. You can leave this page.
-          </p>
+        <div className="mt-3 flex items-start gap-2.5">
+          <div className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-border-strong border-t-accent" />
+          <div>
+            <p className="text-sm font-medium text-text">
+              Scanning your Gmail for applications…
+            </p>
+            <p className="mt-0.5 text-xs text-text-secondary">
+              This can take a little while depending on your mailbox size. You
+              can leave this page — the scan resumes where it stopped.
+            </p>
+            <p className="mt-1 text-xs text-text-muted">
+              Read {progress?.messagesSeen ?? 0} emails,{" "}
+              {progress?.candidates ?? 0} look job-related.
+            </p>
+          </div>
         </div>
       )}
 

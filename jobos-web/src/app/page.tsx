@@ -259,14 +259,20 @@ export default async function Home({ searchParams }: HomeProps) {
                 `scroll-behavior`, which the reduced-motion rule already disables
                 for users who ask for that.
 
-                The label reflects connection state so it never promises a scan a
-                new user cannot yet run.
+                The label is always "Track My Applications": the tracking section
+                it targets handles both states — it starts the Gmail connect flow
+                when there is no connection yet, and runs the scan once connected.
               */}
               <a
                 href="#gmail-tracking"
                 className="inline-flex min-h-[36px] items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-2 hover:text-text"
               >
-                {gmailConnected ? "Track My Applications" : "Connect Gmail"}
+                {/* Always the same primary action, connected or not. When Gmail
+                    is not yet connected the tracking section it lands on starts
+                    the OAuth connect flow directly; when it is connected that
+                    section runs the scan. The label never changes to "Connect
+                    Gmail", so the primary action reads consistently. */}
+                Track My Applications
                 <span aria-hidden="true">↓</span>
               </a>
             </div>
