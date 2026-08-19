@@ -434,6 +434,11 @@ function PublicHome() {
           rejection, and understand your job search at a glance — so you always
           know where things stand.
         </p>
+        <p className="mt-4 max-w-2xl text-base leading-7 text-text-secondary">
+          JobTrackOS helps job seekers organize and track their job
+          applications in one place. Users can monitor application statuses,
+          manage opportunities, and keep their job search organized.
+        </p>
 
         <div className="mt-8 flex flex-wrap gap-3">
           <a
@@ -493,6 +498,11 @@ function PublicHome() {
           JobTrackOS can optionally use read-only Gmail access to identify job
           application-related emails and help keep your application tracking
           information up to date.
+        </p>
+        <p className="mt-4 max-w-2xl text-base leading-7 text-text-secondary">
+          When you connect Gmail, JobTrackOS can identify relevant
+          job-application emails and use those updates to help keep your
+          application information organized and up to date.
         </p>
         <ul className="mt-4 max-w-2xl list-disc space-y-1.5 pl-5 text-sm leading-6 text-text-secondary">
           <li>Gmail is optional — JobTrackOS works without connecting it.</li>
