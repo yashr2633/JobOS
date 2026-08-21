@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     "How JobTrackOS handles your account information and optional Gmail data.",
 };
 
-const LAST_UPDATED = "August 19, 2026";
+const LAST_UPDATED = "August 21, 2026";
 
 /** Official monitored support address (matches Google OAuth Branding). */
 const SUPPORT_EMAIL = "kenilja946@gmail.com";
@@ -144,13 +144,64 @@ export default function PrivacyPolicyPage() {
               Data storage and security
             </h2>
             <p>
-              Your data is stored using a managed backend platform that provides
-              JobTrackOS&apos;s database and authentication. Access to your
-              records is scoped to your account. Gmail authorization tokens are
-              handled by server-side code and are not exposed to the browser. No
-              method of storage or transmission is perfectly secure, so we cannot
-              guarantee absolute security, but access is limited to what the
-              service requires to function.
+              JobTrackOS implements technical and access-control measures to
+              protect your data:
+            </p>
+            <ul className="mt-3 list-disc space-y-1.5 pl-5">
+              <li>
+                <span className="font-medium text-text">
+                  Server-side credential handling:
+                </span>{" "}
+                Gmail OAuth tokens and authorization credentials are processed
+                exclusively by server-side code and are never exposed to browser
+                or client-side JavaScript.
+              </li>
+              <li>
+                <span className="font-medium text-text">
+                  Restricted database access:
+                </span>{" "}
+                Access to Gmail connection and token data is restricted to
+                server-side processes with elevated privileges required for the
+                Gmail integration. These credentials are not accessible through
+                client-facing database queries or API responses.
+              </li>
+              <li>
+                <span className="font-medium text-text">
+                  Account-level authorization:
+                </span>{" "}
+                Your application records, Gmail activity data, resumes, and other
+                personal information are protected by Row Level Security (RLS)
+                policies that restrict database access to your authenticated
+                account. Users cannot access data belonging to other users.
+              </li>
+              <li>
+                <span className="font-medium text-text">
+                  Encrypted transmission:
+                </span>{" "}
+                All data transmitted between your browser and JobTrackOS is
+                encrypted using HTTPS/TLS.
+              </li>
+              <li>
+                <span className="font-medium text-text">Data usage scope:</span>{" "}
+                Gmail data is accessed solely for the job-tracking functionality
+                you request. It is not sold, used for advertising, or shared for
+                purposes outside the service.
+              </li>
+              <li>
+                <span className="font-medium text-text">
+                  Credential clearing on disconnect:
+                </span>{" "}
+                When you disconnect Gmail, the stored OAuth access tokens and
+                refresh tokens are immediately cleared from the database,
+                revoking JobTrackOS&apos;s stored access.
+              </li>
+            </ul>
+            <p className="mt-3">
+              While we implement these protections, no method of electronic
+              storage or transmission is completely secure. We cannot guarantee
+              absolute security, but we limit data access to what the service
+              requires to function and apply safeguards appropriate to the
+              sensitivity of the information.
             </p>
           </section>
 
