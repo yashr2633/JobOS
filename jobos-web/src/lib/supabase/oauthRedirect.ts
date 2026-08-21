@@ -1,5 +1,6 @@
 /** Canonical origins used by the browser-based Supabase OAuth callbacks. */
-export const PRODUCTION_APP_ORIGIN = "https://jobtrackos.vercel.app";
+export const PRODUCTION_APP_ORIGIN = "https://jobtrackos.online";
+export const VERCEL_APP_ORIGIN = "https://jobtrackos.vercel.app";
 export const LOCAL_APP_ORIGIN = "http://localhost:3000";
 
 /**
@@ -15,8 +16,9 @@ export function buildSupabaseOAuthCallbackUrl(
   next?: string
 ): string {
   const parsedOrigin = new URL(browserOrigin).origin;
+  // Normalize both production origins to the canonical custom domain
   const origin =
-    parsedOrigin === PRODUCTION_APP_ORIGIN
+    parsedOrigin === PRODUCTION_APP_ORIGIN || parsedOrigin === VERCEL_APP_ORIGIN
       ? PRODUCTION_APP_ORIGIN
       : parsedOrigin === LOCAL_APP_ORIGIN
         ? LOCAL_APP_ORIGIN

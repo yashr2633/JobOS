@@ -10,6 +10,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { PRODUCTION_APP_ORIGIN, VERCEL_APP_ORIGIN } from "@/lib/supabase/oauthRedirect";
 
 /**
  * Only allow same-origin relative paths as a post-login destination, so a
@@ -57,7 +58,11 @@ function classifyProviderError(description: string): string {
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
-  const origin = requestUrl.origin;
+  // Normalize vercel.app to the canonical production domain for all redirects.
+  // This ensures users who start on jobtrackos.online stay on jobtrackos.online
+  // throughout the OAuth flow, even if the request arrives via vercel.app.
+  const rawOrigin = requestUrl.origin;
+  const origin = rawOrigin === VERCEL_APP_ORIGIN ? PRODUCTION_APP_ORIGIN : rawOrigin;
 
   const code = requestUrl.searchParams.get("code");
   const next = safeNextPath(requestUrl.searchParams.get("next"));

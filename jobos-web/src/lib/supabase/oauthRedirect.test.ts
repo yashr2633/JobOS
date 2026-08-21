@@ -7,12 +7,20 @@ import {
   buildSupabaseOAuthCallbackUrl,
   LOCAL_APP_ORIGIN,
   PRODUCTION_APP_ORIGIN,
+  VERCEL_APP_ORIGIN,
 } from "./oauthRedirect.ts";
 
 test("Google production callback uses the canonical production origin", () => {
   assert.equal(
     buildSupabaseOAuthCallbackUrl(PRODUCTION_APP_ORIGIN, "/applications"),
-    "https://jobtrackos.vercel.app/auth/callback?next=%2Fapplications"
+    "https://jobtrackos.online/auth/callback?next=%2Fapplications"
+  );
+});
+
+test("Vercel app origin is normalized to the canonical production domain", () => {
+  assert.equal(
+    buildSupabaseOAuthCallbackUrl(VERCEL_APP_ORIGIN, "/applications"),
+    "https://jobtrackos.online/auth/callback?next=%2Fapplications"
   );
 });
 
