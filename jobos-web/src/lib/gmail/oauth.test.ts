@@ -193,7 +193,7 @@ test("redirect URI defaults to the production callback on Vercel production", ()
       VERCEL_ENV: "production",
     },
     () => {
-      const expected = "https://jobtrackos.vercel.app/api/gmail/callback";
+      const expected = "https://jobtrackos.online/api/gmail/callback";
       assert.equal(getGmailRedirectUri(), expected);
       const url = new URL(buildOAuthUrl(generateOAuthState()));
       assert.equal(url.searchParams.get("redirect_uri"), expected);
@@ -282,7 +282,7 @@ test("authorize and token exchange use the same redirect URI", async () => {
     assert.equal(tokenRedirectUri, authorizeRedirectUri);
     assert.equal(
       tokenRedirectUri,
-      "https://jobtrackos.vercel.app/api/gmail/callback"
+      "https://jobtrackos.online/api/gmail/callback"
     );
   } finally {
     globalThis.fetch = previousFetch;

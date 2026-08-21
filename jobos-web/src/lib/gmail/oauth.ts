@@ -32,7 +32,7 @@ export const GMAIL_STATE_MAX_AGE_SECONDS = 600;
 
 /** The canonical production callback used when Vercel has no explicit override. */
 export const PRODUCTION_GMAIL_REDIRECT_URI =
-  "https://jobtrackos.vercel.app/api/gmail/callback";
+  "https://jobtrackos.online/api/gmail/callback";
 
 /** The local callback used outside Vercel production. */
 export const LOCAL_GMAIL_REDIRECT_URI =

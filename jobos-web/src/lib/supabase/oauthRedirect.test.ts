@@ -39,7 +39,7 @@ test("OAuth source guard keeps localhost out of the Supabase production path", (
   const signup = read("src/app/(auth)/signup/page.tsx");
 
   assert.match(gmailOAuth, /VERCEL_ENV\s*===\s*["']production["']/);
-  assert.match(gmailOAuth, /https:\/\/jobtrackos\.vercel\.app\/api\/gmail\/callback/);
+  assert.match(gmailOAuth, /https:\/\/jobtrackos\.online\/api\/gmail\/callback/);
   assert.doesNotMatch(login, /localhost/);
   assert.doesNotMatch(signup, /localhost/);
   assert.match(login, /buildSupabaseOAuthCallbackUrl/);
