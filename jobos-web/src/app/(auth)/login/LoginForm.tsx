@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
@@ -26,7 +26,7 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
  * Turn a provider error into something a person can act on.
  *
  * Supabase returns "Invalid login credentials" for both a wrong password and an
- * unknown address — deliberately, so the form must not claim to know which. It is
+ * unknown address â€” deliberately, so the form must not claim to know which. It is
  * reworded to say what to do rather than leaving the raw API string on screen.
  */
 function describeSignInError(message: string): string {
@@ -36,7 +36,7 @@ function describeSignInError(message: string): string {
     return "That email and password combination did not match. Check both and try again.";
   }
   if (normalized.includes("email not confirmed")) {
-    return "Please confirm your email address first — check your inbox for the verification code.";
+    return "Please confirm your email address first â€” check your inbox for the verification code.";
   }
   if (normalized.includes("rate limit") || normalized.includes("too many")) {
     return "Too many attempts. Please wait a moment and try again.";
@@ -399,3 +399,5 @@ export default function LoginForm() {
     </div>
   );
 }
+
+

@@ -35,6 +35,7 @@ import {
   deleteApplication,
   duplicateApplication,
 } from "@/lib/api/applications";
+import { useMergedApplications } from "@/lib/gmail/useMergedApplications";
 
 interface ApplicationsContentProps {
   /**
@@ -89,9 +90,12 @@ function ApplicationsWorkspace({
   const statusParam = searchParams.get("status");
   const windowParam = searchParams.get("window");
 
-  const [applications, setApplications] = useState<Application[]>([]);
+  const [serverApplications, setServerApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Merge server + local Gmail applications
+  const { applications, loading: localLoading } = useMergedApplications(serverApplications);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<ApplicationListFilter>(
     () => resolveFiltersFromParams({ status: statusParam }).status
@@ -119,7 +123,7 @@ function ApplicationsWorkspace({
       setLoading(true);
       setError(null);
       const data = await fetchApplications(supabase);
-      setApplications(data);
+      setServerApplications(data);
     } catch (err: unknown) {
       // A failed read is never reported as an empty list or as zero counts:
       // the rows are unknown, not absent.
@@ -209,7 +213,7 @@ function ApplicationsWorkspace({
       // Creating an application is not a transition, so no correction option
       // applies and no status history is recorded.
       const newApp = await createApplication(supabase, data);
-      setApplications((prev) => [newApp, ...prev]);
+      setServerApplications((prev) => [newApp, ...prev]);
       showSuccess(`Added ${newApp.role} at ${newApp.company}.`);
     } catch (err: unknown) {
       showError(toHumanMessage(err, "Failed to create the application."));
@@ -238,7 +242,7 @@ function ApplicationsWorkspace({
         data,
         { allowCorrection: options.allowCorrection }
       );
-      setApplications((prev) =>
+      setServerApplications((prev) =>
         prev.map((app) => (app.id === updatedApp.id ? updatedApp : app))
       );
       showSuccess(
@@ -255,7 +259,7 @@ function ApplicationsWorkspace({
   async function handleDuplicateApplication(application: Application) {
     try {
       const duplicate = await duplicateApplication(supabase, application);
-      setApplications((prev) => [duplicate, ...prev]);
+      setServerApplications((prev) => [duplicate, ...prev]);
       showSuccess(`Duplicated ${application.role} at ${application.company}.`);
     } catch (err: unknown) {
       showError(toHumanMessage(err, "Failed to duplicate the application."));
@@ -269,7 +273,7 @@ function ApplicationsWorkspace({
     setIsDeleting(true);
     try {
       await deleteApplication(supabase, application.id);
-      setApplications((prev) => prev.filter((app) => app.id !== application.id));
+      setServerApplications((prev) => prev.filter((app) => app.id !== application.id));
 
       if (viewApplication?.id === application.id) {
         setViewApplication(null);

@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { requestGmailBrowserAccessToken } from "@/lib/gmail/browserOAuth";
 
 /**
  * Connection state as handed down from a server component.
@@ -12,7 +13,7 @@ import { useRouter } from "next/navigation";
  * client-side data waterfall and keeps the Gmail data-access module (and its
  * token columns) out of the browser bundle entirely.
  *
- * `emailAddress` is the connected mailbox, not a credential — it is the one
+ * `emailAddress` is the connected mailbox, not a credential â€” it is the one
  * field that lets a user with several Google accounts confirm the right inbox
  * is connected. It is nullable because capture is non-fatal, and the card then
  * shows the connection state on its own rather than inventing a placeholder.
@@ -66,22 +67,17 @@ export default function GmailConnectButton({
     setError(null);
 
     try {
-      // The server mints and stores the OAuth state, then hands back the
-      // Google URL. The state itself never reaches this component.
-      const response = await fetch("/api/gmail/oauth", { method: "POST" });
-      const data = (await response.json().catch(() => ({}))) as {
-        oauthUrl?: string;
-        error?: string;
-      };
+      const token = await requestGmailBrowserAccessToken();
 
-      if (!response.ok || !data.oauthUrl) {
-        throw new Error(data.error ?? "Could not start the Gmail connection.");
-      }
+      console.info("Browser Gmail OAuth POC succeeded", {
+        expiresIn: token.expiresIn,
+        scope: token.scope,
+      });
 
-      // Top-level navigation, required for an OAuth consent screen.
-      window.location.assign(data.oauthUrl);
+      window.alert("Browser Gmail authorization succeeded.");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Could not connect Gmail.");
+    } finally {
       setBusy(null);
     }
   }
@@ -230,3 +226,5 @@ export default function GmailConnectButton({
     </div>
   );
 }
+
+

@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useLocalGmailApplications } from "@/lib/gmail/useLocalGmailApplications";
 
 import type { ApplicationStatus } from "../../applications/types";
 import { kpiHref, type KpiStatus } from "../report";
@@ -79,12 +82,29 @@ export default function KpiRow({
   totalApplications,
   statusCounts,
 }: KpiRowProps) {
+  const { counts: localCounts } = useLocalGmailApplications();
+
+  const localTotal = Object.values(localCounts).reduce(
+    (sum, count) => sum + count,
+    0
+  );
+
+  const mergedTotal = totalApplications + localTotal;
+
+  const mergedStatusCounts: Record<ApplicationStatus, number> = {
+    Applied: statusCounts.Applied + localCounts.Applied,
+    Interview: statusCounts.Interview + localCounts.Interview,
+    Offer: statusCounts.Offer + localCounts.Offer,
+    Rejected: statusCounts.Rejected + localCounts.Rejected,
+    Ghosted: statusCounts.Ghosted + localCounts.Ghosted,
+  };
+
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
       <Link href={kpiHref(window)} className="block rounded-md">
         <StatCard
           title="Total Applications"
-          value={totalApplications}
+          value={mergedTotal}
           icon={documentIcon}
           accentColor="text-text"
         />
@@ -94,7 +114,7 @@ export default function KpiRow({
         <Link key={card.status} href={kpiHref(window, card.status)} className="block rounded-md">
           <StatCard
             title={card.title}
-            value={statusCounts[card.status]}
+            value={mergedStatusCounts[card.status]}
             icon={statusIcon}
             accentColor={card.accentColor}
           />

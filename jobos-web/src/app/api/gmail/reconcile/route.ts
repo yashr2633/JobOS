@@ -1,53 +1,24 @@
 /**
  * POST /api/gmail/reconcile
  *
- * Explicit repair of the acting user's already-imported applications: fills the
- * `Unknown company` / `Unknown role` placeholders and the `job_portal = "Gmail"`
- * fallback from evidence already linked to those applications, and advances a
- * status that never moved.
+ * DEPRECATED — Server-side Gmail reconciliation is no longer used.
  *
- * User-triggered only. Nothing schedules this, no scan calls it, and there is no
- * timer: it runs exactly when someone presses "Repair Gmail-imported
- * applications". Rerunning it is safe — a repaired placeholder no longer
- * matches, so a second run patches nothing.
+ * JobTrackOS now uses browser-only Gmail integration. Legacy server-side
+ * application repair is no longer needed.
  *
- * Reads and writes only the acting user's rows, deletes nothing, and never
- * touches the Gmail evidence.
+ * This endpoint returns 410 Gone to indicate the resource is permanently unavailable.
  */
 
 export const runtime = "nodejs";
 
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { runReconciliation } from "@/lib/gmail/reconcile";
+import { NextResponse, type NextRequest } from "next/server";
 
-function err(message: string, status: number) {
-  return NextResponse.json({ error: message }, { status });
-}
-
-export async function POST(): Promise<NextResponse> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return err("You must be logged in to repair applications.", 401);
-  }
-
-  try {
-    const { examined, patched, failed } = await runReconciliation(
-      supabase,
-      user.id
-    );
-    return NextResponse.json({ examined, patched, failed });
-  } catch (error: unknown) {
-    console.error(
-      "[gmail/reconcile] Repair failed:",
-      error instanceof Error ? error.message : "unknown error"
-    );
-    return err("The repair could not be completed.", 500);
-  }
+export async function POST(_request: NextRequest): Promise<NextResponse> {
+  return NextResponse.json(
+    {
+      error: "Server-side Gmail reconciliation is no longer available.",
+      migration: "Re-scan using the browser-based Gmail integration to update applications.",
+    },
+    { status: 410 }
+  );
 }

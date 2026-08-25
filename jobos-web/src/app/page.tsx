@@ -38,7 +38,7 @@ import {
 import KpiRow from "./dashboard/components/KpiRow";
 import ReportingWindowControl from "./dashboard/components/ReportingWindowControl";
 import StatusDistribution from "./dashboard/components/StatusDistribution";
-import PortalBreakdown from "./dashboard/components/PortalBreakdown";
+import PortalBreakdownClient from "./dashboard/components/PortalBreakdownClient";
 import ActivityChart from "./dashboard/components/ActivityChart";
 import RecentActivity from "./dashboard/components/RecentActivity";
 import QuickActions from "./dashboard/components/QuickActions";
@@ -305,8 +305,7 @@ export default async function Home({ searchParams }: HomeProps) {
               totalApplications={report.totalApplications}
               statusCounts={report.statusCounts}
             />
-
-            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+<div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
               <div className="lg:col-span-2">
                 {/* Range-aware: buckets span the selected window and include
                     today, so the 7/30/90 selector actually changes the chart. */}
@@ -329,9 +328,8 @@ export default async function Home({ searchParams }: HomeProps) {
                 <RecentActivity activities={recentActivity} />
               </div>
               <div className="lg:col-span-1">
-                <PortalBreakdown
-                  portals={report.portals}
-                  hasData={report.hasPortalBreakdown}
+                <PortalBreakdownClient
+                  serverApplications={report.applications}
                   windowDays={windowDays}
                 />
               </div>

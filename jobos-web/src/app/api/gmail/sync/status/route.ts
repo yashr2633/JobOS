@@ -1,59 +1,23 @@
 /**
  * GET /api/gmail/sync/status
  *
- * Current scan progress for the authenticated user. Read-only; drives the
- * progress UI and lets a returning user resume an interrupted scan.
+ * DEPRECATED — Server-side Gmail sync status is no longer used.
+ *
+ * JobTrackOS now uses browser-only Gmail integration with state stored in IndexedDB.
+ *
+ * This endpoint returns 410 Gone to indicate the resource is permanently unavailable.
  */
 
 export const runtime = "nodejs";
 
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { getGmailConnection } from "@/lib/api/gmail";
-import { getLatestSyncJob, getOpenSyncJob } from "@/lib/api/gmailActivity";
+import { NextResponse, type NextRequest } from "next/server";
 
-export async function GET(): Promise<NextResponse> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return NextResponse.json(
-      { error: "You must be logged in." },
-      { status: 401 }
-    );
-  }
-
-  // Pass the known user id so this does not repeat getUser() internally.
-  const [connection, openJob, latestJob] = await Promise.all([
-    getGmailConnection(supabase, user.id),
-    getOpenSyncJob(supabase, user.id),
-    getLatestSyncJob(supabase, user.id),
-  ]);
-
-  const job = openJob ?? latestJob;
-
-  return NextResponse.json({
-    connected: connection !== null,
-    lastSyncAt: connection?.lastSyncAt ?? null,
-    job: job
-      ? {
-          id: job.id,
-          status: job.status,
-          resumable: openJob !== null,
-          windowStart: job.windowStart,
-          windowEnd: job.windowEnd,
-          messagesSeen: job.messagesSeen,
-          candidates: job.candidates,
-          classified: job.classified,
-          applicationsFound: job.applicationsFound,
-          error: job.error,
-          startedAt: job.startedAt,
-          updatedAt: job.updatedAt,
-        }
-      : null,
-  });
+export async function GET(_request: NextRequest): Promise<NextResponse> {
+  return NextResponse.json(
+    {
+      error: "Server-side Gmail sync status is no longer available. Please use the browser-based Gmail integration.",
+      migration: "Integration state is now stored in browser IndexedDB.",
+    },
+    { status: 410 }
+  );
 }

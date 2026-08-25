@@ -21,6 +21,19 @@ import {
   type ScanProgress,
   type ScanRunTotals,
 } from "../scanRunner";
+import { requestGmailBrowserAccessToken } from "@/lib/gmail/browserOAuth";
+import {
+  scanGmailInBrowser,
+  type BrowserScanResult,
+} from "@/lib/gmail/browserScan";
+import {
+  storeGmailApplications,
+  isIndexedDBAvailable,
+  setGmailIntegrationState,
+  type StoreGmailApplicationInput,
+} from "@/lib/gmail/browserStore";
+import { createClient } from "@/lib/supabase/client";
+import { useGmailToken } from "@/lib/gmail/GmailTokenProvider";
 
 /** Persisted facts about the most recent scan job. Null fields stay unreported. */
 export interface LatestScanView {
@@ -96,7 +109,6 @@ function formatDateTime(value: string | null): string {
  * scan read.
  */
 export default function GmailScanModule({
-  connected,
   lastSyncAt,
   resumable,
   initialProgress,
@@ -105,6 +117,7 @@ export default function GmailScanModule({
   opportunityCount,
 }: GmailScanModuleProps) {
   const router = useRouter();
+  const { accessToken, setAccessToken } = useGmailToken();
 
   const [scanning, setScanning] = useState(false);
   /** How much mailbox the next scan reads. 30 days is the recommendation. */
@@ -134,43 +147,46 @@ export default function GmailScanModule({
   const [connectError, setConnectError] = useState<string | null>(null);
 
   /**
-   * Start the EXISTING Gmail OAuth connect flow.
+   * POC: Start browser-only Gmail OAuth connect flow.
    *
-   * Reuses the same server endpoint the integrations page uses
-   * (`POST /api/gmail/oauth`): the server mints and stores the httpOnly OAuth
-   * state and returns only the Google authorization URL, which this triggers a
-   * top-level navigation to. No OAuth scope, redirect, or security detail is
-   * changed here — this is purely the entry point, so the primary
-   * "Track My Applications" action can begin connecting when there is no
-   * connection yet. After Google returns the user to the integrations page they
-   * come back to the dashboard and this same section runs the scan.
+   * Uses Google Identity Services to get an access token directly in the
+   * browser. NO server OAuth flow involved. Token stays in memory only.
    */
   const startConnect = useCallback(async () => {
     setConnecting(true);
     setConnectError(null);
 
     try {
-      const response = await fetch("/api/gmail/oauth", { method: "POST" });
-      const data = (await response.json().catch(() => ({}))) as {
-        oauthUrl?: string;
-        error?: string;
-      };
-
-      if (!response.ok || !data.oauthUrl) {
-        throw new Error(data.error ?? "Could not start the Gmail connection.");
-      }
-
-      // Top-level navigation, required for the Google consent screen.
-      window.location.assign(data.oauthUrl);
+      const { accessToken: newToken } = await requestGmailBrowserAccessToken();
+      
+      // Store token in shared context (memory only)
+      setAccessToken(newToken);
+      setConnectError(null);
+      setMessage("Gmail connected! Ready to scan.");
     } catch (err: unknown) {
       setConnectError(
         err instanceof Error ? err.message : "Could not connect Gmail."
       );
+    } finally {
       setConnecting(false);
     }
-  }, []);
+  }, [setAccessToken]);
 
+  /**
+   * POC: Run browser-only Gmail scan with IndexedDB persistence.
+   *
+   * Uses the browser access token to fetch and classify Gmail messages
+   * directly in the browser. NO /api/gmail/sync calls. NO Supabase. NO AI.
+   * 
+   * Results are persisted to IndexedDB partitioned by user.
+   */
   const runScan = useCallback(async () => {
+
+    if (!isIndexedDBAvailable()) {
+      setError("IndexedDB is not available in this browser. Cannot persist scan results.");
+      return;
+    }
+
     setScanning(true);
     setError(null);
     setMessage(null);
@@ -179,79 +195,130 @@ export default function GmailScanModule({
     setImportNote(null);
     setNeedsReconnect(false);
     setScanFinished(false);
+    setProgress(null);
 
-    // Captured ONCE, before the first batch, so changing the selector mid-scan
-    // cannot split one scan's cursor across two windows.
     const runWindow = selectedWindow;
 
     try {
-      // Shared loop: sequential batches over one server-persisted cursor, a hard
-      // batch cap, and counts that stay null until the server reports them.
-      const result = await runScanBatches({
+      let currentToken = accessToken;
+
+      // If no token in context, request one
+      if (!currentToken) {
+        const auth = await requestGmailBrowserAccessToken();
+        currentToken = auth.accessToken;
+        setAccessToken(currentToken);
+      }
+
+      // Get the current user from Supabase (client-side only for partitioning)
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error("Not authenticated. Please sign in.");
+      }
+
+      const result = await scanGmailInBrowser({
+        accessToken: currentToken,
         window: runWindow,
-        handlers: {
-          onWindowReported: setScannedWindow,
-          onTotals: setLiveTotals,
-          onProgress: setProgress,
-          onNotice: (notice) => {
-            setMessage(notice);
-            setMessageDetail(null);
-          },
-          onReconnectRequired: () => setNeedsReconnect(true),
+        onProgress: (progress) => {
+          setProgress({
+            messagesSeen: progress.messagesProcessed,
+            candidates: progress.candidates,
+          });
+          setMessage(progress.status);
         },
       });
 
-      if (result.status === "paused") {
-        setMessage("Scan paused after many batches. Scan again to continue.");
-        setMessageDetail(null);
-        router.refresh();
-        return;
+      // Persist ALL candidate applications to IndexedDB
+      // Do NOT filter out applications just because company is unknown
+      // Unknown company applications should be preserved for user review
+      const applicationsToStore = result.candidateMessages.filter(
+        (msg) => msg.emailDate // Only require a valid date, not company
+      );
+
+      // Persist to IndexedDB
+      let storeResult = { added: 0, updated: 0, skipped: 0 };
+      
+      if (applicationsToStore.length > 0) {
+        const storeInputs: StoreGmailApplicationInput[] = applicationsToStore.map(
+          (msg) => ({
+            userId: user.id,
+            gmailMessageId: msg.gmailMessageId,
+            gmailThreadId: msg.gmailThreadId,
+            company: msg.company,
+            role: msg.jobTitle,
+            jobUrl: msg.jobUrl,
+            appliedDate: msg.emailDate!,
+            status: msg.status,
+            category: msg.category,
+            confidence: msg.confidence,
+            evidenceReason: msg.evidenceReason,
+            isLifecycle: msg.isLifecycle,
+            jobPortal: msg.jobPortal,
+          })
+        );
+
+        storeResult = await storeGmailApplications(storeInputs);
       }
 
-      setScanFinished(true);
-
-      const outcome = describeScanOutcome({
-        listed: result.totals.listed,
-        deduplicated: result.totals.deduplicated,
-        fresh: result.totals.fresh,
-        windowDays: scanWindowDays(runWindow),
-        windowTraversed: result.windowTraversed,
+      // Update integration state
+      await setGmailIntegrationState({
+        userId: user.id,
+        initialized: true,
+        lastSuccessfulScanAt: new Date().toISOString(),
+        lastScanWindow: runWindow,
       });
-      // A server notice describes something that happened to the work itself (a
-      // missing sync point, AI unavailable) and still wins; the derived outcome
-      // line is then carried as the detail.
-      const outcomeLine = outcome.detail
-        ? `${outcome.headline} ${outcome.detail}`
-        : outcome.headline;
-      setMessage(result.notice ?? outcome.headline);
-      setMessageDetail(result.notice ? outcomeLine : outcome.detail);
-      setCountsLine(
-        describeScanCounts({
-          messagesListed: result.totals.listed,
-          applicationRelated: result.totals.candidates,
-          applicationsCreated: result.totals.created,
-          applicationsUpdated: result.totals.updated,
-        })
+
+      setScanFinished(true);
+      setScannedWindow(runWindow);
+
+      // Format results
+      const countsText = [
+        `${result.messagesListed} Gmail messages scanned`,
+        `${result.candidates} application-related`,
+        result.bodyEscalated > 0
+          ? `${result.bodyEscalated} re-fetched with body content`
+          : null,
+        result.bodyResolved > 0
+          ? `${result.bodyResolved} resolved by body analysis`
+          : null,
+        result.ambiguousCount > 0
+          ? `${result.ambiguousCount} remain ambiguous`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+
+      setCountsLine(countsText);
+      
+      const persistedTotal = storeResult.added + storeResult.updated;
+      setMessage(
+        `Scan complete! ${persistedTotal} application${persistedTotal === 1 ? "" : "s"} updated.`
       );
-      // If application-related mail was found and nothing was persisted, say
-      // which boundary stopped it rather than showing a clean scan.
-      setImportNote(
-        explainNoImports({
-          applicationRelated: result.totals.candidates,
-          outcome: result.importOutcome,
-          legacyRemaining: result.legacyRemaining,
-        })
+      setMessageDetail(
+        `${storeResult.added} new, ${storeResult.updated} updated.`
       );
 
-      // Re-render the server component so the report above reflects whatever the
-      // scan organized.
+      // Note about ambiguous messages
+      if (result.ambiguousCount > 0) {
+        setImportNote(
+          `${result.ambiguousCount} ambiguous message${result.ambiguousCount === 1 ? "" : "s"} could not be classified automatically.`
+        );
+      }
+
+      // Refresh the page to show updated counts
       router.refresh();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "The scan failed.");
+      
+      // Check if it's an auth error
+      if (err instanceof Error && err.message.includes("401")) {
+        setNeedsReconnect(true);
+      }
     } finally {
       setScanning(false);
     }
-  }, [router, selectedWindow]);
+  }, [accessToken, setAccessToken, selectedWindow, router]);
 
   /**
    * Only genuine exceptions surface here, and the old review queue is not one.
@@ -270,41 +337,6 @@ export default function GmailScanModule({
    */
   const hasExceptions = exceptions.unknownEmployer > 0;
 
-  if (!connected) {
-    return (
-      <section className="rounded-md border border-border bg-surface p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold text-text">Sync from Gmail</h2>
-            <p className="mt-0.5 text-sm text-text-secondary">
-              Connect Gmail so JobTrackOS can find and track applications you already
-              made — automatically, read-only.
-            </p>
-          </div>
-          {/* The primary action begins the Gmail OAuth connect flow directly, so
-              a not-yet-connected user can start tracking in one click. Styled as
-              the primary action to match the connected state's Track button. */}
-          <button
-            type="button"
-            onClick={() => void startConnect()}
-            disabled={connecting}
-            className="inline-flex shrink-0 items-center gap-2 rounded-md bg-accent px-3.5 py-2 text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {connecting ? "Connecting..." : "Track My Applications"}
-          </button>
-        </div>
-        {connectError && (
-          <p className="mt-3 rounded-md border border-danger/20 bg-danger-bg px-3 py-2 text-sm text-danger">
-            {connectError}{" "}
-            <Link href="/settings/integrations" className="underline">
-              Open Gmail settings
-            </Link>
-          </p>
-        )}
-      </section>
-    );
-  }
-
   // This session's figures win where they exist; otherwise the persisted ones
   // from the last scan are shown. Both stay null when neither exists.
   const messagesProcessed = liveTotals?.listed ?? latestScan?.messagesSeen ?? null;
@@ -317,23 +349,15 @@ export default function GmailScanModule({
     <section className="rounded-md border border-border bg-surface p-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-sm font-semibold text-text">Sync &amp; update from Gmail</h2>
+          <h2 className="text-sm font-semibold text-text">
+            Sync & update from Gmail
+          </h2>
           <p className="mt-0.5 text-sm text-text-secondary">
-            {lastSyncAt
-              ? `Last updated ${formatDateTime(lastSyncAt)}`
-              : latestScan?.finishedAt
-                ? `Last updated ${formatDateTime(latestScan.finishedAt)}`
-                : "Not synced yet"}
+            Keep your application tracking up to date.
             {scannedWindow !== null &&
-              ` · last ${scanWindowDays(scannedWindow)} days`}
+              ` · last ${scanWindowDays(scannedWindow)} days scanned`}
           </p>
         </div>
-        <Link
-          href="/settings/integrations"
-          className="text-xs font-medium text-text-muted transition-colors hover:text-text"
-        >
-          Manage
-        </Link>
       </div>
 
       <div className="mt-3 flex flex-wrap items-end gap-2">
@@ -361,7 +385,7 @@ export default function GmailScanModule({
           disabled={scanning}
           className="rounded-md bg-accent px-3.5 py-1.5 text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {scanning ? "Syncing..." : resumable ? "Resume sync" : "Track My Applications"}
+          {scanning ? "Scanning..." : "Sync Gmail"}
         </button>
 
         {/* Compact, always-visible counts — the detail an interested user can
@@ -384,8 +408,7 @@ export default function GmailScanModule({
               Scanning your Gmail for applications…
             </p>
             <p className="mt-0.5 text-xs text-text-secondary">
-              This can take a little while depending on your mailbox size. You
-              can leave this page — the scan resumes where it stopped.
+              Keep this page open while the scan runs.
             </p>
             <p className="mt-1 text-xs text-text-muted">
               Read {progress?.messagesSeen ?? 0} emails,{" "}
@@ -426,21 +449,26 @@ export default function GmailScanModule({
           {needsReconnect && (
             <>
               {" "}
-              <Link href="/settings/integrations" className="underline">
+              <button
+                type="button"
+                onClick={() => void startConnect()}
+                className="underline"
+              >
                 Reconnect Gmail
-              </Link>
+              </button>
             </>
           )}
         </p>
       )}
 
       {/* The exception surface still lives at /track-my-jobs. Linked only while
-          there is genuinely something waiting — never a required approval step. */}
+          there is genuinely something waiting — never a required approval step. 
+          NOTE: POC mode doesn't interact with this. */}
       {hasExceptions && (
         <div className="mt-3 border-t border-border pt-3">
           <Link
             href="/track-my-jobs#unknown"
-            className="text-xs font-medium text-warning underline-offset-2 hover:underline"
+            className="text-xs font-medium text-warning underline-offset-2 hover:underline opacity-50"
           >
             {exceptions.unknownEmployer} application{exceptions.unknownEmployer === 1 ? "" : "s"} need a company name
           </Link>
