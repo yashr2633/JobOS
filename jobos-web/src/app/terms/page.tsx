@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   description: "The terms that govern your use of JobTrackOS.",
 };
 
-const LAST_UPDATED = "August 19, 2026";
+const LAST_UPDATED = "August 25, 2026";
 
 /** Official monitored support address (matches Google OAuth Branding). */
 const SUPPORT_EMAIL = "kenilja946@gmail.com";
@@ -83,17 +83,19 @@ export default function TermsPage() {
             </h2>
             <p>
               Connecting Gmail is optional. If you connect it, you grant
-              JobTrackOS read-only access used solely to provide job-tracking
-              features, as described in our{" "}
+              JobTrackOS read-only access used solely for user-initiated
+              job-application tracking, as described in our{" "}
               <Link
                 href="/privacy-policy"
                 className="text-accent hover:text-accent-hover"
               >
                 Privacy Policy
               </Link>
-              . You may disconnect at any time from Integrations settings or by
-              revoking access in your Google Account. JobTrackOS does not send,
-              delete, or modify your email.
+              . JobTrackOS does not send, delete, modify, move, label, or
+              otherwise manage your Gmail messages. You may reset Gmail-derived
+              tracking data separately from disconnecting Gmail. You can
+              disconnect at any time from Integrations settings, and you may also
+              revoke authorization directly through your Google Account.
             </p>
           </section>
 
