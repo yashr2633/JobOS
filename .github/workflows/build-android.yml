@@ -31,6 +31,12 @@ jobs:
         working-directory: ./jobos-web
         run: npm ci
 
+      - name: Create placeholder web directory for Capacitor
+        working-directory: ./jobos-web
+        run: |
+          mkdir -p out
+          echo '<!DOCTYPE html><html><head><title>JobTrackOS</title></head><body></body></html>' > out/index.html
+
       - name: Sync Capacitor
         working-directory: ./jobos-web
         run: npx cap sync android
