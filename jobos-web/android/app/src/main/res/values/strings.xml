@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">JobTrackOS</string>
+    <string name="title_activity_main">JobTrackOS</string>
+    <string name="package_name">com.jobtrackos.app</string>
+    <string name="custom_url_scheme">com.jobtrackos.app</string>
+</resources>
