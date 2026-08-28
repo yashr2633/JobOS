@@ -6,7 +6,11 @@ const config: CapacitorConfig = {
   webDir: 'out',
   server: {
     url: 'https://jobtrackos.online',
-    cleartext: false
+    cleartext: false,
+    allowNavigation: [
+      'jobtrackos.online',
+      '*.jobtrackos.online'
+    ]
   }
 };
 
