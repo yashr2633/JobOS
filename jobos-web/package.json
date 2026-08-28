@@ -16,6 +16,8 @@
     "test:dashboard": "node --test src/app/dashboard/metrics.test.ts src/app/dashboard/recentActivity.test.ts src/app/dashboard/reportingWindow.test.ts src/app/dashboard/windowReporting.test.ts src/app/dashboard/statusConsistency.test.ts src/app/dashboard/activityChart.test.ts"
   },
   "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.2",
     "docx": "9.5.1",
