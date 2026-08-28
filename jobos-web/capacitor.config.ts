@@ -6,7 +6,13 @@ const config: CapacitorConfig = {
   webDir: 'out',
   server: {
     url: 'https://jobtrackos.online',
-    cleartext: false
+    cleartext: false,
+    androidScheme: 'https'
+  },
+  android: {
+    allowMixedContent: false,
+    captureInput: true,
+    webContentsDebuggingEnabled: false
   }
 };
 
