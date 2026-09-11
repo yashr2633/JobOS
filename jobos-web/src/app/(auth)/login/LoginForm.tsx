@@ -12,6 +12,7 @@ import {
 } from "@/lib/account/otp";
 import { buildSupabaseOAuthCallbackUrl } from "@/lib/supabase/oauthRedirect";
 import OtpStep from "../OtpStep";
+import { trackSessionActivity } from "@/lib/analytics/events";
 
 /** Why a previous sign-in attempt did not produce a session. */
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
@@ -94,6 +95,9 @@ export default function LoginForm() {
 
       if (signInError) throw new Error(signInError.message);
 
+      // Track successful login (non-blocking)
+      void trackSessionActivity();
+
       router.push(next);
       router.refresh();
     } catch (err: unknown) {
@@ -154,6 +158,9 @@ export default function LoginForm() {
     });
 
     if (verifyError) throw new Error(describeOtpError(verifyError.message));
+
+    // Track successful login (non-blocking)
+    void trackSessionActivity();
 
     router.push(next);
     router.refresh();

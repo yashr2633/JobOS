@@ -14,8 +14,11 @@ const PASSTHROUGH_PREFIXES = ["/auth", "/api"];
  * appears in primary navigation — and both must still refuse an anonymous
  * visitor. Dropping an unlisted route from here would turn a navigation change
  * into an auth hole.
+ *
+ * `/admin` routes have additional authorization checks in their layout.
  */
 const PROTECTED_PREFIXES = [
+  "/admin",
   "/applications",
   "/resume-match",
   "/resumes",

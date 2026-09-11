@@ -25,6 +25,7 @@
  */
 
 import AppShell from "./components/AppShell";
+import SessionTracker from "./components/SessionTracker";
 import {
   RECENT_ACTIVITY_LIMIT,
   buildRecentActivity,
@@ -245,6 +246,9 @@ export default async function Home({ searchParams }: HomeProps) {
   return (
     <AppShell>
       <>
+        {/* Track authenticated session activity (non-blocking, once per day) */}
+        <SessionTracker />
+        
         {/* Header. Compact — this page's hierarchy is established below by
             size and position, not by an oversized title here. */}
           <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
