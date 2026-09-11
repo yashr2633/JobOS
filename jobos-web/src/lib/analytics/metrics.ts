@@ -114,29 +114,93 @@ export async function aggregateDashboardMetrics(): Promise<DashboardMetrics> {
 // User Metrics
 // ============================================================================
 
+/**
+ * Count total registered users from Supabase Auth.
+ * 
+ * Uses Admin Auth API to access auth.users, which is not a regular table.
+ * Paginates through all users if necessary.
+ */
 async function countTotalUsers(admin: ReturnType<typeof createAdminClient>): Promise<number> {
-  const { count } = await admin
-    .from('users')
-    .select('*', { count: 'exact', head: true })
-    .in('aud', ['authenticated']);
-
-  return count ?? 0;
+  let total = 0;
+  let page = 1;
+  const perPage = 1000; // Supabase Admin API max per page
+  
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { data, error } = await admin.auth.admin.listUsers({
+      page,
+      perPage,
+    });
+    
+    if (error) {
+      console.error('[analytics/metrics] Error fetching users:', error);
+      break;
+    }
+    
+    if (!data || !data.users || data.users.length === 0) {
+      break;
+    }
+    
+    // Count only authenticated users (not anonymous sessions)
+    total += data.users.filter(u => u.aud === 'authenticated').length;
+    
+    // If we got fewer users than requested, we've reached the end
+    if (data.users.length < perPage) {
+      break;
+    }
+    
+    page++;
+  }
+  
+  return total;
 }
 
+/**
+ * Count new users registered in the last N days.
+ * 
+ * Uses Admin Auth API to access auth.users.
+ */
 async function countNewUsers(
   admin: ReturnType<typeof createAdminClient>,
   days: number
 ): Promise<number> {
   const since = new Date();
   since.setDate(since.getDate() - days);
-
-  const { count } = await admin
-    .from('users')
-    .select('*', { count: 'exact', head: true })
-    .in('aud', ['authenticated'])
-    .gte('created_at', since.toISOString());
-
-  return count ?? 0;
+  const sinceISO = since.toISOString();
+  
+  let count = 0;
+  let page = 1;
+  const perPage = 1000;
+  
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { data, error } = await admin.auth.admin.listUsers({
+      page,
+      perPage,
+    });
+    
+    if (error) {
+      console.error('[analytics/metrics] Error fetching users:', error);
+      break;
+    }
+    
+    if (!data || !data.users || data.users.length === 0) {
+      break;
+    }
+    
+    // Count authenticated users created after the cutoff date
+    count += data.users.filter(
+      u => u.aud === 'authenticated' && u.created_at >= sinceISO
+    ).length;
+    
+    if (data.users.length < perPage) {
+      break;
+    }
+    
+    page++;
+  }
+  
+  return count;
 }
 
 /**
@@ -373,24 +437,56 @@ async function countResumes(admin: ReturnType<typeof createAdminClient>): Promis
 // Trends
 // ============================================================================
 
+/**
+ * Get signup trend for last 30 days.
+ * 
+ * Uses Admin Auth API to access auth.users.
+ */
 async function getSignupTrend(
   admin: ReturnType<typeof createAdminClient>
 ): Promise<Array<{ date: string; count: number }>> {
   const since = new Date();
   since.setDate(since.getDate() - 30);
+  const sinceISO = since.toISOString();
 
-  const { data } = await admin
-    .from('users')
-    .select('created_at')
-    .in('aud', ['authenticated'])
-    .gte('created_at', since.toISOString())
-    .order('created_at');
-
-  if (!data) return [];
+  // Fetch all users and filter client-side (Auth API doesn't support date filtering)
+  let allUsers: Array<{ created_at: string }> = [];
+  let page = 1;
+  const perPage = 1000;
+  
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { data, error } = await admin.auth.admin.listUsers({
+      page,
+      perPage,
+    });
+    
+    if (error) {
+      console.error('[analytics/metrics] Error fetching users for trend:', error);
+      break;
+    }
+    
+    if (!data || !data.users || data.users.length === 0) {
+      break;
+    }
+    
+    // Filter authenticated users created in last 30 days
+    const recentUsers = data.users.filter(
+      u => u.aud === 'authenticated' && u.created_at >= sinceISO
+    );
+    
+    allUsers.push(...recentUsers.map(u => ({ created_at: u.created_at })));
+    
+    if (data.users.length < perPage) {
+      break;
+    }
+    
+    page++;
+  }
 
   // Group by date
   const counts = new Map<string, number>();
-  for (const row of data) {
+  for (const row of allUsers) {
     const date = new Date(row.created_at).toISOString().split('T')[0];
     counts.set(date, (counts.get(date) ?? 0) + 1);
   }
