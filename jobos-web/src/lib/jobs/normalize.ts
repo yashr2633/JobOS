@@ -22,8 +22,6 @@ export function safeJobUrl(value: unknown): string | null {
     const url = new URL(value);
     if (url.protocol !== "https:" || url.username || url.password || url.port) return null;
     if (!url.hostname.includes(".") || /^(localhost|127\.|0\.|10\.|192\.168\.|169\.254\.|\[)/i.test(url.hostname)) return null;
-    url.hash = "";
-    for (const key of [...url.searchParams.keys()]) if (/^(utm_|gh_src$|source$)/i.test(key)) url.searchParams.delete(key);
     return url.toString();
   } catch { return null; }
 }
@@ -44,6 +42,7 @@ export function enrichJob(job: Job): Job {
   const experience = job.description.match(/\b(\d{1,2})(?:\s*[-–]\s*\d{1,2})?\+?\s+years?\s+(?:of\s+)?(?:relevant\s+|professional\s+|industry\s+)?experience\b/i);
   return {
     ...job,
+    location: job.location.replace(/\bBangalore\b/gi, "Bengaluru").replace(/\bBombay\b/gi, "Mumbai").replace(/\bGurgaon\b/gi, "Gurugram").replace(/\bpan[- ]india\b/gi, "Pan India"),
     workMode: job.workMode ?? detectWorkMode(job.location),
     minYearsExperience: job.minYearsExperience ?? (experience ? Number(experience[1]) : null),
     skills: extractSkills(job.description),
@@ -56,7 +55,12 @@ export function deduplicateJobs(jobs: Job[], now = Date.now()): Job[] {
   return [...jobs].sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? "")).filter((job) => {
     if (job.expiresAt && Date.parse(job.expiresAt) <= now) return false;
     const identity = [job.company, job.title, job.location].map(normalizeText).join("|") + "|" + (job.postedAt?.slice(0, 10) ?? job.externalId);
-    if (ids.has(job.id) || urls.has(job.applicationUrl) || identities.has(identity)) return false;
-    ids.add(job.id); urls.add(job.applicationUrl); identities.add(identity); return true;
+    const canonical = new URL(job.applicationUrl);
+    canonical.hash = "";
+    for (const key of [...canonical.searchParams.keys()]) if (/^(utm_|gh_src$|source$)/i.test(key)) canonical.searchParams.delete(key);
+    if (/^(jobs\.lever\.co|jobs\.ashbyhq\.com)$/.test(canonical.hostname)) canonical.pathname = canonical.pathname.replace(/\/(apply|application)\/?$/, "");
+    const url = canonical.toString();
+    if (ids.has(job.id) || urls.has(url) || identities.has(identity)) return false;
+    ids.add(job.id); urls.add(url); identities.add(identity); return true;
   });
 }

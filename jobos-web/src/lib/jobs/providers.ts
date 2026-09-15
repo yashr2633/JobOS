@@ -1,5 +1,6 @@
 import { dateValue, deduplicateJobs, enrichJob, plainText, safeJobUrl } from "./normalize.ts";
 import type { Job } from "./types.ts";
+import { additionalSources, lever, ashby } from "./ats.ts";
 
 export interface JobProvider {
   source: string;
@@ -70,7 +71,7 @@ export const greenhouse: JobProvider = {
   },
 };
 
-export const JOB_PROVIDERS: Record<string, JobProvider> = { greenhouse };
+export const JOB_PROVIDERS: Record<string, JobProvider> = { greenhouse, lever, ashby };
 export interface Catalog { jobs: Job[]; warnings: string[]; checkedAt: string }
 // Bounded per-process cache + shared pending promise prevents burst refetches.
 // Failures never masquerade as a refreshed catalog. No indefinite stale fallback.
@@ -83,17 +84,18 @@ function visibleCatalog(value: Catalog): Catalog {
   return { ...value, jobs: value.jobs.filter((j) => !unavailable.has(j.id) && (!j.expiresAt || Date.parse(j.expiresAt) > now)) };
 }
 export async function getCatalog(): Promise<Catalog> {
-  const boards = configuredBoards(), key = boards.join(",");
+  const sources = [...configuredBoards().map((board) => ({ provider: "greenhouse", board })), ...additionalSources().filter((s) => s.enabled)];
+  const key = sources.map((s) => `${s.provider}:${s.board}`).join(",");
   if (cache?.key === key && cache.until > Date.now()) return visibleCatalog(cache.value);
   if (pending?.key === key) return visibleCatalog(await pending.promise);
   const promise = (async () => {
-    const settled = await Promise.allSettled(boards.map((board) => greenhouse.list(board)));
+    const settled = await Promise.allSettled(sources.map((s) => JOB_PROVIDERS[s.provider].list(s.board)));
     const value: Catalog = { jobs: [], warnings: [], checkedAt: new Date().toISOString() };
     settled.forEach((r, index) => {
       if (r.status === "fulfilled") value.jobs.push(...r.value);
-      else value.warnings.push(`${boards[index]} is temporarily unavailable. Its jobs are not included.`);
+      else value.warnings.push(`${sources[index].provider}/${sources[index].board} is temporarily unavailable. Its jobs are not included.`);
     });
-    if (!boards.length) value.warnings.push("No job boards are configured.");
+    if (!sources.length) value.warnings.push("No job boards are configured.");
     value.jobs = deduplicateJobs(value.jobs);
     cache = { key, until: Date.now() + (value.warnings.length ? 60_000 : 15 * 60_000), value };
     return value;
@@ -103,8 +105,8 @@ export async function getCatalog(): Promise<Catalog> {
 }
 
 export async function getLiveJob(id: string): Promise<Job | null> {
-  const parts = id.match(/^([a-z]+):([a-z0-9_-]{1,80}):(\d{1,20})$/);
-  if (!parts || !configuredBoards().includes(parts[2])) return null;
+  const parts = id.match(/^([a-z]+):([a-zA-Z0-9_-]{1,80}):([a-zA-Z0-9_-]{1,64})$/);
+  if (!parts || !(parts[1] === "greenhouse" ? configuredBoards().includes(parts[2]) : additionalSources().some((s) => s.enabled && s.provider === parts[1] && s.board === parts[2]))) return null;
   const provider = JOB_PROVIDERS[parts[1]];
   if (!provider) return null;
   try {

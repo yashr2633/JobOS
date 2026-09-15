@@ -27,9 +27,9 @@ export function ageDays(job: Job, now: number): number | null {
   return Number.isFinite(age) && age >= 0 ? age : null;
 }
 export function isActiveRecommendation(job: Job, now: number, config = DEFAULT_RANKING): boolean {
-  const age = ageDays(job, now);
   const checkedAgo = now - Date.parse(job.fetchedAt);
-  return age !== null && age <= config.maxAgeDays && job.availability === "listed"
+  return job.availability === "listed"
+    && (!job.postedAt || (Number.isFinite(Date.parse(job.postedAt)) && Date.parse(job.postedAt) <= now))
     && Number.isFinite(checkedAgo) && checkedAgo >= 0 && checkedAgo <= config.maxSourceAgeMinutes * 60_000
     && (!job.expiresAt || Date.parse(job.expiresAt) > now);
 }
@@ -67,5 +67,5 @@ export function rankJob(job: Job, profile: CareerProfile, resume: ResumeEvidence
 }
 export function compareRanked(a: RankedJob, b: RankedJob, newest = false): number {
   const date = (b.job.postedAt ?? "").localeCompare(a.job.postedAt ?? "");
-  return (newest ? date : a.freshnessBand - b.freshnessBand || b.rankScore - a.rankScore || date) || a.job.id.localeCompare(b.job.id);
+  return (newest ? date : b.rankScore - a.rankScore || a.freshnessBand - b.freshnessBand || date) || a.job.id.localeCompare(b.job.id);
 }

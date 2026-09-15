@@ -9,6 +9,9 @@ import { discoveryResumes } from "./resumeLibrary.ts";
 import { DEFAULT_RANKING, compareRanked, isActiveRecommendation, rankJob, rankingConfig } from "./ranking.ts";
 import type { Resume } from "../ai/types.ts";
 import { getCatalog, getLiveJob, greenhouse, normalizeGreenhouse } from "./providers.ts";
+// These existing fixtures exercise Greenhouse alone; other adapters have their own tests.
+process.env.JOB_DISCOVERY_LEVER_BOARDS = "";
+process.env.JOB_DISCOVERY_ASHBY_BOARDS = "";
 
 const job: Job = normalizeGreenhouse({
   id: 123, title: "Data Analyst", internal_job_id: 456,
@@ -25,7 +28,7 @@ test("normalizes real provider fields without inventing salary, deadline or empl
   assert.equal(job.expiresAt, null);
   assert.equal(job.employmentType, null);
   assert.deepEqual(job.skills, ["Python", "SQL"]);
-  assert.equal(job.applicationUrl, "https://job-boards.greenhouse.io/example/jobs/123");
+  assert.equal(job.applicationUrl, "https://job-boards.greenhouse.io/example/jobs/123?utm_source=test");
   assert.equal(normalizeGreenhouse({ id: 4, title: "Talent pool", internal_job_id: null, absolute_url: job.applicationUrl }, "example", "Example", job.fetchedAt), null);
 });
 
@@ -37,7 +40,7 @@ test("encoded HTML becomes text and unsafe application links are rejected", () =
 test("deduplication removes expired jobs and equivalent URLs while preserving distinct openings", () => {
   const newer = { ...job, updatedAt: "2026-09-10T00:00:00Z" };
   const duplicate = { ...job, id: "greenhouse:example:124", externalId: "124" };
-  const separate = { ...job, id: "greenhouse:example:125", externalId: "125", applicationUrl: job.applicationUrl + "5", postedAt: "2026-09-02T00:00:00Z" };
+  const separate = { ...job, id: "greenhouse:example:125", externalId: "125", applicationUrl: job.applicationUrl.replace("/123", "/125"), postedAt: "2026-09-02T00:00:00Z" };
   const expired = { ...separate, id: "expired", expiresAt: "2026-09-14T00:00:00Z" };
   assert.deepEqual(deduplicateJobs([job, duplicate, newer, separate, expired], Date.parse(job.fetchedAt)).map((j) => j.id), [job.id, separate.id]);
 });
@@ -135,19 +138,20 @@ const now = Date.parse("2026-09-15T00:00:00Z");
 const fresh = (days: number): Job => ({ ...job, id: `age-${days}`, postedAt: new Date(now - days * 86_400_000).toISOString() });
 const relevant = { ...EMPTY_PROFILE, roles: ["Data Analyst"], skills: ["SQL", "Python"], yearsExperience: 4 };
 
-test("recommendations exclude stale, undated, future, expired and unconfirmed jobs", () => {
+test("recommendations retain old or undated live jobs but exclude invalid and unavailable ones", () => {
   assert.ok(isActiveRecommendation(fresh(30), now));
-  for (const listing of [fresh(30.01), fresh(600), fresh(-1), { ...job, postedAt: null }, { ...job, postedAt: "invalid" }, { ...job, availability: "closed" as const }, { ...job, availability: "unavailable" as const }, { ...job, availability: undefined }, { ...job, expiresAt: new Date(now).toISOString() }, { ...job, fetchedAt: new Date(now - 21 * 60_000).toISOString() }]) assert.equal(isActiveRecommendation(listing, now), false);
-  assert.equal(isActiveRecommendation({ ...fresh(600), updatedAt: new Date(now).toISOString() }, now), false, "an update never becomes a new posted date");
+  for (const listing of [fresh(-1), { ...job, postedAt: "invalid" }, { ...job, availability: "closed" as const }, { ...job, availability: "unavailable" as const }, { ...job, availability: undefined }, { ...job, expiresAt: new Date(now).toISOString() }, { ...job, fetchedAt: new Date(now - 21 * 60_000).toISOString() }]) assert.equal(isActiveRecommendation(listing, now), false);
+  assert.equal(isActiveRecommendation(fresh(600), now), true);
+  assert.equal(isActiveRecommendation({ ...job, postedAt: null }, now), true);
 });
 
-test("fresh qualifying jobs outrank higher-fit older jobs; very low relevance is excluded", () => {
+test("relevance outranks age among live jobs; very low relevance is excluded", () => {
   const partial = { ...fresh(3), skills: ["SQL", "Python", "Tableau"] };
   const bestOld = fresh(20);
   const ranked = [rankJob(bestOld, relevant, undefined, now), rankJob(partial, relevant, undefined, now)];
   assert.ok(ranked[0].fit.score > ranked[1].fit.score);
   assert.ok(ranked.every((r) => r.eligible));
-  assert.equal(ranked.sort(compareRanked)[0].job.id, partial.id);
+  assert.equal(ranked.sort(compareRanked)[0].job.id, bestOld.id);
   const low = rankJob({ ...fresh(1), title: "Account Executive", description: "Sales and marketing", skills: ["Sales", "Marketing"] }, relevant, undefined, now);
   assert.equal(low.eligible, false);
   const seven = rankJob(fresh(7), relevant, undefined, now), eight = rankJob(fresh(8), relevant, undefined, now), fifteen = rankJob(fresh(15), relevant, undefined, now);
@@ -157,7 +161,7 @@ test("fresh qualifying jobs outrank higher-fit older jobs; very low relevance is
 
 test("quality thresholds are configurable and invalid settings use safe defaults", () => {
   assert.equal(rankingConfig({ JOB_DISCOVERY_MAX_AGE_DAYS: "7", JOB_DISCOVERY_MIN_FIT: "60" }).maxAgeDays, 7);
-  assert.equal(isActiveRecommendation(fresh(8), now, rankingConfig({ JOB_DISCOVERY_MAX_AGE_DAYS: "7" })), false);
+  assert.equal(isActiveRecommendation(fresh(8), now, rankingConfig({ JOB_DISCOVERY_MAX_AGE_DAYS: "7" })), true);
   assert.equal(rankingConfig({ JOB_DISCOVERY_MAX_AGE_DAYS: "1000", JOB_DISCOVERY_MIN_FIT: "NaN" }).minFit, DEFAULT_RANKING.minFit);
   assert.equal(rankingConfig({ JOB_DISCOVERY_MAX_AGE_DAYS: "" }).maxAgeDays, 30);
 });
