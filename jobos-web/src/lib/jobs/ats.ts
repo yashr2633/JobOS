@@ -1,14 +1,41 @@
 import type { JobProvider } from "./providers.ts";
 import type { Job } from "./types.ts";
 import { dateValue, enrichJob, plainText, safeJobUrl } from "./normalize.ts";
+import { INDIA_SOURCES, type CompanySource } from "./sources-india.ts";
 
 export interface JobSource { provider: "lever" | "ashby"; board: string; company: string; boardUrl: string; enabled: boolean }
-// Real board identifiers, never job fixtures. Empty environment values disable a provider.
+// Real board identifiers from India source registry with environment override
 export function additionalSources(): JobSource[] {
+  // Check if environment explicitly configures boards
+  const envLever = process.env.JOB_DISCOVERY_LEVER_BOARDS;
+  const envAshby = process.env.JOB_DISCOVERY_ASHBY_BOARDS;
+  
+  // If env is set, use that (backward compat), otherwise use India registry
+  const useLeverEnv = envLever && envLever !== "palantir";
+  const useAshbyEnv = envAshby && envAshby !== "ashby";
+  
   return (["lever", "ashby"] as const).flatMap((provider) => {
-    const defaults = provider === "lever" ? "palantir" : "ashby";
-    return [...new Set((process.env[`JOB_DISCOVERY_${provider.toUpperCase()}_BOARDS`] ?? defaults).split(",").map((s) => s.trim()).filter((s) => /^[a-zA-Z0-9_-]{1,80}$/.test(s)))].slice(0, 5)
-      .map((board) => ({ provider, board, company: board === "palantir" ? "Palantir" : board === "ashby" ? "Ashby" : board, boardUrl: `https://${provider === "lever" ? "jobs.lever.co" : "jobs.ashbyhq.com"}/${board}`, enabled: true }));
+    // Use environment if explicitly set
+    if (provider === "lever" && useLeverEnv) {
+      return [...new Set(envLever!.split(",").map((s) => s.trim()).filter((s) => /^[a-zA-Z0-9_-]{1,80}$/.test(s)))].slice(0, 5)
+        .map((board) => ({ provider, board, company: board === "palantir" ? "Palantir" : board, boardUrl: `https://jobs.lever.co/${board}`, enabled: true }));
+    }
+    if (provider === "ashby" && useAshbyEnv) {
+      return [...new Set(envAshby!.split(",").map((s) => s.trim()).filter((s) => /^[a-zA-Z0-9_-]{1,80}$/.test(s)))].slice(0, 5)
+        .map((board) => ({ provider, board, company: board === "ashby" ? "Ashby" : board, boardUrl: `https://jobs.ashbyhq.com/${board}`, enabled: true }));
+    }
+    
+    // Otherwise use India source registry
+    return INDIA_SOURCES
+      .filter(s => s.enabled && s.provider === provider)
+      .slice(0, 10)
+      .map(s => ({
+        provider,
+        board: s.board,
+        company: s.company,
+        boardUrl: `https://${provider === "lever" ? "jobs.lever.co" : "jobs.ashbyhq.com"}/${s.board}`,
+        enabled: true,
+      }));
   });
 }
 type Row = Record<string, unknown>;

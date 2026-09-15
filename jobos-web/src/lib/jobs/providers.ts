@@ -1,6 +1,7 @@
 import { dateValue, deduplicateJobs, enrichJob, plainText, safeJobUrl } from "./normalize.ts";
 import type { Job } from "./types.ts";
 import { additionalSources, lever, ashby } from "./ats.ts";
+import { INDIA_SOURCES } from "./sources-india.ts";
 
 export interface JobProvider {
   source: string;
@@ -12,9 +13,20 @@ type Row = Record<string, unknown>;
 function object(value: unknown): Row { return value && typeof value === "object" && !Array.isArray(value) ? value as Row : {}; }
 const text = (value: unknown) => typeof value === "string" ? value : "";
 
-// Only configured board tokens are accepted. Callers cannot supply a URL/hostname.
+// India-first source registry with environment override capability
 export function configuredBoards(): string[] {
-  return [...new Set((process.env.JOB_DISCOVERY_GREENHOUSE_BOARDS ?? "canonical").split(",").map((s) => s.trim()).filter((s) => /^[a-z0-9_-]{1,80}$/.test(s)))].slice(0, 5);
+  // If env explicitly sets boards, use those (for backward compatibility)
+  const envBoards = process.env.JOB_DISCOVERY_GREENHOUSE_BOARDS;
+  if (envBoards && envBoards !== "canonical") {
+    return [...new Set(envBoards.split(",").map((s) => s.trim()).filter((s) => /^[a-z0-9_-]{1,80}$/.test(s)))].slice(0, 20);
+  }
+  
+  // Otherwise use India source registry
+  return INDIA_SOURCES
+    .filter(s => s.enabled && s.provider === "greenhouse")
+    .map(s => s.board)
+    .filter((s) => /^[a-z0-9_-]{1,80}$/.test(s))
+    .slice(0, 20);
 }
 
 async function request(board: string, path = ""): Promise<unknown | null> {
@@ -84,7 +96,23 @@ function visibleCatalog(value: Catalog): Catalog {
   return { ...value, jobs: value.jobs.filter((j) => !unavailable.has(j.id) && (!j.expiresAt || Date.parse(j.expiresAt) > now)) };
 }
 export async function getCatalog(): Promise<Catalog> {
-  const sources = [...configuredBoards().map((board) => ({ provider: "greenhouse", board })), ...additionalSources().filter((s) => s.enabled)];
+  // Combine Greenhouse boards from India registry with Lever/Ashby from env
+  const greenhouseBoards = configuredBoards().map((board) => ({provider: "greenhouse" as const, board}));
+  const leverAshbyBoards = additionalSources().filter((s) => s.enabled);
+  
+  // Add additional India sources from registry for Lever/Ashby
+  const indiaLever = INDIA_SOURCES.filter(s => s.enabled && s.provider === "lever").map(s => ({
+    provider: s.provider,
+    board: s.board,
+  }));
+  const indiaAshby = INDIA_SOURCES.filter(s => s.enabled && s.provider === "ashby").map(s => ({
+    provider: s.provider,
+    board: s.board,
+  }));
+  
+  const sources = [...greenhouseBoards, ...leverAshbyBoards, ...indiaLever, ...indiaAshby]
+    .filter((s, i, arr) => arr.findIndex(x => x.provider === s.provider && x.board === s.board) === i); // deduplicate
+  
   const key = sources.map((s) => `${s.provider}:${s.board}`).join(",");
   if (cache?.key === key && cache.until > Date.now()) return visibleCatalog(cache.value);
   if (pending?.key === key) return visibleCatalog(await pending.promise);

@@ -1,5 +1,6 @@
 import { mentions, roleAlignment, scoreJob } from "./matching.ts";
 import type { CareerProfile, Job, JobFit, ResumeEvidence } from "./types.ts";
+import { normalizeIndiaLocation } from "./sources-india.ts";
 
 export const DEFAULT_RANKING = {
   maxAgeDays: 30, minFit: 45, minRoleAlignment: 0.5, minSkillAlignment: 0.5,
@@ -45,6 +46,11 @@ export function rankJob(job: Job, profile: CareerProfile, resume: ResumeEvidence
   const skills = totalSkills ? fit.matchedSkills.length / totalSkills : 0;
   const years = profile.yearsExperience ?? resume?.yearsExperience ?? null;
   const experience = job.minYearsExperience !== null && years !== null ? (job.minYearsExperience === 0 ? 1 : Math.min(1, years / job.minYearsExperience)) : null;
+  
+  // India location prioritization
+  const locationInfo = normalizeIndiaLocation(job.location);
+  const isIndiaJob = locationInfo.isIndia || locationInfo.remote;
+  
   const location = profile.locations.length && job.location ? Number(profile.locations.some((l) => mentions(job.location, l))) : null;
   const mode = profile.workModes.length && job.workMode ? Number(profile.workModes.includes(job.workMode)) : null;
   const preferences = [location, mode].filter((n): n is number => n !== null);
@@ -55,10 +61,12 @@ export function rankJob(job: Job, profile: CareerProfile, resume: ResumeEvidence
   const age = ageDays(job, now);
   const freshnessBand = age === null ? 3 : age <= config.freshnessBands[0] ? 0 : age <= config.freshnessBands[1] ? 1 : 2;
   const badges: string[] = [];
+  if (isIndiaJob && locationInfo.city) badges.push(locationInfo.city);
+  else if (isIndiaJob && !locationInfo.city) badges.push("India");
   if (age !== null && age <= 7) badges.push(age < 1 ? "Posted today" : "Posted this week");
   if (role === 1) badges.push("Target role match");
   if (fit.score >= 75 && fit.evidence !== "Limited") badges.push("Strong fit");
-  if (mode === 1 && job.workMode === "Remote") badges.push("Remote preference");
+  if (mode === 1 && job.workMode === "Remote") badges.push("Remote");
   if (experience === 1) badges.push("Experience match");
   return { job, fit, rankScore, freshnessBand,
     eligible: isActiveRecommendation(job, now, config) && fit.score >= config.minFit && ((roles.length > 0 && role >= config.minRoleAlignment) || (fit.matchedSkills.length > 0 && skills >= config.minSkillAlignment)),
