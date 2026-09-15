@@ -34,6 +34,8 @@ interface ApplicationRow {
   job_description?: string | null;
   gmail_message_id?: string | null;
   gmail_address?: string | null;
+  application_url?: string | null;
+  discovery_job_id?: string | null;
 }
 
 /** One mapper, so every read returns the same shape. */
@@ -50,6 +52,8 @@ function mapApplication(row: ApplicationRow): Application {
     jobDescription: row.job_description || undefined,
     gmailMessageId: row.gmail_message_id || undefined,
     gmailAddress: row.gmail_address || undefined,
+    applicationUrl: row.application_url || undefined,
+    discoveryJobId: row.discovery_job_id || undefined,
   };
 }
 

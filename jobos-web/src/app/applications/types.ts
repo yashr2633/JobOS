@@ -52,6 +52,9 @@ export interface Application {
   salary?: string;
   /** Job description text, if provided during application tracking (Sprint 5) */
   jobDescription?: string;
+  /** Official application page retained by Job Discovery. */
+  applicationUrl?: string | null;
+  discoveryJobId?: string | null;
   /** Gmail message ID for applications imported from Gmail, enables direct email link */
   gmailMessageId?: string | null;
   /** Gmail account email for applications imported from Gmail, enables account-specific link */

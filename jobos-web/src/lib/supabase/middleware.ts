@@ -18,6 +18,7 @@ const PASSTHROUGH_PREFIXES = ["/auth", "/api"];
  * `/admin` routes have additional authorization checks in their layout.
  */
 const PROTECTED_PREFIXES = [
+  "/jobs",
   "/admin",
   "/applications",
   "/resume-match",

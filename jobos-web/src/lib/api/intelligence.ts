@@ -25,7 +25,7 @@ import type {
 
 interface MatchResultRow {
   id: string;
-  application_id: string;
+  application_id: string | null;
   resume_id: string | null;
   status: AnalysisStatus;
   failure_reason: string | null;
@@ -178,11 +178,14 @@ export async function saveParsedJD(
  */
 export async function createAnalysisRun(
   supabase: SupabaseClient,
-  applicationId: string,
-  resumeId: string
+  applicationId: string | null,
+  resumeId: string,
+  discoveryJobId?: string
 ): Promise<MatchResult> {
   const userId = await requireUserId(supabase);
 
+  if (!applicationId && !discoveryJobId) throw new Error("Analysis target required");
+  if (applicationId) {
   const { data: application, error: applicationError } = await supabase
     .from("applications")
     .select("id")
@@ -196,6 +199,7 @@ export async function createAnalysisRun(
   }
   if (!application) {
     throw new Error("Application not found");
+  }
   }
 
   const { data: resume, error: resumeError } = await supabase
@@ -217,6 +221,7 @@ export async function createAnalysisRun(
     .from("match_results")
     .insert({
       application_id: applicationId,
+      ...(discoveryJobId ? { discovery_job_id: discoveryJobId } : {}),
       resume_id: resumeId,
       user_id: userId,
       status: "pending",
@@ -372,6 +377,7 @@ export async function fetchLatestScoresByApplication(
   const scores: Record<string, number> = {};
   // Rows arrive newest first, so the first entry per application wins.
   for (const row of data ?? []) {
+    if (!row.application_id) continue;
     if (row.application_id in scores) continue;
     if (typeof row.match_score !== "number") continue;
     scores[row.application_id] = row.match_score;

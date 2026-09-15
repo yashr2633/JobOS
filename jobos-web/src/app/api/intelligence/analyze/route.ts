@@ -50,6 +50,7 @@ import {
   buildInterpretationPrompt,
 } from "@/lib/ai/prompts";
 import type { ParsedJD, ParsedResume } from "@/lib/ai/types";
+import { getLiveJob } from "@/lib/jobs/providers";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -153,10 +154,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return err("Request body must be a JSON object.", 400);
   }
 
-  const { applicationId, resumeId, jobDescription } = body as Record<string, unknown>;
+  const { applicationId: rawApplicationId, discoveryJobId: rawJobId, resumeId, jobDescription } = body as Record<string, unknown>;
+  const applicationId = typeof rawApplicationId === "string" ? rawApplicationId.trim() : null;
+  const discoveryJobId = typeof rawJobId === "string" ? rawJobId.trim() : undefined;
 
-  if (typeof applicationId !== "string" || applicationId.trim() === "") {
-    return err("applicationId is required.", 400);
+  if ((!applicationId && !discoveryJobId) || (applicationId && discoveryJobId)) {
+    return err("Choose one application or discovery job.", 400);
   }
   if (typeof resumeId !== "string" || resumeId.trim() === "") {
     return err("resumeId is required.", 400);
@@ -185,20 +188,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   // ── 4. Resolve JD text: persist new text, then read stored state ─────────
-  if (incomingJd !== null) {
+  if (incomingJd !== null && applicationId) {
     await saveJobDescription(supabase, applicationId.trim(), incomingJd.trim());
   }
 
-  const intelligenceInput = await getApplicationIntelligenceInput(
-    supabase,
-    applicationId.trim()
-  );
+  let intelligenceInput: { jobDescription: string | null; parsedJd: ParsedJD | null } | null;
+  if (discoveryJobId) {
+    try {
+      const job = await getLiveJob(discoveryJobId);
+      intelligenceInput = job ? { jobDescription: job.description, parsedJd: null } : null;
+    } catch { return err("The employer's job listing is temporarily unavailable. Please retry.", 503); }
+  } else {
+    intelligenceInput = await getApplicationIntelligenceInput(supabase, applicationId!);
+  }
 
   if (intelligenceInput === null) {
     return err("Application not found.", 404);
   }
 
   const jdText = intelligenceInput.jobDescription;
+  if (jdText) {
+    const validation = validateInputText(jdText, "Job description");
+    if (!validation.ok) return err(validation.error, 400);
+  }
   if (!jdText || jdText.trim().length < 50) {
     return err(
       "This application has no job description. Paste the job description text to enable analysis.",
@@ -238,7 +250,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   // ── 7. Create pending run (ownership verified inside createAnalysisRun) ──
-  let run = await createAnalysisRun(supabase, applicationId.trim(), resumeId.trim());
+  const run = await createAnalysisRun(supabase, applicationId, resumeId.trim(), discoveryJobId);
   await markAnalysisProcessing(supabase, run.id);
 
   // ── 8. Pipeline ──────────────────────────────────────────────────────────
@@ -272,7 +284,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       parsedJd = jdResult.value;
       // Persist cache so subsequent analyses skip this call.
-      await saveParsedJD(supabase, applicationId.trim(), parsedJd);
+      if (applicationId) await saveParsedJD(supabase, applicationId, parsedJd);
     }
 
     // -- Stage 2b: Parse resume (use cache if available) ---------------------

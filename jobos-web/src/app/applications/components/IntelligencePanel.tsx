@@ -12,6 +12,8 @@ import { fetchResumes } from "@/lib/api/resumes";
 
 interface IntelligencePanelProps {
   application: Application;
+  /** Public job preview: analysis does not create an Applied record. */
+  discoveryJobId?: string;
   /** If provided, override the stored job description with this text */
   jobDescription?: string;
   /**
@@ -39,6 +41,7 @@ interface IntelligencePanelProps {
 
 export default function IntelligencePanel({
   application,
+  discoveryJobId,
   jobDescription,
   resumeId: controlledResumeId,
   onResultChange,
@@ -142,7 +145,8 @@ export default function IntelligencePanel({
     try {
       const analysis = await analyzeApplication(
         {
-          applicationId: application.id,
+          applicationId: discoveryJobId ? undefined : application.id,
+          discoveryJobId,
           resumeId: effectiveResumeId,
           jobDescription,
         },
@@ -349,7 +353,7 @@ export default function IntelligencePanel({
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-text">AI Intelligence</h3>
         {/* The application's real, current status — never a fixed value. */}
-        <StatusBadge status={application.status} />
+        {discoveryJobId ? <span className="text-xs text-text-muted">Before applying</span> : <StatusBadge status={application.status} />}
       </div>
 
       <div className="mt-4 flex items-center gap-5">

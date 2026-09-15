@@ -13,13 +13,14 @@
 import type { MatchResult } from "@/lib/ai/types";
 
 export interface AnalyzeOptions {
-  applicationId: string;
+  applicationId?: string;
+  discoveryJobId?: string;
   resumeId: string;
   jobDescription?: string;
 }
 
 export async function analyzeApplication(
-  { applicationId, resumeId, jobDescription }: AnalyzeOptions,
+  { applicationId, discoveryJobId, resumeId, jobDescription }: AnalyzeOptions,
   signal: AbortSignal
 ): Promise<MatchResult> {
   const response = await fetch("/api/intelligence/analyze", {
@@ -27,6 +28,7 @@ export async function analyzeApplication(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       applicationId,
+      discoveryJobId,
       resumeId,
       jobDescription: jobDescription ?? null,
     }),

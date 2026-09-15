@@ -7,6 +7,7 @@ import { buildGmailMessageUrl } from "@/lib/gmail/sourceLink";
 import StatusBadge from "./StatusBadge";
 import IntelligencePanel from "./IntelligencePanel";
 import StatusHistorySection from "./StatusHistorySection";
+import { safeJobUrl } from "@/lib/jobs/normalize";
 
 interface ViewApplicationModalProps {
   application: Application | null;
@@ -175,6 +176,10 @@ export default function ViewApplicationModal({
                   value={application.salary?.trim() || "Not specified"}
                 />
               </dl>
+
+              {application.applicationUrl && safeJobUrl(application.applicationUrl) && (
+                <a href={safeJobUrl(application.applicationUrl)!} target="_blank" rel="noopener noreferrer" className="mt-5 inline-block text-sm text-accent hover:underline">Open original employer application ↗</a>
+              )}
 
               {gmailSourceUrl && (
                 <section className="mt-6 border-t border-border pt-5">

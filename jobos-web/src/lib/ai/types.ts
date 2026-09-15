@@ -163,7 +163,7 @@ export interface Resume {
 /** A single analysis run against one application/resume pair. */
 export interface MatchResult {
   id: string;
-  applicationId: string;
+  applicationId: string | null;
   resumeId: string | null;
   status: AnalysisStatus;
   failureReason: string | null;
