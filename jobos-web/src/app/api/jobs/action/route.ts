@@ -24,7 +24,9 @@ export async function POST(request: Request) {
     if (action === "hide" || action === "restore") patch.hidden = action === "hide";
     if (action === "dismiss") patch.apply_started_at = null;
     if (["save", "hide", "apply"].includes(action)) {
-      const job = await getLiveJob(jobId);
+      let job;
+      try { job = await getLiveJob(jobId); }
+      catch { return NextResponse.json({ error: "The employer's listing is temporarily unavailable. Please retry later.", code: "source_unavailable" }, { status: 503 }); }
       if (!job) return NextResponse.json({ error: "This job is no longer listed by the employer. Refresh your feed." }, { status: 410 });
       if (action === "apply") { patch.apply_started_at = new Date().toISOString(); patch.saved = true; }
       // Seed once, then patch only the fields this action owns. Never overwrite

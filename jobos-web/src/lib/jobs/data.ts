@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchResumes } from "../api/resumes";
-import { readProfile, resumeEvidence } from "./profile";
+import { readProfile } from "./profile";
+import { discoveryResumes } from "./resumeLibrary";
 import type { JobState } from "./types";
 
 export async function discoveryData(supabase: SupabaseClient, userId: string) {
@@ -10,5 +11,5 @@ export async function discoveryData(supabase: SupabaseClient, userId: string) {
     fetchResumes(supabase),
   ]);
   if (profile.error || states.error) throw new Error("Job Discovery preferences could not load. Please retry. If setup is incomplete, ask the operator to apply the Job Discovery migration.");
-  return { profile: readProfile(profile.data), states: (states.data ?? []) as JobState[], resumes: resumes.map(resumeEvidence) };
+  return { profile: readProfile(profile.data), states: (states.data ?? []) as JobState[], resumes: discoveryResumes(resumes) };
 }

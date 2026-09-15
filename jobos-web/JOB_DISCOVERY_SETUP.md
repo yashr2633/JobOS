@@ -1,11 +1,32 @@
 # Personalized Job Discovery V1
 
+## Discovery quality update
+
+No additional migration is needed after the original Job Discovery migration. This update only changes the existing discovery flow.
+
+- Career Preferences opens from a compact summary. Existing resume selection and upload appear first; both use the existing resume storage/upload API. Profile building is an explicit, free action that fills supported empty fields, preserves manual choices (including fields cleared in the current editor), and offers up to four evidence-backed role ideas without invented seniority. Location requires a labelled resume-header field; experience uses a cached parse or an explicit years-of-experience statement. Review all suggestions before saving.
+- Resume options are ordered newest usable first and grouped by identical extracted text (or the same stored file when text is absent). Different content with the same filename stays separate. No files are deleted. Old selected IDs remain valid, and identical text can reuse an older cached parse.
+- Best Matches and New exclude undated, future-dated and over-age postings, expired jobs, and listings without recent source confirmation. Default window: 30 days, Fit at least 45, plus target-role or skill alignment. An updated timestamp never makes an old posting fresh. Greenhouse publication does not prove an old vacancy is actively hiring, so there is no automatic age exception.
+- Best Matches orders by freshness band (0–7, 8–14, remaining days in the window), then a deterministic blend of Fit (45), role (20), skills (15), experience (10), location/work mode (7) and source confirmation (3). Unknown factors are omitted and weights normalized. New sorts eligible listings by posted date. Saved/Hidden/Did you apply views retain older snapshots.
+- The existing 15-minute catalog cache remains. Known detail 404/expiry removes the listing from that process's cached recommendations for 15 minutes; source failures suppress it for one minute. Apply still rechecks the employer endpoint. Client-known unavailable jobs are suppressed until refresh. No per-card background validation calls or AI calls are introduced.
+
+Optional server settings (defaults shown; no API keys):
+
+```dotenv
+JOB_DISCOVERY_MAX_AGE_DAYS=30
+JOB_DISCOVERY_MIN_FIT=45
+JOB_DISCOVERY_MIN_ROLE_ALIGNMENT=0.5
+JOB_DISCOVERY_MIN_SKILL_ALIGNMENT=0.5
+```
+
+Age accepts 1–90 days, Fit 0–100, alignment 0–1; invalid settings use defaults. Freshness bands, source-check age and ranking weights are centralized in `src/lib/jobs/ranking.ts`. Limited employer coverage may produce an empty recent feed; old jobs are not used to fill it. Badges report only evidenced matches and posting age, never applicant counts or hiring probability.
+
 NO NEW PAID SERVICE REQUIRED.
 NO NEW GOOGLE OAUTH SCOPE REQUIRED.
 
 ## Activate
 
-1. Apply `supabase-schema-job-discovery.sql` in the Supabase SQL Editor against the same project as this app. It depends on the existing application/resume schemas, including Sprint 5, Sprint 10 status history and Sprint 12 application source. Do not rerun older migrations unnecessarily. This change has not been applied to the live database by the coding agent.
+1. For a new installation, apply `supabase-schema-job-discovery.sql` in the Supabase SQL Editor against the same project as this app. It depends on the existing application/resume schemas, including Sprint 5, Sprint 10 status history and Sprint 12 application source. The founder has confirmed that this migration is already applied to the current project; do not rerun it for the quality update.
 2. Deploy this app normally. Existing Supabase configuration is sufficient for discovery. No service-role key is used.
 3. Open **Discover Jobs**, set preferences or choose an existing resume and review its evidence. Save the profile to rank the feed.
 

@@ -1,6 +1,19 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { parseProfile } from "@/lib/jobs/profile";
+import { fetchResumes } from "@/lib/api/resumes";
+import { discoveryResumes } from "@/lib/jobs/resumeLibrary";
+
+// Refresh evidence after the existing upload pipeline finishes. User data is
+// never shared-cached; fetchResumes uses the signed-in client's existing RLS.
+export async function GET() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Please sign in." }, { status: 401 });
+  try {
+    return NextResponse.json({ resumes: discoveryResumes(await fetchResumes(supabase)) }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch { return NextResponse.json({ error: "Resume uploaded, but the library could not refresh. Please retry." }, { status: 503 }); }
+}
 
 export async function PUT(request: Request) {
   const supabase = await createClient();

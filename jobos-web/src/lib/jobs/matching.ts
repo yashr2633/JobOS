@@ -39,7 +39,7 @@ export function roleAlignment(title: string, roles: string[]): number {
 
 export function scoreJob(job: Job, profile: CareerProfile, resume?: ResumeEvidence): JobFit {
   const skills = uniqueSkills([...profile.skills, ...(resume?.skills ?? [])]);
-  const roles = profile.roles.length ? profile.roles : resume?.roles ?? [];
+  const roles = profile.roles.length ? profile.roles : resume?.suggestedRoles ?? [];
   const years = profile.yearsExperience ?? resume?.yearsExperience ?? null;
   const result: JobFit = { score: 0, strengths: [], gaps: [], matchedSkills: [], missingSkills: [], components: [], evidence: "Limited" };
   function add(label: string, weight: number, ratio: number) {

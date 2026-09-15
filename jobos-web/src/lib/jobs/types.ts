@@ -33,6 +33,7 @@ export interface Job {
   fetchedAt: string;
   applicationUrl: string;
   sourceUrl: string;
+  availability?: "listed" | "closed" | "unavailable";
 }
 
 export interface JobState {
@@ -50,6 +51,13 @@ export interface ResumeEvidence {
   skills: string[];
   roles: string[];
   yearsExperience: number | null;
+  fileName?: string;
+  createdAt?: string;
+  usable?: boolean;
+  aliases?: string[];
+  suggestedRoles?: string[];
+  locations?: string[];
+  keywords?: string[];
 }
 
 export interface JobFit {

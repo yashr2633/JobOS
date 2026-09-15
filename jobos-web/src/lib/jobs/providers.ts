@@ -49,7 +49,7 @@ export function normalizeGreenhouse(raw: unknown, board: string, company: string
     employmentType: text(employment?.value) || null,
     postedAt: dateValue(r.first_published), updatedAt: dateValue(r.updated_at),
     expiresAt: dateValue(r.application_deadline), fetchedAt,
-    applicationUrl: url, sourceUrl: `https://job-boards.greenhouse.io/${board}`,
+    applicationUrl: url, sourceUrl: `https://job-boards.greenhouse.io/${board}`, availability: "listed",
   });
 }
 
@@ -76,10 +76,16 @@ export interface Catalog { jobs: Job[]; warnings: string[]; checkedAt: string }
 // Failures never masquerade as a refreshed catalog. No indefinite stale fallback.
 let cache: { key: string; until: number; value: Catalog } | null = null;
 let pending: { key: string; promise: Promise<Catalog> } | null = null;
+const unavailable = new Map<string, number>();
+function visibleCatalog(value: Catalog): Catalog {
+  const now = Date.now();
+  for (const [id, until] of unavailable) if (until <= now) unavailable.delete(id);
+  return { ...value, jobs: value.jobs.filter((j) => !unavailable.has(j.id) && (!j.expiresAt || Date.parse(j.expiresAt) > now)) };
+}
 export async function getCatalog(): Promise<Catalog> {
   const boards = configuredBoards(), key = boards.join(",");
-  if (cache?.key === key && cache.until > Date.now()) return cache.value;
-  if (pending?.key === key) return pending.promise;
+  if (cache?.key === key && cache.until > Date.now()) return visibleCatalog(cache.value);
+  if (pending?.key === key) return visibleCatalog(await pending.promise);
   const promise = (async () => {
     const settled = await Promise.allSettled(boards.map((board) => greenhouse.list(board)));
     const value: Catalog = { jobs: [], warnings: [], checkedAt: new Date().toISOString() };
@@ -93,7 +99,7 @@ export async function getCatalog(): Promise<Catalog> {
     return value;
   })();
   pending = { key, promise };
-  try { return await promise; } finally { if (pending?.promise === promise) pending = null; }
+  try { return visibleCatalog(await promise); } finally { if (pending?.promise === promise) pending = null; }
 }
 
 export async function getLiveJob(id: string): Promise<Job | null> {
@@ -101,6 +107,17 @@ export async function getLiveJob(id: string): Promise<Job | null> {
   if (!parts || !configuredBoards().includes(parts[2])) return null;
   const provider = JOB_PROVIDERS[parts[1]];
   if (!provider) return null;
-  const job = await provider.get(parts[2], parts[3]);
-  return job && (!job.expiresAt || Date.parse(job.expiresAt) > Date.now()) ? job : null;
+  try {
+    const job = await provider.get(parts[2], parts[3]);
+    if (job && (!job.expiresAt || Date.parse(job.expiresAt) > Date.now())) {
+      unavailable.delete(id); return job;
+    }
+    if (unavailable.size >= 1000) unavailable.delete(unavailable.keys().next().value!);
+    unavailable.set(id, Date.now() + 15 * 60_000);
+    return null;
+  } catch (error) {
+    if (unavailable.size >= 1000) unavailable.delete(unavailable.keys().next().value!);
+    unavailable.set(id, Date.now() + 60_000);
+    throw error;
+  }
 }
