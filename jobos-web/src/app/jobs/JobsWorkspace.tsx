@@ -69,12 +69,29 @@ export default function JobsWorkspace({ profile: initialProfile, states: initial
       if (view === "pending" && (!state?.apply_started_at || state.application_id)) return false;
       if (discovering && (state?.application_id || unavailable.includes(job.id))) return false;
       
-      // India-first filtering
+      // HARD India location filtering - exclude foreign-only jobs
       const locationInfo = normalizeIndiaLocation(job.location);
+      if (discovering && location === "India" && locationInfo.isForeignOnly) return false;
       if (discovering && location === "India" && !locationInfo.isIndia && !locationInfo.remote) return false;
       
-      const text = `${job.company} ${job.title} ${job.description}`.toLowerCase();
-      if (query && !text.includes(query.toLowerCase())) return false;
+      // Search relevance - title must be relevant before description
+      if (query) {
+        const queryLower = query.toLowerCase();
+        const titleMatch = job.title.toLowerCase().includes(queryLower);
+        const companyMatch = job.company.toLowerCase().includes(queryLower);
+        const descriptionMatch = job.description.toLowerCase().includes(queryLower);
+        
+        // Require title or company match for strong relevance, OR description match with high weight
+        if (!titleMatch && !companyMatch) {
+          // Description-only match requires the query to appear prominently
+          const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2);
+          const titleWords = job.title.toLowerCase().split(/\s+/);
+          const matchingWords = queryWords.filter(qw => titleWords.some(tw => tw.includes(qw) || qw.includes(tw)));
+          // If no title word overlap, skip this job (prevents "Customer Success" for "data analyst")
+          if (matchingWords.length === 0 && !descriptionMatch) return false;
+        }
+      }
+      
       if (company && !job.company.toLowerCase().includes(company.toLowerCase())) return false;
       if (location && location !== "India") {
         if (location === "Remote - India" && (!job.workMode || !job.workMode.includes("Remote"))) return false;

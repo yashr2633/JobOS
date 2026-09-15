@@ -119,11 +119,24 @@ export async function getCatalog(): Promise<Catalog> {
   const promise = (async () => {
     const settled = await Promise.allSettled(sources.map((s) => JOB_PROVIDERS[s.provider].list(s.board)));
     const value: Catalog = { jobs: [], warnings: [], checkedAt: new Date().toISOString() };
+    let failedCount = 0;
     settled.forEach((r, index) => {
       if (r.status === "fulfilled") value.jobs.push(...r.value);
-      else value.warnings.push(`${sources[index].provider}/${sources[index].board} is temporarily unavailable. Its jobs are not included.`);
+      else {
+        failedCount++;
+        // Silent fail - log but don't show per-source warnings to users
+        console.warn(`Job source ${sources[index].provider}/${sources[index].board} unavailable:`, r.reason);
+      }
     });
     if (!sources.length) value.warnings.push("No job boards are configured.");
+    else if (failedCount > 0 && value.jobs.length === 0) {
+      // Only show generic message if ALL sources failed
+      value.warnings.push("Job sources are temporarily unavailable. Please try again later.");
+    } else if (failedCount > sources.length / 2) {
+      // Show gentle notice if majority failed but some succeeded
+      value.warnings.push("Some job sources are unavailable. Results may be incomplete.");
+    }
+    // Otherwise silent success - don't mention individual failures
     value.jobs = deduplicateJobs(value.jobs);
     cache = { key, until: Date.now() + (value.warnings.length ? 60_000 : 15 * 60_000), value };
     return value;
