@@ -35,6 +35,7 @@ export default function Sidebar() {
       <nav aria-label="Primary" className="flex-1 space-y-0.5 p-3">
         {NAV_ITEMS.map((item) => {
           const active = isNavItemActive(item, pathname);
+          const isComingSoon = item.href === "/jobs";
 
           return (
             <Link
@@ -50,7 +51,12 @@ export default function Sidebar() {
               <span className={active ? "text-accent" : "text-text-muted"}>
                 {item.icon}
               </span>
-              <span>{item.label}</span>
+              <span className="flex-1">{item.label}</span>
+              {isComingSoon && (
+                <span className="rounded bg-accent/10 px-1.5 py-0.5 text-[10px] font-semibold text-accent">
+                  Soon
+                </span>
+              )}
             </Link>
           );
         })}

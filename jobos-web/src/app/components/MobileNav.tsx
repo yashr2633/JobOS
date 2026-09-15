@@ -32,12 +32,13 @@ export default function MobileNav() {
       <ul className="flex items-stretch">
         {NAV_ITEMS.map((item) => {
           const active = isNavItemActive(item, pathname);
+          const isComingSoon = item.href === "/jobs";
           return (
             <li key={item.href} className="flex-1">
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex min-h-[56px] flex-col items-center justify-center gap-1 px-0.5 py-2 text-[10px] font-medium leading-none transition-colors ${
+                className={`relative flex min-h-[56px] flex-col items-center justify-center gap-1 px-0.5 py-2 text-[10px] font-medium leading-none transition-colors ${
                   active ? "text-accent" : "text-text-muted hover:text-text-secondary"
                 }`}
               >
@@ -45,6 +46,11 @@ export default function MobileNav() {
                 {/* Truncate rather than wrap: a wrapped label would change the
                     bar's height and shift the page content above it. */}
                 <span className="max-w-full truncate">{item.shortLabel}</span>
+                {isComingSoon && (
+                  <span className="absolute right-1 top-1 rounded bg-accent/10 px-1 py-0.5 text-[9px] font-semibold text-accent">
+                    Soon
+                  </span>
+                )}
               </Link>
             </li>
           );
