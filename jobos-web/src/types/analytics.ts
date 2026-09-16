@@ -27,28 +27,26 @@ export interface DashboardMetrics {
     returning: number;
   };
 
+  /** GMAIL INTEGRATION METRICS */
+  gmail: {
+    /** Distinct Gmail accounts/integrations that reached a scan (including zero-result) */
+    accountsTested: number;
+    /** Total Gmail scan operations (including zero-result scans) */
+    scanAttempts: number;
+    /** Unique JobTrackOS users who used Gmail integration */
+    featureUsers: {
+      count: number;
+      total: number;
+      percent: number;
+    };
+    /** Active Gmail integrations right now */
+    currentlyConnected: number;
+  };
+
   /** PRODUCT ADOPTION - Users / Registered Users (%) */
   adoption: {
     /** Users who completed at least one meaningful core workflow */
     activated: {
-      count: number;
-      total: number;
-      percent: number;
-    };
-    /** Users who have EVER successfully connected Gmail (historical) */
-    gmailAdoption: {
-      count: number;
-      total: number;
-      percent: number;
-    };
-    /** Users with Gmail currently connected (operational metric) */
-    gmailCurrentlyConnected: {
-      count: number;
-      total: number;
-      percent: number;
-    };
-    /** Users who completed at least one successful Gmail scan/sync */
-    gmailSyncUsers: {
       count: number;
       total: number;
       percent: number;
@@ -59,18 +57,6 @@ export interface DashboardMetrics {
       total: number;
       percent: number;
     };
-  };
-
-  /** CORE PRODUCT ACTIONS - Aggregate verified actions */
-  coreActions: {
-    /** Total verified product actions (applications + scans + analyses) */
-    total: number;
-    /** Applications tracked (canonical count) */
-    applications: number;
-    /** Gmail scans completed (including zero-result scans) */
-    gmailScans: number;
-    /** Resume Match analyses completed */
-    resumeAnalyses: number;
   };
 
   /** PRODUCT USAGE - Activity Metrics */

@@ -31,17 +31,17 @@ export async function aggregateDashboardMetrics(): Promise<DashboardMetrics> {
     engagedUsers30d,
     returningUsers,
     activatedUsers,
-    gmailAdoptionUsers,
+    // Gmail Integration Metrics
+    gmailAccountsTested,
+    gmailScanAttempts,
+    gmailFeatureUsers,
     gmailCurrentlyConnected,
-    gmailSyncUsers,
+    // Other metrics
     resumeMatchUsers,
     applicationsTracked,
     applicationsAdded7d,
     applicationsAdded30d,
     applicationsByStatus,
-    gmailScansCompleted,
-    gmailScans7d,
-    gmailScans30d,
     resumeAnalysesCompleted,
     resumeAnalyses7d,
     resumeAnalyses30d,
@@ -53,17 +53,17 @@ export async function aggregateDashboardMetrics(): Promise<DashboardMetrics> {
     countEngagedUsers(admin, 30),
     countReturningUsers(admin),
     countActivatedUsers(admin),
-    countGmailAdoptionUsers(admin),
+    // Gmail metrics
+    countGmailAccountsTested(admin),
+    countGmailScanAttempts(admin),
+    countGmailFeatureUsers(admin),
     countGmailCurrentlyConnected(admin),
-    countGmailSyncUsers(admin),
+    // Other
     countResumeMatchUsers(admin),
     countApplications(admin),
     countApplications(admin, 7),
     countApplications(admin, 30),
     getApplicationsByStatus(admin),
-    countGmailSyncs(admin),
-    countGmailSyncs(admin, 7),
-    countGmailSyncs(admin, 30),
     countResumeAnalyses(admin),
     countResumeAnalyses(admin, 7),
     countResumeAnalyses(admin, 30),
@@ -71,9 +71,6 @@ export async function aggregateDashboardMetrics(): Promise<DashboardMetrics> {
   ]);
 
   const total = registeredUsers;
-
-  // Core Product Actions = sum of all verified product actions
-  const coreActionsTotal = applicationsTracked + gmailScansCompleted + resumeAnalysesCompleted;
 
   return {
     generatedAt: new Date().toISOString(),
@@ -85,32 +82,21 @@ export async function aggregateDashboardMetrics(): Promise<DashboardMetrics> {
       engaged30d: engagedUsers30d,
       returning: returningUsers,
     },
-    coreActions: {
-      total: coreActionsTotal,
-      applications: applicationsTracked,
-      gmailScans: gmailScansCompleted,
-      resumeAnalyses: resumeAnalysesCompleted,
+    gmail: {
+      accountsTested: gmailAccountsTested,
+      scanAttempts: gmailScanAttempts,
+      featureUsers: {
+        count: gmailFeatureUsers,
+        total,
+        percent: total > 0 ? Math.round((gmailFeatureUsers / total) * 100) : 0,
+      },
+      currentlyConnected: gmailCurrentlyConnected,
     },
     adoption: {
       activated: {
         count: activatedUsers,
         total,
         percent: total > 0 ? Math.round((activatedUsers / total) * 100) : 0,
-      },
-      gmailAdoption: {
-        count: gmailAdoptionUsers,
-        total,
-        percent: total > 0 ? Math.round((gmailAdoptionUsers / total) * 100) : 0,
-      },
-      gmailCurrentlyConnected: {
-        count: gmailCurrentlyConnected,
-        total,
-        percent: total > 0 ? Math.round((gmailCurrentlyConnected / total) * 100) : 0,
-      },
-      gmailSyncUsers: {
-        count: gmailSyncUsers,
-        total,
-        percent: total > 0 ? Math.round((gmailSyncUsers / total) * 100) : 0,
       },
       resumeMatchUsers: {
         count: resumeMatchUsers,
@@ -122,9 +108,9 @@ export async function aggregateDashboardMetrics(): Promise<DashboardMetrics> {
       applicationsTracked,
       applicationsAdded7d,
       applicationsAdded30d,
-      gmailScansCompleted,
-      gmailScans7d,
-      gmailScans30d,
+      gmailScansCompleted: gmailScanAttempts, // For backward compatibility in usage section
+      gmailScans7d: 0, // Deprecated - not needed with new metrics
+      gmailScans30d: 0, // Deprecated - not needed with new metrics
       resumeAnalysesCompleted,
       resumeAnalyses7d,
       resumeAnalyses30d,
@@ -363,68 +349,84 @@ async function countReturningUsers(admin: ReturnType<typeof createAdminClient>):
 }
 
 // ============================================================================
-// Feature Adoption
+// Gmail Integration Metrics
 // ============================================================================
 
 /**
- * Gmail Adoption Users = users who have EVER successfully used Gmail integration.
- * This is the PRIMARY Gmail adoption metric.
+ * Gmail Accounts Tested = COUNT DISTINCT Gmail accounts/integrations that
+ * successfully connected AND reached at least one genuine scan attempt.
  * 
- * CRITICAL: A completed Gmail scan with ZERO results still counts as product usage.
- * The user connected Gmail, initiated a scan, and got a result - that's adoption.
+ * CRITICAL DEFINITIONS:
+ * - Counts GMAIL ACCOUNTS, not JobTrackOS users
+ * - Uses google_sub (stable Gmail account identifier) for counting
+ * - Zero-result scans MUST count
+ * - One user testing 3 Gmail accounts = 3 accounts tested
+ * - Same Gmail account scanned 5 times = 1 account tested
  * 
- * Reconstructs historical adoption from:
- * 1. Currently connected users (gmail_connections.is_active = true)
- * 2. Users with ANY completed Gmail scan (status='complete'), regardless of applications_found
- * 3. Users who disconnected Gmail later still count (evidenced by sync history)
+ * Historical Recovery:
+ * - Joins gmail_connections with gmail_sync_jobs via connection_id
+ * - Includes disconnected accounts (via sync history)
+ * - Does NOT require applications to be found
  */
-async function countGmailAdoptionUsers(
+async function countGmailAccountsTested(
   admin: ReturnType<typeof createAdminClient>
 ): Promise<number> {
-  const [currentlyConnected, completedScanUsers] = await Promise.all([
-    // Users with active connections
-    admin
-      .from('gmail_connections')
-      .select('user_id')
-      .eq('is_active', true)
-      .then((res) => new Set(res.data?.map((r) => r.user_id) ?? [])),
+  // Get all connection_ids that have completed at least one scan
+  const { data: syncedConnections } = await admin
+    .from('gmail_sync_jobs')
+    .select('connection_id')
+    .eq('status', 'complete');
 
-    // Users who completed at least one scan (proves they connected and used the feature)
-    // Includes zero-result scans - a scan that returns 0 applications is still successful usage
-    admin
-      .from('gmail_sync_jobs')
-      .select('user_id')
-      .eq('status', 'complete')
-      .then((res) => new Set(res.data?.map((r) => r.user_id) ?? [])),
-  ]);
+  if (!syncedConnections || syncedConnections.length === 0) return 0;
 
-  // Union: anyone who is currently connected OR has completed any scan
-  const adopted = new Set<string>();
-  for (const userId of currentlyConnected) adopted.add(userId);
-  for (const userId of completedScanUsers) adopted.add(userId);
+  const connectionIds = [...new Set(syncedConnections.map(r => r.connection_id))];
 
-  return adopted.size;
+  // Get google_sub for those connections (including disconnected ones)
+  const { data: connections } = await admin
+    .from('gmail_connections')
+    .select('google_sub')
+    .in('id', connectionIds);
+
+  if (!connections) return 0;
+
+  // Count distinct Google accounts (google_sub)
+  const uniqueGoogleAccounts = new Set(
+    connections.map(r => r.google_sub).filter(Boolean)
+  );
+
+  return uniqueGoogleAccounts.size;
 }
 
 /**
- * Gmail Currently Connected = users with Gmail integration currently active.
- * This is a SECONDARY operational metric.
+ * Gmail Scan Attempts = total Gmail scan operations initiated/completed.
+ * 
+ * DEFINITION:
+ * - Counts ALL completed scan jobs
+ * - Zero-result scans count
+ * - Repeated scans from same Gmail account increase this count
+ * - Failed scans do NOT count (only status='complete')
  */
-async function countGmailCurrentlyConnected(
+async function countGmailScanAttempts(
   admin: ReturnType<typeof createAdminClient>
 ): Promise<number> {
   const { count } = await admin
-    .from('gmail_connections')
+    .from('gmail_sync_jobs')
     .select('*', { count: 'exact', head: true })
-    .eq('is_active', true);
+    .eq('status', 'complete');
 
   return count ?? 0;
 }
 
 /**
- * Gmail Sync Users = users who completed at least one successful Gmail scan/sync.
+ * Gmail Feature Users = unique JobTrackOS users who used Gmail integration.
+ * 
+ * DEFINITION:
+ * - Counts USERS, not Gmail accounts
+ * - User who tested 3 Gmail accounts = 1 feature user
+ * - Requires at least one completed scan
+ * - This is USER adoption (different from Gmail Accounts Tested)
  */
-async function countGmailSyncUsers(
+async function countGmailFeatureUsers(
   admin: ReturnType<typeof createAdminClient>
 ): Promise<number> {
   const { data } = await admin
@@ -436,6 +438,24 @@ async function countGmailSyncUsers(
 
   const uniqueUsers = new Set(data.map((row) => row.user_id));
   return uniqueUsers.size;
+}
+
+/**
+ * Gmail Currently Connected = number of active Gmail integrations right now.
+ * 
+ * DEFINITION:
+ * - Counts active gmail_connections records
+ * - This is an operational state metric, not adoption
+ */
+async function countGmailCurrentlyConnected(
+  admin: ReturnType<typeof createAdminClient>
+): Promise<number> {
+  const { count } = await admin
+    .from('gmail_connections')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_active', true);
+
+  return count ?? 0;
 }
 
 /**
@@ -494,25 +514,6 @@ async function getApplicationsByStatus(
   return Array.from(counts.entries())
     .map(([status, count]) => ({ status, count }))
     .sort((a, b) => b.count - a.count);
-}
-
-async function countGmailSyncs(
-  admin: ReturnType<typeof createAdminClient>,
-  days?: number
-): Promise<number> {
-  let query = admin
-    .from('gmail_sync_jobs')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'complete');
-
-  if (days !== undefined) {
-    const since = new Date();
-    since.setDate(since.getDate() - days);
-    query = query.gte('updated_at', since.toISOString());
-  }
-
-  const { count } = await query;
-  return count ?? 0;
 }
 
 async function countResumeAnalyses(
