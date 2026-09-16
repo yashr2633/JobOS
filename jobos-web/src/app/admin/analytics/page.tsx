@@ -85,6 +85,35 @@ export default function AnalyticsPage() {
         </div>
       </section>
 
+      {/* CORE PRODUCT ACTIONS */}
+      <section className="mb-8">
+        <h2 className="mb-4 text-lg font-semibold text-text">Core Product Actions</h2>
+        <div className="mb-4">
+          <div className="rounded-lg border-2 border-accent/40 bg-accent/10 px-6 py-4">
+            <div className="text-sm font-medium text-text-secondary">Total Verified Actions</div>
+            <div className="mt-2 text-4xl font-bold text-accent">{metrics.coreActions.total.toLocaleString()}</div>
+            <div className="mt-2 text-xs text-text-muted">Sum of applications tracked, Gmail scans, and Resume Match analyses</div>
+          </div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <MetricCard
+            label="Applications Tracked"
+            value={metrics.coreActions.applications}
+            note="Canonical application records"
+          />
+          <MetricCard
+            label="Gmail Scans Completed"
+            value={metrics.coreActions.gmailScans}
+            note="Includes zero-result scans"
+          />
+          <MetricCard
+            label="Resume Analyses Completed"
+            value={metrics.coreActions.resumeAnalyses}
+            note="Successful Resume Match runs"
+          />
+        </div>
+      </section>
+
       {/* PRODUCT ADOPTION */}
       <section className="mb-8">
         <h2 className="mb-4 text-lg font-semibold text-text">Product Adoption</h2>
@@ -97,26 +126,12 @@ export default function AnalyticsPage() {
             note="Completed at least one core workflow"
           />
           <AdoptionCard
-            label="Gmail Adoption Users"
+            label="Gmail Feature Users"
             count={metrics.adoption.gmailAdoption.count}
             total={metrics.adoption.gmailAdoption.total}
             percent={metrics.adoption.gmailAdoption.percent}
-            note="Ever successfully connected Gmail"
+            note="Ever successfully used Gmail integration"
             highlight
-          />
-          <AdoptionCard
-            label="Currently Connected Gmail"
-            count={metrics.adoption.gmailCurrentlyConnected.count}
-            total={metrics.adoption.gmailCurrentlyConnected.total}
-            percent={metrics.adoption.gmailCurrentlyConnected.percent}
-            note="Gmail currently connected (operational)"
-          />
-          <AdoptionCard
-            label="Gmail Sync Users"
-            count={metrics.adoption.gmailSyncUsers.count}
-            total={metrics.adoption.gmailSyncUsers.total}
-            percent={metrics.adoption.gmailSyncUsers.percent}
-            note="Completed at least one Gmail scan"
           />
           <AdoptionCard
             label="Resume Match Users"
@@ -126,17 +141,31 @@ export default function AnalyticsPage() {
             note="Completed at least one Resume Match"
           />
         </div>
+        <div className="mt-4">
+          <h3 className="mb-3 text-sm font-medium text-text-secondary">Secondary Metrics</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <AdoptionCard
+              label="Currently Connected Gmail"
+              count={metrics.adoption.gmailCurrentlyConnected.count}
+              total={metrics.adoption.gmailCurrentlyConnected.total}
+              percent={metrics.adoption.gmailCurrentlyConnected.percent}
+              note="Gmail currently connected (operational)"
+            />
+            <AdoptionCard
+              label="Gmail Scan Users"
+              count={metrics.adoption.gmailSyncUsers.count}
+              total={metrics.adoption.gmailSyncUsers.total}
+              percent={metrics.adoption.gmailSyncUsers.percent}
+              note="Completed at least one Gmail scan"
+            />
+          </div>
+        </div>
       </section>
 
-      {/* PRODUCT USAGE */}
+      {/* USAGE VOLUME */}
       <section className="mb-8">
-        <h2 className="mb-4 text-lg font-semibold text-text">Product Usage</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard
-            label="Applications Tracked"
-            value={metrics.usage.applicationsTracked}
-            note="Unique application records"
-          />
+        <h2 className="mb-4 text-lg font-semibold text-text">Usage Volume</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <MetricCard
             label="Applications Added (7d)"
             value={metrics.usage.applicationsAdded7d}
@@ -146,9 +175,9 @@ export default function AnalyticsPage() {
             value={metrics.usage.applicationsAdded30d}
           />
           <MetricCard
-            label="Gmail Scans Completed"
-            value={metrics.usage.gmailScansCompleted}
-            note="Successful scan operations"
+            label="Resumes Uploaded"
+            value={metrics.usage.resumesUploaded}
+            note="Unique resume records"
           />
           <MetricCard
             label="Gmail Scans (7d)"
@@ -159,22 +188,12 @@ export default function AnalyticsPage() {
             value={metrics.usage.gmailScans30d}
           />
           <MetricCard
-            label="Resume Analyses Completed"
-            value={metrics.usage.resumeAnalysesCompleted}
-            note="Successful Resume Match runs"
-          />
-          <MetricCard
             label="Resume Analyses (7d)"
             value={metrics.usage.resumeAnalyses7d}
           />
           <MetricCard
             label="Resume Analyses (30d)"
             value={metrics.usage.resumeAnalyses30d}
-          />
-          <MetricCard
-            label="Resumes Uploaded"
-            value={metrics.usage.resumesUploaded}
-            note="Unique resume records"
           />
         </div>
       </section>

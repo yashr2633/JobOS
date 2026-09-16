@@ -72,6 +72,9 @@ export async function aggregateDashboardMetrics(): Promise<DashboardMetrics> {
 
   const total = registeredUsers;
 
+  // Core Product Actions = sum of all verified product actions
+  const coreActionsTotal = applicationsTracked + gmailScansCompleted + resumeAnalysesCompleted;
+
   return {
     generatedAt: new Date().toISOString(),
     trackingSince: TRACKING_SINCE,
@@ -81,6 +84,12 @@ export async function aggregateDashboardMetrics(): Promise<DashboardMetrics> {
       active30d: activeUsers30d,
       engaged30d: engagedUsers30d,
       returning: returningUsers,
+    },
+    coreActions: {
+      total: coreActionsTotal,
+      applications: applicationsTracked,
+      gmailScans: gmailScansCompleted,
+      resumeAnalyses: resumeAnalysesCompleted,
     },
     adoption: {
       activated: {
@@ -358,20 +367,21 @@ async function countReturningUsers(admin: ReturnType<typeof createAdminClient>):
 // ============================================================================
 
 /**
- * Gmail Adoption Users = users who have EVER successfully connected Gmail.
+ * Gmail Adoption Users = users who have EVER successfully used Gmail integration.
  * This is the PRIMARY Gmail adoption metric.
  * 
- * Attempts to reconstruct historical adoption from:
- * 1. Currently connected users (gmail_connections.is_active = true)
- * 2. Users with successful Gmail syncs (proves past connection)
- * 3. Any other reliable evidence of past successful connection
+ * CRITICAL: A completed Gmail scan with ZERO results still counts as product usage.
+ * The user connected Gmail, initiated a scan, and got a result - that's adoption.
  * 
- * Users who disconnected later still count as adopted.
+ * Reconstructs historical adoption from:
+ * 1. Currently connected users (gmail_connections.is_active = true)
+ * 2. Users with ANY completed Gmail scan (status='complete'), regardless of applications_found
+ * 3. Users who disconnected Gmail later still count (evidenced by sync history)
  */
 async function countGmailAdoptionUsers(
   admin: ReturnType<typeof createAdminClient>
 ): Promise<number> {
-  const [currentlyConnected, syncedUsers] = await Promise.all([
+  const [currentlyConnected, completedScanUsers] = await Promise.all([
     // Users with active connections
     admin
       .from('gmail_connections')
@@ -379,7 +389,8 @@ async function countGmailAdoptionUsers(
       .eq('is_active', true)
       .then((res) => new Set(res.data?.map((r) => r.user_id) ?? [])),
 
-    // Users who completed at least one sync (proves they connected)
+    // Users who completed at least one scan (proves they connected and used the feature)
+    // Includes zero-result scans - a scan that returns 0 applications is still successful usage
     admin
       .from('gmail_sync_jobs')
       .select('user_id')
@@ -387,10 +398,10 @@ async function countGmailAdoptionUsers(
       .then((res) => new Set(res.data?.map((r) => r.user_id) ?? [])),
   ]);
 
-  // Union: anyone who is currently connected OR has synced
+  // Union: anyone who is currently connected OR has completed any scan
   const adopted = new Set<string>();
   for (const userId of currentlyConnected) adopted.add(userId);
-  for (const userId of syncedUsers) adopted.add(userId);
+  for (const userId of completedScanUsers) adopted.add(userId);
 
   return adopted.size;
 }

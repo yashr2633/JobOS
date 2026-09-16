@@ -61,6 +61,18 @@ export interface DashboardMetrics {
     };
   };
 
+  /** CORE PRODUCT ACTIONS - Aggregate verified actions */
+  coreActions: {
+    /** Total verified product actions (applications + scans + analyses) */
+    total: number;
+    /** Applications tracked (canonical count) */
+    applications: number;
+    /** Gmail scans completed (including zero-result scans) */
+    gmailScans: number;
+    /** Resume Match analyses completed */
+    resumeAnalyses: number;
+  };
+
   /** PRODUCT USAGE - Activity Metrics */
   usage: {
     /** Unique canonical application records */
