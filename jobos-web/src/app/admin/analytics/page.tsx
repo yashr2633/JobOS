@@ -48,24 +48,19 @@ export default function AnalyticsPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      {/* Header with tracking note */}
-      <div className="mb-6 rounded-md border border-border-strong bg-surface-2 px-4 py-3">
-        <p className="text-sm text-text-secondary">
-          <strong className="text-text">Analytics tracking since:</strong>{' '}
-          {new Date(metrics.trackingSince).toLocaleDateString()}
-          <span className="ml-4 text-text-muted">
-            (Active/Returning user metrics available from this date)
-          </span>
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-text">BETA Analytics</h1>
+        <p className="mt-1 text-sm text-text-secondary">
+          Session/Returning metrics tracked since {new Date(metrics.trackingSince).toLocaleDateString()}
         </p>
       </div>
 
-      {/* User Metrics */}
+      {/* BETA OVERVIEW */}
       <section className="mb-8">
-        <h2 className="mb-4 text-lg font-semibold text-text">User Metrics</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard label="Total Registered Users" value={metrics.users.total} />
-          <MetricCard label="New Users (7d)" value={metrics.users.new7d} />
-          <MetricCard label="New Users (30d)" value={metrics.users.new30d} />
+        <h2 className="mb-4 text-lg font-semibold text-text">Beta Overview</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <MetricCard label="Registered Users" value={metrics.users.registered} />
           <MetricCard
             label="Active Users (7d)"
             value={metrics.users.active7d}
@@ -75,12 +70,6 @@ export default function AnalyticsPage() {
             label="Active Users (30d)"
             value={metrics.users.active30d}
             note="Authenticated sessions"
-          />
-          <MetricCard
-            label="Engaged Users (7d)"
-            value={metrics.users.engaged7d}
-            note="Meaningful product actions"
-            highlight
           />
           <MetricCard
             label="Engaged Users (30d)"
@@ -96,61 +85,97 @@ export default function AnalyticsPage() {
         </div>
       </section>
 
-      {/* Feature Adoption */}
+      {/* PRODUCT ADOPTION */}
       <section className="mb-8">
-        <h2 className="mb-4 text-lg font-semibold text-text">Feature Adoption</h2>
+        <h2 className="mb-4 text-lg font-semibold text-text">Product Adoption</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <MetricCard
-            label="Gmail Connected"
-            value={metrics.adoption.gmailConnected}
-            subtitle={`${metrics.adoption.gmailConnectedPercent}% of users`}
+          <AdoptionCard
+            label="Activated Users"
+            count={metrics.adoption.activated.count}
+            total={metrics.adoption.activated.total}
+            percent={metrics.adoption.activated.percent}
+            note="Completed at least one core workflow"
           />
-          <MetricCard
+          <AdoptionCard
+            label="Gmail Adoption Users"
+            count={metrics.adoption.gmailAdoption.count}
+            total={metrics.adoption.gmailAdoption.total}
+            percent={metrics.adoption.gmailAdoption.percent}
+            note="Ever successfully connected Gmail"
+            highlight
+          />
+          <AdoptionCard
+            label="Currently Connected Gmail"
+            count={metrics.adoption.gmailCurrentlyConnected.count}
+            total={metrics.adoption.gmailCurrentlyConnected.total}
+            percent={metrics.adoption.gmailCurrentlyConnected.percent}
+            note="Gmail currently connected (operational)"
+          />
+          <AdoptionCard
+            label="Gmail Sync Users"
+            count={metrics.adoption.gmailSyncUsers.count}
+            total={metrics.adoption.gmailSyncUsers.total}
+            percent={metrics.adoption.gmailSyncUsers.percent}
+            note="Completed at least one Gmail scan"
+          />
+          <AdoptionCard
             label="Resume Match Users"
-            value={metrics.adoption.resumeMatchUsers}
-            subtitle={`${metrics.adoption.resumeMatchUsersPercent}% of users`}
+            count={metrics.adoption.resumeMatchUsers.count}
+            total={metrics.adoption.resumeMatchUsers.total}
+            percent={metrics.adoption.resumeMatchUsers.percent}
+            note="Completed at least one Resume Match"
           />
         </div>
       </section>
 
-      {/* Activity */}
+      {/* PRODUCT USAGE */}
       <section className="mb-8">
-        <h2 className="mb-4 text-lg font-semibold text-text">Activity</h2>
+        <h2 className="mb-4 text-lg font-semibold text-text">Product Usage</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard
-            label="Total Applications"
-            value={metrics.activity.totalApplications}
+            label="Applications Tracked"
+            value={metrics.usage.applicationsTracked}
+            note="Unique application records"
           />
           <MetricCard
-            label="Applications (7d)"
-            value={metrics.activity.applications7d}
+            label="Applications Added (7d)"
+            value={metrics.usage.applicationsAdded7d}
           />
           <MetricCard
-            label="Applications (30d)"
-            value={metrics.activity.applications30d}
+            label="Applications Added (30d)"
+            value={metrics.usage.applicationsAdded30d}
           />
           <MetricCard
-            label="Total Gmail Syncs"
-            value={metrics.activity.totalGmailSyncs}
-          />
-          <MetricCard label="Gmail Syncs (7d)" value={metrics.activity.gmailSyncs7d} />
-          <MetricCard
-            label="Gmail Syncs (30d)"
-            value={metrics.activity.gmailSyncs30d}
+            label="Gmail Scans Completed"
+            value={metrics.usage.gmailScansCompleted}
+            note="Successful scan operations"
           />
           <MetricCard
-            label="Total Resume Analyses"
-            value={metrics.activity.totalResumeAnalyses}
+            label="Gmail Scans (7d)"
+            value={metrics.usage.gmailScans7d}
+          />
+          <MetricCard
+            label="Gmail Scans (30d)"
+            value={metrics.usage.gmailScans30d}
+          />
+          <MetricCard
+            label="Resume Analyses Completed"
+            value={metrics.usage.resumeAnalysesCompleted}
+            note="Successful Resume Match runs"
           />
           <MetricCard
             label="Resume Analyses (7d)"
-            value={metrics.activity.resumeAnalyses7d}
+            value={metrics.usage.resumeAnalyses7d}
           />
           <MetricCard
             label="Resume Analyses (30d)"
-            value={metrics.activity.resumeAnalyses30d}
+            value={metrics.usage.resumeAnalyses30d}
           />
-          <MetricCard label="Total Resumes" value={metrics.activity.totalResumes} />
+          <MetricCard
+            label="Resumes Uploaded"
+            value={metrics.usage.resumesUploaded}
+            note="Unique resume records"
+          />
         </div>
       </section>
 
@@ -185,45 +210,9 @@ export default function AnalyticsPage() {
         </div>
       </section>
 
-      {/* Signup Trend */}
-      <section className="mb-8">
-        <h2 className="mb-4 text-lg font-semibold text-text">
-          Signup Trend (Last 30 Days)
-        </h2>
-        <div className="overflow-hidden rounded-md border border-border bg-surface">
-          <div className="px-4 py-6">
-            <div className="flex h-48 items-end justify-between gap-1">
-              {metrics.signupTrend.map((point) => {
-                const maxCount = Math.max(...metrics.signupTrend.map((p) => p.count));
-                const height = maxCount > 0 ? (point.count / maxCount) * 100 : 0;
-                return (
-                  <div
-                    key={point.date}
-                    className="group relative flex-1"
-                    title={`${point.date}: ${point.count} signups`}
-                  >
-                    <div
-                      className="w-full bg-accent transition-opacity group-hover:opacity-80"
-                      style={{ height: `${height}%`, minHeight: point.count > 0 ? '2px' : '0' }}
-                    />
-                    <div className="absolute -bottom-6 left-0 right-0 text-center text-xs text-text-muted">
-                      {point.count > 0 ? point.count : ''}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="mt-8 flex justify-between text-xs text-text-secondary">
-              <span>{metrics.signupTrend[0]?.date}</span>
-              <span>{metrics.signupTrend[metrics.signupTrend.length - 1]?.date}</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Footer */}
       <div className="mt-8 text-center text-sm text-text-muted">
-        Last updated: {new Date(metrics.generatedAt).toLocaleString()}
+        Generated: {new Date(metrics.generatedAt).toLocaleString()}
       </div>
     </div>
   );
@@ -232,12 +221,11 @@ export default function AnalyticsPage() {
 interface MetricCardProps {
   label: string;
   value: number;
-  subtitle?: string;
   note?: string;
   highlight?: boolean;
 }
 
-function MetricCard({ label, value, subtitle, note, highlight }: MetricCardProps) {
+function MetricCard({ label, value, note, highlight }: MetricCardProps) {
   return (
     <div
       className={`rounded-md border bg-surface px-4 py-3 ${
@@ -248,9 +236,39 @@ function MetricCard({ label, value, subtitle, note, highlight }: MetricCardProps
     >
       <div className="text-sm font-medium text-text-secondary">{label}</div>
       <div className="mt-2 text-3xl font-bold text-text">{value.toLocaleString()}</div>
-      {subtitle && <div className="mt-1 text-sm text-text-muted">{subtitle}</div>}
       {note && (
-        <div className="mt-1 text-xs text-text-muted italic">({note})</div>
+        <div className="mt-1 text-xs text-text-muted">{note}</div>
+      )}
+    </div>
+  );
+}
+
+interface AdoptionCardProps {
+  label: string;
+  count: number;
+  total: number;
+  percent: number;
+  note?: string;
+  highlight?: boolean;
+}
+
+function AdoptionCard({ label, count, total, percent, note, highlight }: AdoptionCardProps) {
+  return (
+    <div
+      className={`rounded-md border bg-surface px-4 py-3 ${
+        highlight
+          ? 'border-accent/30 bg-accent/5'
+          : 'border-border'
+      }`}
+    >
+      <div className="text-sm font-medium text-text-secondary">{label}</div>
+      <div className="mt-2 flex items-baseline gap-2">
+        <span className="text-3xl font-bold text-text">{count}</span>
+        <span className="text-sm text-text-muted">/ {total}</span>
+      </div>
+      <div className="mt-1 text-lg font-semibold text-accent">{percent}%</div>
+      {note && (
+        <div className="mt-1 text-xs text-text-muted">{note}</div>
       )}
     </div>
   );

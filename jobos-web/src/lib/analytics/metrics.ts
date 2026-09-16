@@ -15,7 +15,7 @@ import type { DashboardMetrics } from '@/types/analytics';
 const TRACKING_SINCE = '2026-09-11'; // Update this to actual deployment date
 
 /**
- * Aggregate all dashboard metrics.
+ * Aggregate all dashboard metrics for BETA analytics.
  *
  * Queries multiple tables via service role client. Should only be called
  * by admin-authorized routes.
@@ -25,38 +25,37 @@ export async function aggregateDashboardMetrics(): Promise<DashboardMetrics> {
 
   // Run queries in parallel
   const [
-    totalUsers,
-    newUsers7d,
-    newUsers30d,
+    registeredUsers,
     activeUsers7d,
     activeUsers30d,
-    engagedUsers7d,
     engagedUsers30d,
     returningUsers,
-    gmailConnected,
+    activatedUsers,
+    gmailAdoptionUsers,
+    gmailCurrentlyConnected,
+    gmailSyncUsers,
     resumeMatchUsers,
-    totalApplications,
-    applications7d,
-    applications30d,
+    applicationsTracked,
+    applicationsAdded7d,
+    applicationsAdded30d,
     applicationsByStatus,
-    totalGmailSyncs,
-    gmailSyncs7d,
-    gmailSyncs30d,
-    totalResumeAnalyses,
+    gmailScansCompleted,
+    gmailScans7d,
+    gmailScans30d,
+    resumeAnalysesCompleted,
     resumeAnalyses7d,
     resumeAnalyses30d,
-    totalResumes,
-    signupTrend,
+    resumesUploaded,
   ] = await Promise.all([
     countTotalUsers(admin),
-    countNewUsers(admin, 7),
-    countNewUsers(admin, 30),
     countActiveUsers(admin, 7),
     countActiveUsers(admin, 30),
-    countEngagedUsers(admin, 7),
     countEngagedUsers(admin, 30),
     countReturningUsers(admin),
-    countGmailConnectedUsers(admin),
+    countActivatedUsers(admin),
+    countGmailAdoptionUsers(admin),
+    countGmailCurrentlyConnected(admin),
+    countGmailSyncUsers(admin),
     countResumeMatchUsers(admin),
     countApplications(admin),
     countApplications(admin, 7),
@@ -69,44 +68,60 @@ export async function aggregateDashboardMetrics(): Promise<DashboardMetrics> {
     countResumeAnalyses(admin, 7),
     countResumeAnalyses(admin, 30),
     countResumes(admin),
-    getSignupTrend(admin),
   ]);
+
+  const total = registeredUsers;
 
   return {
     generatedAt: new Date().toISOString(),
     trackingSince: TRACKING_SINCE,
     users: {
-      total: totalUsers,
-      new7d: newUsers7d,
-      new30d: newUsers30d,
+      registered: registeredUsers,
       active7d: activeUsers7d,
       active30d: activeUsers30d,
-      engaged7d: engagedUsers7d,
       engaged30d: engagedUsers30d,
       returning: returningUsers,
     },
     adoption: {
-      gmailConnected,
-      gmailConnectedPercent:
-        totalUsers > 0 ? Math.round((gmailConnected / totalUsers) * 100) : 0,
-      resumeMatchUsers,
-      resumeMatchUsersPercent:
-        totalUsers > 0 ? Math.round((resumeMatchUsers / totalUsers) * 100) : 0,
+      activated: {
+        count: activatedUsers,
+        total,
+        percent: total > 0 ? Math.round((activatedUsers / total) * 100) : 0,
+      },
+      gmailAdoption: {
+        count: gmailAdoptionUsers,
+        total,
+        percent: total > 0 ? Math.round((gmailAdoptionUsers / total) * 100) : 0,
+      },
+      gmailCurrentlyConnected: {
+        count: gmailCurrentlyConnected,
+        total,
+        percent: total > 0 ? Math.round((gmailCurrentlyConnected / total) * 100) : 0,
+      },
+      gmailSyncUsers: {
+        count: gmailSyncUsers,
+        total,
+        percent: total > 0 ? Math.round((gmailSyncUsers / total) * 100) : 0,
+      },
+      resumeMatchUsers: {
+        count: resumeMatchUsers,
+        total,
+        percent: total > 0 ? Math.round((resumeMatchUsers / total) * 100) : 0,
+      },
     },
-    activity: {
-      totalApplications,
-      applications7d,
-      applications30d,
-      totalGmailSyncs,
-      gmailSyncs7d,
-      gmailSyncs30d,
-      totalResumeAnalyses,
+    usage: {
+      applicationsTracked,
+      applicationsAdded7d,
+      applicationsAdded30d,
+      gmailScansCompleted,
+      gmailScans7d,
+      gmailScans30d,
+      resumeAnalysesCompleted,
       resumeAnalyses7d,
       resumeAnalyses30d,
-      totalResumes,
+      resumesUploaded,
     },
     applicationsByStatus,
-    signupTrend,
   };
 }
 
@@ -202,11 +217,6 @@ async function countNewUsers(
   
   return count;
 }
-
-/**
- * Active Users = users with authenticated sessions (from analytics_events).
- * Tracking since TRACKING_SINCE date.
- */
 async function countActiveUsers(
   admin: ReturnType<typeof createAdminClient>,
   days: number
@@ -230,6 +240,8 @@ async function countActiveUsers(
 /**
  * Engaged Users = users with meaningful product actions (from existing tables).
  * Does NOT require analytics_events tracking.
+ * 
+ * Meaningful actions: created/updated application, completed Gmail scan, completed Resume Match
  */
 async function countEngagedUsers(
   admin: ReturnType<typeof createAdminClient>,
@@ -240,7 +252,7 @@ async function countEngagedUsers(
   const sinceISO = since.toISOString();
 
   // Query multiple sources of engagement
-  const [applicationsUsers, gmailSyncUsers, resumeAnalysisUsers, resumeUploadUsers] =
+  const [applicationsUsers, gmailSyncUsers, resumeAnalysisUsers] =
     await Promise.all([
       // Users who created applications
       admin
@@ -264,13 +276,6 @@ async function countEngagedUsers(
         .eq('status', 'complete')
         .gte('completed_at', sinceISO)
         .then((res) => new Set(res.data?.map((r) => r.user_id) ?? [])),
-
-      // Users who uploaded/created resumes
-      admin
-        .from('resumes')
-        .select('user_id')
-        .gte('created_at', sinceISO)
-        .then((res) => new Set(res.data?.map((r) => r.user_id) ?? [])),
     ]);
 
   // Union all engaged users
@@ -278,9 +283,40 @@ async function countEngagedUsers(
   for (const userId of applicationsUsers) engaged.add(userId);
   for (const userId of gmailSyncUsers) engaged.add(userId);
   for (const userId of resumeAnalysisUsers) engaged.add(userId);
-  for (const userId of resumeUploadUsers) engaged.add(userId);
 
   return engaged.size;
+}
+
+/**
+ * Activated Users = users who completed at least one meaningful core workflow.
+ * Same as engaged users but for all time (not time-bound).
+ */
+async function countActivatedUsers(admin: ReturnType<typeof createAdminClient>): Promise<number> {
+  const [applicationsUsers, gmailSyncUsers, resumeAnalysisUsers] = await Promise.all([
+    admin
+      .from('applications')
+      .select('user_id')
+      .then((res) => new Set(res.data?.map((r) => r.user_id) ?? [])),
+
+    admin
+      .from('gmail_sync_jobs')
+      .select('user_id')
+      .eq('status', 'complete')
+      .then((res) => new Set(res.data?.map((r) => r.user_id) ?? [])),
+
+    admin
+      .from('match_results')
+      .select('user_id')
+      .eq('status', 'complete')
+      .then((res) => new Set(res.data?.map((r) => r.user_id) ?? [])),
+  ]);
+
+  const activated = new Set<string>();
+  for (const userId of applicationsUsers) activated.add(userId);
+  for (const userId of gmailSyncUsers) activated.add(userId);
+  for (const userId of resumeAnalysisUsers) activated.add(userId);
+
+  return activated.size;
 }
 
 /**
@@ -321,7 +357,49 @@ async function countReturningUsers(admin: ReturnType<typeof createAdminClient>):
 // Feature Adoption
 // ============================================================================
 
-async function countGmailConnectedUsers(
+/**
+ * Gmail Adoption Users = users who have EVER successfully connected Gmail.
+ * This is the PRIMARY Gmail adoption metric.
+ * 
+ * Attempts to reconstruct historical adoption from:
+ * 1. Currently connected users (gmail_connections.is_active = true)
+ * 2. Users with successful Gmail syncs (proves past connection)
+ * 3. Any other reliable evidence of past successful connection
+ * 
+ * Users who disconnected later still count as adopted.
+ */
+async function countGmailAdoptionUsers(
+  admin: ReturnType<typeof createAdminClient>
+): Promise<number> {
+  const [currentlyConnected, syncedUsers] = await Promise.all([
+    // Users with active connections
+    admin
+      .from('gmail_connections')
+      .select('user_id')
+      .eq('is_active', true)
+      .then((res) => new Set(res.data?.map((r) => r.user_id) ?? [])),
+
+    // Users who completed at least one sync (proves they connected)
+    admin
+      .from('gmail_sync_jobs')
+      .select('user_id')
+      .eq('status', 'complete')
+      .then((res) => new Set(res.data?.map((r) => r.user_id) ?? [])),
+  ]);
+
+  // Union: anyone who is currently connected OR has synced
+  const adopted = new Set<string>();
+  for (const userId of currentlyConnected) adopted.add(userId);
+  for (const userId of syncedUsers) adopted.add(userId);
+
+  return adopted.size;
+}
+
+/**
+ * Gmail Currently Connected = users with Gmail integration currently active.
+ * This is a SECONDARY operational metric.
+ */
+async function countGmailCurrentlyConnected(
   admin: ReturnType<typeof createAdminClient>
 ): Promise<number> {
   const { count } = await admin
@@ -332,6 +410,26 @@ async function countGmailConnectedUsers(
   return count ?? 0;
 }
 
+/**
+ * Gmail Sync Users = users who completed at least one successful Gmail scan/sync.
+ */
+async function countGmailSyncUsers(
+  admin: ReturnType<typeof createAdminClient>
+): Promise<number> {
+  const { data } = await admin
+    .from('gmail_sync_jobs')
+    .select('user_id')
+    .eq('status', 'complete');
+
+  if (!data) return 0;
+
+  const uniqueUsers = new Set(data.map((row) => row.user_id));
+  return uniqueUsers.size;
+}
+
+/**
+ * Resume Match Users = users who completed at least one Resume Match analysis.
+ */
 async function countResumeMatchUsers(
   admin: ReturnType<typeof createAdminClient>
 ): Promise<number> {
@@ -431,74 +529,4 @@ async function countResumes(admin: ReturnType<typeof createAdminClient>): Promis
     .select('*', { count: 'exact', head: true });
 
   return count ?? 0;
-}
-
-// ============================================================================
-// Trends
-// ============================================================================
-
-/**
- * Get signup trend for last 30 days.
- * 
- * Uses Admin Auth API to access auth.users.
- */
-async function getSignupTrend(
-  admin: ReturnType<typeof createAdminClient>
-): Promise<Array<{ date: string; count: number }>> {
-  const since = new Date();
-  since.setDate(since.getDate() - 30);
-  const sinceISO = since.toISOString();
-
-  // Fetch all users and filter client-side (Auth API doesn't support date filtering)
-  let allUsers: Array<{ created_at: string }> = [];
-  let page = 1;
-  const perPage = 1000;
-  
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const { data, error } = await admin.auth.admin.listUsers({
-      page,
-      perPage,
-    });
-    
-    if (error) {
-      console.error('[analytics/metrics] Error fetching users for trend:', error);
-      break;
-    }
-    
-    if (!data || !data.users || data.users.length === 0) {
-      break;
-    }
-    
-    // Filter authenticated users created in last 30 days
-    const recentUsers = data.users.filter(
-      u => u.aud === 'authenticated' && u.created_at >= sinceISO
-    );
-    
-    allUsers.push(...recentUsers.map(u => ({ created_at: u.created_at })));
-    
-    if (data.users.length < perPage) {
-      break;
-    }
-    
-    page++;
-  }
-
-  // Group by date
-  const counts = new Map<string, number>();
-  for (const row of allUsers) {
-    const date = new Date(row.created_at).toISOString().split('T')[0];
-    counts.set(date, (counts.get(date) ?? 0) + 1);
-  }
-
-  // Fill in missing dates with 0
-  const trend: Array<{ date: string; count: number }> = [];
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split('T')[0];
-    trend.push({ date: dateStr, count: counts.get(dateStr) ?? 0 });
-  }
-
-  return trend;
 }
