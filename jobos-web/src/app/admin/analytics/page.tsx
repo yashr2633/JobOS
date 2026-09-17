@@ -88,7 +88,7 @@ export default function AnalyticsPage() {
       {/* GMAIL INTEGRATION */}
       <section className="mb-8">
         <h2 className="mb-4 text-lg font-semibold text-text">Gmail Integration</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <MetricCard
             label="Gmail Accounts Tested"
             value={metrics.gmail.accountsTested}
@@ -106,11 +106,6 @@ export default function AnalyticsPage() {
             total={metrics.gmail.featureUsers.total}
             percent={metrics.gmail.featureUsers.percent}
             note="Unique JobTrackOS users who used Gmail integration"
-          />
-          <MetricCard
-            label="Currently Connected"
-            value={metrics.gmail.currentlyConnected}
-            note="Active Gmail integrations right now"
           />
         </div>
       </section>
@@ -139,20 +134,7 @@ export default function AnalyticsPage() {
       {/* USAGE VOLUME */}
       <section className="mb-8">
         <h2 className="mb-4 text-lg font-semibold text-text">Usage Volume</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard
-            label="Applications Tracked"
-            value={metrics.usage.applicationsTracked}
-            note="Total application records"
-          />
-          <MetricCard
-            label="Applications Added (7d)"
-            value={metrics.usage.applicationsAdded7d}
-          />
-          <MetricCard
-            label="Applications Added (30d)"
-            value={metrics.usage.applicationsAdded30d}
-          />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <MetricCard
             label="Resumes Uploaded"
             value={metrics.usage.resumesUploaded}
@@ -166,37 +148,6 @@ export default function AnalyticsPage() {
             label="Resume Analyses (30d)"
             value={metrics.usage.resumeAnalyses30d}
           />
-        </div>
-      </section>
-
-      {/* Applications by Status */}
-      <section className="mb-8">
-        <h2 className="mb-4 text-lg font-semibold text-text">
-          Applications by Status
-        </h2>
-        <div className="overflow-hidden rounded-md border border-border bg-surface">
-          <table className="min-w-full divide-y divide-border">
-            <thead className="bg-surface-2">
-              <tr>
-                <th className="px-4 py-3 text-left text-sm font-medium text-text-secondary">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-right text-sm font-medium text-text-secondary">
-                  Count
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {metrics.applicationsByStatus.map((item) => (
-                <tr key={item.status}>
-                  <td className="px-4 py-3 text-sm text-text">{item.status}</td>
-                  <td className="px-4 py-3 text-right text-sm font-medium text-text">
-                    {item.count.toLocaleString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       </section>
 

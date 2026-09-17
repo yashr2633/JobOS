@@ -35,13 +35,8 @@ export async function aggregateDashboardMetrics(): Promise<DashboardMetrics> {
     gmailAccountsTested,
     gmailScanAttempts,
     gmailFeatureUsers,
-    gmailCurrentlyConnected,
     // Other metrics
     resumeMatchUsers,
-    applicationsTracked,
-    applicationsAdded7d,
-    applicationsAdded30d,
-    applicationsByStatus,
     resumeAnalysesCompleted,
     resumeAnalyses7d,
     resumeAnalyses30d,
@@ -57,13 +52,8 @@ export async function aggregateDashboardMetrics(): Promise<DashboardMetrics> {
     countGmailAccountsTested(admin),
     countGmailScanAttempts(admin),
     countGmailFeatureUsers(admin),
-    countGmailCurrentlyConnected(admin),
     // Other
     countResumeMatchUsers(admin),
-    countApplications(admin),
-    countApplications(admin, 7),
-    countApplications(admin, 30),
-    getApplicationsByStatus(admin),
     countResumeAnalyses(admin),
     countResumeAnalyses(admin, 7),
     countResumeAnalyses(admin, 30),
@@ -90,7 +80,6 @@ export async function aggregateDashboardMetrics(): Promise<DashboardMetrics> {
         total,
         percent: total > 0 ? Math.round((gmailFeatureUsers / total) * 100) : 0,
       },
-      currentlyConnected: gmailCurrentlyConnected,
     },
     adoption: {
       activated: {
@@ -105,9 +94,6 @@ export async function aggregateDashboardMetrics(): Promise<DashboardMetrics> {
       },
     },
     usage: {
-      applicationsTracked,
-      applicationsAdded7d,
-      applicationsAdded30d,
       gmailScansCompleted: gmailScanAttempts, // For backward compatibility in usage section
       gmailScans7d: 0, // Deprecated - not needed with new metrics
       gmailScans30d: 0, // Deprecated - not needed with new metrics
@@ -116,7 +102,6 @@ export async function aggregateDashboardMetrics(): Promise<DashboardMetrics> {
       resumeAnalyses30d,
       resumesUploaded,
     },
-    applicationsByStatus,
   };
 }
 
@@ -429,23 +414,14 @@ async function countGmailFeatureUsers(
   return uniqueUsers.size;
 }
 
-/**
- * Gmail Currently Connected = number of active Gmail integrations right now.
- * 
- * DEFINITION:
- * - Counts active gmail_connections records
- * - This is an operational state metric, not adoption
+/*
+ * There is deliberately no "Currently Connected" metric.
+ *
+ * Gmail authorization is browser-only and writes no gmail_connections row, so
+ * that table now only holds legacy server-OAuth rows. Counting it reports
+ * neither current nor connected state, and there is no honest substitute — so
+ * the figure is absent rather than approximated.
  */
-async function countGmailCurrentlyConnected(
-  admin: ReturnType<typeof createAdminClient>
-): Promise<number> {
-  const { count } = await admin
-    .from('gmail_connections')
-    .select('*', { count: 'exact', head: true })
-    .eq('is_active', true);
-
-  return count ?? 0;
-}
 
 /**
  * Resume Match Users = users who completed at least one Resume Match analysis.
@@ -468,42 +444,19 @@ async function countResumeMatchUsers(
 // Activity Metrics
 // ============================================================================
 
-async function countApplications(
-  admin: ReturnType<typeof createAdminClient>,
-  days?: number
-): Promise<number> {
-  let query = admin.from('applications').select('*', { count: 'exact', head: true });
-
-  if (days !== undefined) {
-    const since = new Date();
-    since.setDate(since.getDate() - days);
-    query = query.gte('created_at', since.toISOString());
-  }
-
-  const { count } = await query;
-  return count ?? 0;
-}
-
-async function getApplicationsByStatus(
-  admin: ReturnType<typeof createAdminClient>
-): Promise<Array<{ status: string; count: number }>> {
-  const { data } = await admin
-    .from('applications')
-    .select('status')
-    .order('status');
-
-  if (!data) return [];
-
-  // Count by status
-  const counts = new Map<string, number>();
-  for (const row of data) {
-    counts.set(row.status, (counts.get(row.status) ?? 0) + 1);
-  }
-
-  return Array.from(counts.entries())
-    .map(([status, count]) => ({ status, count }))
-    .sort((a, b) => b.count - a.count);
-}
+/*
+ * Application VOLUME and STATUS BREAKDOWN metrics are deliberately absent.
+ *
+ * Both could only be read from Supabase `applications`. Gmail-discovered
+ * applications are written to browser IndexedDB by
+ * `lib/gmail/browserStore.storeGmailApplications` and never reach Supabase, so
+ * either figure would silently omit them and understate real product activity
+ * by an unknown amount. A partial count presented as a total is worse than no
+ * count, so these are removed until application storage is unified.
+ *
+ * Note this does NOT affect Activated Users or Engaged Users, which ask only
+ * whether a user has any Supabase application activity, not how much.
+ */
 
 async function countResumeAnalyses(
   admin: ReturnType<typeof createAdminClient>,

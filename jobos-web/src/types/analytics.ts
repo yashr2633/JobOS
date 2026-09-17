@@ -39,8 +39,6 @@ export interface DashboardMetrics {
       total: number;
       percent: number;
     };
-    /** Active Gmail integrations right now */
-    currentlyConnected: number;
   };
 
   /** PRODUCT ADOPTION - Users / Registered Users (%) */
@@ -59,14 +57,15 @@ export interface DashboardMetrics {
     };
   };
 
-  /** PRODUCT USAGE - Activity Metrics */
+  /**
+   * PRODUCT USAGE - Activity Metrics
+   *
+   * Application-volume metrics are deliberately absent. They can only be read
+   * from Supabase `applications`, while Gmail-discovered applications are held
+   * in browser IndexedDB, so any such figure understates real activity by an
+   * unknown amount.
+   */
   usage: {
-    /** Unique canonical application records */
-    applicationsTracked: number;
-    /** Applications added in last 7 days */
-    applicationsAdded7d: number;
-    /** Applications added in last 30 days */
-    applicationsAdded30d: number;
     /** Successful Gmail scan/sync operations */
     gmailScansCompleted: number;
     /** Gmail scans in last 7 days */
@@ -82,9 +81,6 @@ export interface DashboardMetrics {
     /** Unique resume records uploaded */
     resumesUploaded: number;
   };
-
-  /** Applications by status breakdown */
-  applicationsByStatus: Array<{ status: string; count: number }>;
 }
 
 /** Event stored in analytics_events table */
