@@ -269,6 +269,40 @@ export default function GmailScanModule({
         lastScanWindow: runWindow,
       });
 
+      // Record scan to gmail_sync_jobs for analytics tracking
+      try {
+        const { data: connection } = await supabase
+          .from("gmail_connections")
+          .select("id, google_sub")
+          .eq("user_id", user.id)
+          .eq("is_active", true)
+          .single();
+
+        if (connection) {
+          // Calculate window dates
+          const windowEnd = new Date().toISOString();
+          const windowStart = new Date();
+          windowStart.setDate(windowStart.getDate() - parseInt(runWindow));
+          const windowStartISO = windowStart.toISOString();
+
+          await fetch("/api/gmail/sync/record", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              connectionId: connection.id,
+              googleSub: connection.google_sub,
+              windowStart: windowStartISO,
+              windowEnd: windowEnd,
+              applicationsFound: storeResult.added + storeResult.updated,
+              messagesProcessed: result.messagesProcessed,
+            }),
+          });
+        }
+      } catch (recordError) {
+        // Don't fail the scan if recording fails - just log it
+        console.error("Failed to record scan for analytics:", recordError);
+      }
+
       setScanFinished(true);
       setScannedWindow(runWindow);
 

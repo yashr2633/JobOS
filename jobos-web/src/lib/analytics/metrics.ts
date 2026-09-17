@@ -358,40 +358,29 @@ async function countReturningUsers(admin: ReturnType<typeof createAdminClient>):
  * 
  * CRITICAL DEFINITIONS:
  * - Counts GMAIL ACCOUNTS, not JobTrackOS users
- * - Uses google_sub (stable Gmail account identifier) for counting
+ * - Uses google_sub (immutable Gmail account identifier) stored in gmail_sync_jobs
  * - Zero-result scans MUST count
  * - One user testing 3 Gmail accounts = 3 accounts tested
  * - Same Gmail account scanned 5 times = 1 account tested
  * 
- * Historical Recovery:
- * - Joins gmail_connections with gmail_sync_jobs via connection_id
- * - Includes disconnected accounts (via sync history)
- * - Does NOT require applications to be found
+ * Implementation:
+ * - Reads google_sub directly from gmail_sync_jobs (no join needed)
+ * - google_sub is permanently captured when scan starts
+ * - Preserved even if user later connects different Gmail or disconnects
  */
 async function countGmailAccountsTested(
   admin: ReturnType<typeof createAdminClient>
 ): Promise<number> {
-  // Get all connection_ids that have completed at least one scan
-  const { data: syncedConnections } = await admin
+  const { data } = await admin
     .from('gmail_sync_jobs')
-    .select('connection_id')
+    .select('google_sub')
     .eq('status', 'complete');
 
-  if (!syncedConnections || syncedConnections.length === 0) return 0;
+  if (!data || data.length === 0) return 0;
 
-  const connectionIds = [...new Set(syncedConnections.map(r => r.connection_id))];
-
-  // Get google_sub for those connections (including disconnected ones)
-  const { data: connections } = await admin
-    .from('gmail_connections')
-    .select('google_sub')
-    .in('id', connectionIds);
-
-  if (!connections) return 0;
-
-  // Count distinct Google accounts (google_sub)
+  // Count distinct Gmail accounts (google_sub)
   const uniqueGoogleAccounts = new Set(
-    connections.map(r => r.google_sub).filter(Boolean)
+    data.map(r => r.google_sub).filter(Boolean)
   );
 
   return uniqueGoogleAccounts.size;

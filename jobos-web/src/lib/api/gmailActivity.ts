@@ -32,6 +32,8 @@ export interface GmailSyncJob {
   id: string;
   userId: string;
   connectionId: string;
+  /** Immutable Gmail account identifier (Google's 'sub' claim). Preserved permanently. */
+  googleSub: string | null;
   status: SyncJobStatus;
   /** 'full' = date-windowed scan; 'incremental' = history.list since anchor. */
   syncMode: SyncMode;
@@ -65,6 +67,7 @@ interface SyncJobRow {
   id: string;
   user_id: string;
   connection_id: string;
+  google_sub: string | null;
   status: SyncJobStatus;
   sync_mode: SyncMode;
   start_history_id: string | null;
@@ -88,6 +91,7 @@ function mapJob(row: SyncJobRow): GmailSyncJob {
     id: row.id,
     userId: row.user_id,
     connectionId: row.connection_id,
+    googleSub: row.google_sub ?? null,
     status: row.status,
     syncMode: row.sync_mode ?? "full",
     startHistoryId: row.start_history_id ?? null,
@@ -250,6 +254,8 @@ export async function startSyncJob(
   userId: string,
   input: {
     connectionId: string;
+    /** Immutable Gmail account identifier from Google OAuth 'sub' claim */
+    googleSub: string;
     windowStart: string;
     windowEnd: string;
     syncMode?: SyncMode;
@@ -265,6 +271,7 @@ export async function startSyncJob(
     .insert({
       user_id: userId,
       connection_id: input.connectionId,
+      google_sub: input.googleSub,
       status: "running",
       sync_mode: input.syncMode ?? "full",
       start_history_id: input.startHistoryId ?? null,

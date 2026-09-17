@@ -1,0 +1,186 @@
+═══════════════════════════════════════════════════════════════════════════════
+MANUAL COMMANDS TO RUN - Gmail Analytics Correction
+═══════════════════════════════════════════════════════════════════════════════
+
+All code changes are complete. Run these commands to verify, commit, and deploy:
+
+───────────────────────────────────────────────────────────────────────────────
+STEP 1: Navigate to Project
+───────────────────────────────────────────────────────────────────────────────
+cd c:\Users\hp\Desktop\jobos\jobos-web
+
+───────────────────────────────────────────────────────────────────────────────
+STEP 2: Verify TypeScript (CRITICAL)
+───────────────────────────────────────────────────────────────────────────────
+npx tsc --noEmit
+
+EXPECTED OUTPUT: Exit code 0, no errors
+IF ERRORS: Review and fix before proceeding
+
+───────────────────────────────────────────────────────────────────────────────
+STEP 3: Check Git Status
+───────────────────────────────────────────────────────────────────────────────
+git status
+
+EXPECTED: Modified files:
+  src/types/analytics.ts
+  src/lib/analytics/metrics.ts
+  src/app/admin/analytics/page.tsx
+  GMAIL_ANALYTICS_CORRECTION.md (new)
+  FINAL_GMAIL_ANALYTICS_SUMMARY.md (new)
+
+───────────────────────────────────────────────────────────────────────────────
+STEP 4: Review Changes (Optional)
+───────────────────────────────────────────────────────────────────────────────
+git diff src/types/analytics.ts
+git diff src/lib/analytics/metrics.ts
+git diff src/app/admin/analytics/page.tsx
+
+───────────────────────────────────────────────────────────────────────────────
+STEP 5: Stage Files
+───────────────────────────────────────────────────────────────────────────────
+git add src/types/analytics.ts
+git add src/lib/analytics/metrics.ts
+git add src/app/admin/analytics/page.tsx
+git add GMAIL_ANALYTICS_CORRECTION.md
+git add FINAL_GMAIL_ANALYTICS_SUMMARY.md
+git add ../MANUAL_COMMANDS.txt
+
+───────────────────────────────────────────────────────────────────────────────
+STEP 6: Commit
+───────────────────────────────────────────────────────────────────────────────
+git commit -m "fix: correct Gmail analytics - count accounts not users, remove Core Actions
+
+- Gmail Accounts Tested: count DISTINCT google_sub (Gmail accounts), not user_id
+- Gmail Scan Attempts: all completed scans including zero-result
+- Gmail Feature Users: user adoption metric (replaces Gmail Adoption Users)
+- Remove Core Product Actions aggregate metric
+- Remove misleading Gmail Scan Users metric
+- Simplify dashboard with dedicated Gmail Integration section
+- Currently Connected shown as raw number, not percentage"
+
+───────────────────────────────────────────────────────────────────────────────
+STEP 7: Push to Remote
+───────────────────────────────────────────────────────────────────────────────
+git push origin main
+
+EXPECTED: Vercel auto-deploy triggered
+
+───────────────────────────────────────────────────────────────────────────────
+STEP 8: Verify Production Database (Supabase SQL Editor)
+───────────────────────────────────────────────────────────────────────────────
+
+Run these queries in Supabase SQL Editor:
+
+-- Query 1: Gmail Accounts Tested
+SELECT COUNT(DISTINCT gc.google_sub) as gmail_accounts_tested
+FROM gmail_sync_jobs gsj
+JOIN gmail_connections gc ON gsj.connection_id = gc.id
+WHERE gsj.status = 'complete' AND gc.google_sub IS NOT NULL;
+
+-- Query 2: Gmail Scan Attempts
+SELECT COUNT(*) as gmail_scan_attempts
+FROM gmail_sync_jobs
+WHERE status = 'complete';
+
+-- Query 3: Gmail Feature Users
+SELECT COUNT(DISTINCT user_id) as gmail_feature_users
+FROM gmail_sync_jobs
+WHERE status = 'complete';
+
+-- Query 4: Currently Connected
+SELECT COUNT(*) as currently_connected
+FROM gmail_connections
+WHERE is_active = true;
+
+-- Query 5: Zero-Result Scans Analysis
+SELECT 
+  COUNT(*) as total_scans,
+  COUNT(CASE WHEN applications_found = 0 THEN 1 END) as zero_result_scans,
+  COUNT(CASE WHEN applications_found > 0 THEN 1 END) as scans_with_results,
+  ROUND(100.0 * COUNT(CASE WHEN applications_found = 0 THEN 1 END) / COUNT(*), 1) as zero_result_percentage
+FROM gmail_sync_jobs
+WHERE status = 'complete';
+
+-- Query 6: Historical Data Recovery Check
+SELECT 
+  COUNT(*) as total_connections,
+  COUNT(CASE WHEN google_sub IS NOT NULL THEN 1 END) as with_google_sub,
+  COUNT(CASE WHEN google_sub IS NULL THEN 1 END) as without_google_sub,
+  COUNT(CASE WHEN is_active = true THEN 1 END) as active,
+  COUNT(CASE WHEN is_active = false THEN 1 END) as disconnected
+FROM gmail_connections;
+
+RECORD RESULTS:
+Gmail Accounts Tested: _______
+Gmail Scan Attempts: _______
+Gmail Feature Users: _______
+Currently Connected: _______
+Zero-result scans: _______
+Disconnected accounts: _______
+
+───────────────────────────────────────────────────────────────────────────────
+STEP 9: Verify Production Dashboard
+───────────────────────────────────────────────────────────────────────────────
+
+Navigate to: https://your-domain.vercel.app/admin/analytics
+
+VERIFY:
+[ ] Dashboard loads without errors
+[ ] Gmail Integration section displays with 4 metrics
+[ ] Gmail Accounts Tested shows a number
+[ ] Gmail Scan Attempts shows a number
+[ ] Gmail Feature Users shows "X / Y (Z%)"
+[ ] Currently Connected shows a simple number (not percentage)
+[ ] NO "Core Product Actions" section visible
+[ ] NO "Gmail Adoption Users" visible
+[ ] NO "Gmail Scan Users" visible
+
+───────────────────────────────────────────────────────────────────────────────
+STEP 10: Final Verification Checklist
+───────────────────────────────────────────────────────────────────────────────
+
+[ ] TypeScript compilation: PASS
+[ ] Git commit created
+[ ] Git push successful
+[ ] Vercel deployment triggered
+[ ] Database queries executed
+[ ] Production dashboard verified
+[ ] Metrics match database queries
+[ ] No email addresses exposed
+[ ] Zero-result scans counted
+[ ] Historical Gmail accounts recovered
+
+───────────────────────────────────────────────────────────────────────────────
+FINAL REPORT TEMPLATE
+───────────────────────────────────────────────────────────────────────────────
+
+After completing all steps, provide:
+
+## Final Gmail Metrics (Production)
+Gmail Accounts Tested: ___
+Gmail Scan Attempts: ___
+Gmail Feature Users: ___
+Currently Connected: ___
+
+## Historical Data Status
+Zero-result scans recovered: ___
+Historical Gmail accounts recoverable: ___
+Disconnected integrations reconstructable: YES/NO
+google_sub population: ___ with / ___ without / ___ total
+
+## Build/Deploy Status
+TypeScript: PASS/FAIL
+Commit: [git commit hash]
+Push: SUCCESS/FAIL
+Deployment: LIVE/PENDING/FAILED
+
+## Dashboard Verification
+Production URL loads: YES/NO
+Gmail metrics display: YES/NO
+Core Actions removed: YES/NO
+Metrics match queries: YES/NO
+
+═══════════════════════════════════════════════════════════════════════════════
+END OF MANUAL COMMANDS
+═══════════════════════════════════════════════════════════════════════════════
