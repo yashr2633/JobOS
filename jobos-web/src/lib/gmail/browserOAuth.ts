@@ -75,6 +75,47 @@ function loadGoogleIdentityServices(): Promise<void> {
   });
 }
 
+/**
+ * Resolve the immutable Google account identifier (`sub`) for a browser-held
+ * access token.
+ *
+ * CLIENT ONLY. The access token is sent ONLY to Google's own tokeninfo
+ * endpoint — never to a JobTrackOS backend route. The single value returned is
+ * the opaque `sub`, which is stable per Google account and never reused, so it
+ * is the correct identity for "which Gmail account performed this scan".
+ *
+ * `sub` is returned for any access token and is not gated behind the
+ * openid/profile/email scopes, so `gmail.readonly` alone is sufficient. No
+ * email address is requested or returned here.
+ *
+ * Never log the token or the request URL.
+ */
+export async function resolveGoogleSubForAccessToken(
+  accessToken: string
+): Promise<string> {
+  const response = await fetch(
+    `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(
+      accessToken
+    )}`,
+    { method: "GET" }
+  );
+
+  if (!response.ok) {
+    // Status only. The body can echo token material, so it is not surfaced.
+    throw new Error(
+      `Could not resolve the Google account for this token (status ${response.status}).`
+    );
+  }
+
+  const info = (await response.json()) as { sub?: unknown };
+
+  if (typeof info.sub !== "string" || info.sub.length === 0) {
+    throw new Error("Google did not return an account identifier (sub).");
+  }
+
+  return info.sub;
+}
+
 export async function requestGmailBrowserAccessToken(): Promise<{
   accessToken: string;
   expiresIn: number;

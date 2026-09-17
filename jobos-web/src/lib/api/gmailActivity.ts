@@ -295,6 +295,76 @@ export async function startSyncJob(
   return mapJob(data as SyncJobRow);
 }
 
+/**
+ * Record ONE already-finished scan as a single `status = 'complete'` row.
+ *
+ * For the browser-only scan flow, where the work is done before the server
+ * hears about it. This deliberately does NOT go through
+ * `startSyncJob` + `updateSyncJobProgress`:
+ *
+ *  - `startSyncJob` inserts `status = 'running'`, which collides with the
+ *    partial unique index `idx_gmail_sync_jobs_one_open_per_user`. On collision
+ *    it returns the user's STALE open job instead of inserting, and
+ *    `updateSyncJobProgress` has no `google_sub` field — so the scan's Gmail
+ *    identity would be silently dropped and one scan would be attributed to a
+ *    different, older job.
+ *  - Inserting `'complete'` directly is outside that partial index, so every
+ *    completed scan gets its own row, which is exactly what
+ *    "Gmail Scan Attempts" counts.
+ *
+ * `googleSub` is required: it is the immutable per-Gmail-account identity that
+ * "Gmail Accounts Tested" counts, and it must describe the account that
+ * actually performed THIS scan.
+ *
+ * A zero-result scan is a first-class outcome: `applicationsFound = 0` is
+ * recorded, not skipped.
+ */
+export async function recordCompletedScan(
+  supabase: SupabaseClient,
+  userId: string,
+  input: {
+    /** Immutable Gmail account identifier from Google's OAuth 'sub' claim. */
+    googleSub: string;
+    /** Nullable: the browser flow holds no server-side connection row. */
+    connectionId?: string | null;
+    windowStart: string;
+    windowEnd: string;
+    messagesSeen?: number;
+    candidates?: number;
+    applicationsFound?: number;
+    applicationsUpdated?: number;
+    syncMode?: SyncMode;
+  }
+): Promise<GmailSyncJob> {
+  const now = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from("gmail_sync_jobs")
+    .insert({
+      user_id: userId,
+      connection_id: input.connectionId ?? null,
+      google_sub: input.googleSub,
+      status: "complete",
+      sync_mode: input.syncMode ?? "full",
+      window_start: input.windowStart,
+      window_end: input.windowEnd,
+      messages_seen: input.messagesSeen ?? 0,
+      candidates: input.candidates ?? 0,
+      applications_found: input.applicationsFound ?? 0,
+      applications_updated: input.applicationsUpdated ?? 0,
+      started_at: now,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error recording completed Gmail scan:", error);
+    throw error;
+  }
+
+  return mapJob(data as SyncJobRow);
+}
+
 /** Persist batch progress. Called after every batch so a crash loses nothing. */
 export async function updateSyncJobProgress(
   supabase: SupabaseClient,

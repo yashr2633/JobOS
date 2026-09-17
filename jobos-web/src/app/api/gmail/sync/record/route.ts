@@ -1,40 +1,45 @@
 /**
  * POST /api/gmail/sync/record
  *
- * Record browser Gmail scan completion for analytics tracking.
+ * Record a COMPLETED browser Gmail scan for server-side analytics.
  *
- * Browser-based Gmail integration stores applications in IndexedDB locally.
- * This endpoint records scan metadata to gmail_sync_jobs for server-side
- * analytics (Gmail Accounts Tested, Gmail Scan Attempts, etc.).
+ * The browser-only Gmail flow keeps applications in IndexedDB. This route
+ * persists scan METADATA only, so "Gmail Accounts Tested" and "Gmail Scan
+ * Attempts" can be computed from `gmail_sync_jobs`.
  *
- * SECURITY: Only records scan metadata (connection_id, google_sub, window,
- * result counts). Does NOT accept or store Gmail message content.
+ * Identity comes from `googleSub` — the Google `sub` of the account that
+ * actually performed the scan, resolved in the browser from its own access
+ * token. It is NOT read from `gmail_connections`: the browser-only flow never
+ * writes that table, and any legacy row there could describe a different Gmail
+ * account than the one just scanned.
+ *
+ * SECURITY / PRIVACY: accepts only an opaque account id, a date window and
+ * counts. No access token, no email address, no message content.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { startSyncJob, updateSyncJobProgress } from "@/lib/api/gmailActivity";
+import { recordCompletedScan } from "@/lib/api/gmailActivity";
 
 interface RecordScanRequest {
-  /** Gmail connection ID from gmail_connections */
-  connectionId: string;
-  /** Google OAuth 'sub' claim (immutable Gmail account ID) */
+  /** Google OAuth 'sub' claim of the Gmail account that ran the scan. */
   googleSub: string;
-  /** Scan window start (ISO 8601) */
+  /** Scan window start (ISO 8601). */
   windowStart: string;
-  /** Scan window end (ISO 8601) */
+  /** Scan window end (ISO 8601). */
   windowEnd: string;
-  /** Number of applications found/stored */
-  applicationsFound: number;
-  /** Number of messages processed */
-  messagesProcessed: number;
+  /** Applications created/updated by this scan. 0 is valid and recorded. */
+  applicationsFound?: number;
+  /** Messages processed by this scan. */
+  messagesProcessed?: number;
+  /** Messages judged application-related. */
+  candidates?: number;
 }
 
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
 
-    // Verify authentication
     const {
       data: { user },
       error: authError,
@@ -47,72 +52,58 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Parse request body
-    const body: RecordScanRequest = await request.json();
-
+    const body = (await request.json()) as RecordScanRequest;
     const {
-      connectionId,
       googleSub,
       windowStart,
       windowEnd,
       applicationsFound,
       messagesProcessed,
+      candidates,
     } = body;
 
-    // Validate required fields
-    if (!connectionId || !googleSub || !windowStart || !windowEnd) {
+    if (!googleSub || !windowStart || !windowEnd) {
       return NextResponse.json(
-        { error: "Missing required fields: connectionId, googleSub, windowStart, windowEnd" },
+        {
+          error:
+            "Missing required fields: googleSub, windowStart, windowEnd",
+        },
         { status: 400 }
       );
     }
 
-    // Verify connection belongs to authenticated user
-    const { data: connection, error: connectionError } = await supabase
+    // Best effort only. The browser-only flow has no connection row, and its
+    // absence must never block recording — connection_id is nullable precisely
+    // so scan identity survives without it.
+    const { data: connection } = await supabase
       .from("gmail_connections")
-      .select("id, google_sub")
-      .eq("id", connectionId)
+      .select("id")
       .eq("user_id", user.id)
-      .single();
+      .eq("is_active", true)
+      .maybeSingle();
 
-    if (connectionError || !connection) {
-      return NextResponse.json(
-        { error: "Gmail connection not found or access denied" },
-        { status: 404 }
-      );
-    }
-
-    // Verify google_sub matches (security check)
-    if (connection.google_sub !== googleSub) {
-      return NextResponse.json(
-        { error: "Google account mismatch" },
-        { status: 403 }
-      );
-    }
-
-    // Start sync job record
-    const job = await startSyncJob(supabase, user.id, {
-      connectionId,
+    const job = await recordCompletedScan(supabase, user.id, {
       googleSub,
+      connectionId: connection?.id ?? null,
       windowStart,
       windowEnd,
-      syncMode: "full", // Browser scans are always full scans
-    });
-
-    // Immediately complete it with results
-    await updateSyncJobProgress(supabase, user.id, job.id, {
-      status: "complete",
       applicationsFound: applicationsFound ?? 0,
       messagesSeen: messagesProcessed ?? 0,
+      candidates: candidates ?? 0,
     });
 
     return NextResponse.json({
       success: true,
       jobId: job.id,
-      applicationsFound: applicationsFound ?? 0,
+      status: job.status,
+      applicationsFound: job.applicationsFound,
     });
   } catch (error) {
-    console.error("Error recording Gmail scan:", error);
+    // Message only — never request bodies or Gmail-derived values.
+    console.error(
+      "Error recording Gmail scan:",
+      error instanceof Error ? error.message : "unknown error"
+    );
     return NextResponse.json(
       {
         error: "Failed to record Gmail scan",

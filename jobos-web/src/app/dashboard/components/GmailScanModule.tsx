@@ -21,7 +21,10 @@ import {
   type ScanProgress,
   type ScanRunTotals,
 } from "../scanRunner";
-import { requestGmailBrowserAccessToken } from "@/lib/gmail/browserOAuth";
+import {
+  requestGmailBrowserAccessToken,
+  resolveGoogleSubForAccessToken,
+} from "@/lib/gmail/browserOAuth";
 import {
   scanGmailInBrowser,
   type BrowserScanResult,
@@ -137,6 +140,14 @@ export default function GmailScanModule({
    * where the work actually stopped.
    */
   const [importNote, setImportNote] = useState<string | null>(null);
+  /**
+   * Set when the scan succeeded but recording it for analytics did not.
+   *
+   * Deliberately separate from `error`: the scan result is already saved and is
+   * not rolled back, so this must not read as a failed scan — but it must also
+   * never be silently swallowed.
+   */
+  const [analyticsWarning, setAnalyticsWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [needsReconnect, setNeedsReconnect] = useState(false);
   const [scanFinished, setScanFinished] = useState(false);
@@ -193,6 +204,7 @@ export default function GmailScanModule({
     setMessageDetail(null);
     setCountsLine(null);
     setImportNote(null);
+    setAnalyticsWarning(null);
     setNeedsReconnect(false);
     setScanFinished(false);
     setProgress(null);
@@ -269,38 +281,60 @@ export default function GmailScanModule({
         lastScanWindow: runWindow,
       });
 
-      // Record scan to gmail_sync_jobs for analytics tracking
+      // Record this scan for server-side analytics.
+      //
+      // Runs for EVERY completed scan, including one that stored zero
+      // applications — "was this Gmail account scanned" is independent of what
+      // the scan found.
+      //
+      // Identity comes from the token this scan actually used, NOT from
+      // gmail_connections: the browser-only flow never writes that table, so
+      // reading it skipped recording entirely, and any legacy row there could
+      // name a different Gmail account than the one just scanned.
+      //
+      // Kept in its own try/catch: the scan and its IndexedDB results are
+      // already committed and must survive a recording failure. But the failure
+      // is surfaced, never presented as success.
       try {
-        const { data: connection } = await supabase
-          .from("gmail_connections")
-          .select("id, google_sub")
-          .eq("user_id", user.id)
-          .eq("is_active", true)
-          .single();
+        const googleSub = await resolveGoogleSubForAccessToken(currentToken);
 
-        if (connection) {
-          // Calculate window dates
-          const windowEnd = new Date().toISOString();
-          const windowStart = new Date();
-          windowStart.setDate(windowStart.getDate() - parseInt(runWindow));
-          const windowStartISO = windowStart.toISOString();
+        const windowEnd = new Date();
+        const windowStart = new Date(windowEnd);
+        windowStart.setDate(windowStart.getDate() - scanWindowDays(runWindow));
 
-          await fetch("/api/gmail/sync/record", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              connectionId: connection.id,
-              googleSub: connection.google_sub,
-              windowStart: windowStartISO,
-              windowEnd: windowEnd,
-              applicationsFound: storeResult.added + storeResult.updated,
-              messagesProcessed: result.messagesProcessed,
-            }),
-          });
+        const response = await fetch("/api/gmail/sync/record", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            googleSub,
+            windowStart: windowStart.toISOString(),
+            windowEnd: windowEnd.toISOString(),
+            applicationsFound: storeResult.added + storeResult.updated,
+            messagesProcessed: result.messagesProcessed,
+            candidates: result.candidates,
+          }),
+        });
+
+        if (!response.ok) {
+          const body = await response.text();
+          console.error(
+            "Gmail analytics recording failed",
+            response.status,
+            body
+          );
+          throw new Error(
+            `Gmail analytics recording failed: ${response.status}`
+          );
         }
       } catch (recordError) {
-        // Don't fail the scan if recording fails - just log it
-        console.error("Failed to record scan for analytics:", recordError);
+        // Status/message only — no token, no email content.
+        console.error(
+          "Gmail analytics recording failed:",
+          recordError instanceof Error ? recordError.message : "unknown error"
+        );
+        setAnalyticsWarning(
+          "Your scan and applications were saved, but this scan could not be recorded for usage analytics."
+        );
       }
 
       setScanFinished(true);
@@ -464,6 +498,11 @@ export default function GmailScanModule({
           {importNote && (
             <p className="mt-2 rounded-sm border border-warning/20 bg-warning-bg px-2 py-1.5 text-xs text-warning">
               {importNote}
+            </p>
+          )}
+          {analyticsWarning && (
+            <p className="mt-2 rounded-sm border border-warning/20 bg-warning-bg px-2 py-1.5 text-xs text-warning">
+              {analyticsWarning}
             </p>
           )}
           {scanFinished && (
