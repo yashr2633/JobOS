@@ -10,12 +10,15 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   getGmailApplicationsForUser,
+  getGmailIntegrationState,
   type LocalGmailApplication,
 } from "./browserStore";
 import type { ApplicationStatus } from "@/app/applications/types";
 import { consolidateLocalApplications } from "./localApplications";
+import type { GmailReviewMessage } from "./browserScan";
 
 export interface UseLocalGmailApplicationsResult {
+  reviewMessages: GmailReviewMessage[];
   applications: LocalGmailApplication[];
   counts: Record<ApplicationStatus, number>;
   loading: boolean;
@@ -27,6 +30,7 @@ export interface UseLocalGmailApplicationsResult {
  * Load local Gmail applications for the current user from IndexedDB.
  */
 export function useLocalGmailApplications(): UseLocalGmailApplicationsResult {
+  const [reviewMessages, setReviewMessages] = useState<GmailReviewMessage[]>([]);
   const [applications, setApplications] = useState<LocalGmailApplication[]>([]);
   const [counts, setCounts] = useState<Record<ApplicationStatus, number>>({
     Applied: 0,
@@ -51,6 +55,7 @@ export function useLocalGmailApplications(): UseLocalGmailApplicationsResult {
       if (request !== requestNumber.current) return;
 
       if (!user) {
+        setReviewMessages([]);
         setApplications([]);
         setCounts({
           Applied: 0,
@@ -64,17 +69,20 @@ export function useLocalGmailApplications(): UseLocalGmailApplicationsResult {
       }
 
       // Load from IndexedDB
-      const apps = consolidateLocalApplications(await getGmailApplicationsForUser(user.id));
+      const [storedApps, integration] = await Promise.all([getGmailApplicationsForUser(user.id), getGmailIntegrationState(user.id).catch(() => null)]);
+      const apps = consolidateLocalApplications(storedApps);
       if (request !== requestNumber.current) return;
       const statusCounts: Record<ApplicationStatus, number> = {Applied:0, Interview:0, Offer:0, Rejected:0, Ghosted:0};
       for (const app of apps) statusCounts[app.status]++;
 
       setApplications(apps);
+      setReviewMessages(integration?.reviewMessages ?? []);
       setCounts(statusCounts);
     } catch (err) {
       if (request !== requestNumber.current) return;
       setError(err instanceof Error ? err.message : "Failed to load local applications");
       setApplications([]);
+      setReviewMessages([]);
       setCounts({
         Applied: 0,
         Interview: 0,
@@ -93,6 +101,7 @@ export function useLocalGmailApplications(): UseLocalGmailApplicationsResult {
     const { data: { subscription } } = createClient().auth.onAuthStateChange((event) => {
       if (event === "INITIAL_SESSION" || event === "SIGNED_OUT" || event === "SIGNED_IN") {
         setApplications([]);
+        setReviewMessages([]);
         void loadApplications();
       }
     });
@@ -117,6 +126,7 @@ export function useLocalGmailApplications(): UseLocalGmailApplicationsResult {
   }, [loadApplications, invalidateRequest]);
 
   return {
+    reviewMessages,
     applications,
     counts,
     loading,

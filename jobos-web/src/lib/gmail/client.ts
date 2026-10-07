@@ -230,7 +230,7 @@ export async function getMessageMetadata(
 ): Promise<GmailMessage> {
   return gmailGet<GmailMessage>(`/messages/${messageId}`, accessToken, {
     format: "metadata",
-    fields: "id,threadId,internalDate,snippet,payload(headers)",
+    fields: "id,threadId,labelIds,internalDate,snippet,payload(headers)",
     metadataHeaders: [...METADATA_HEADERS],
   });
 }

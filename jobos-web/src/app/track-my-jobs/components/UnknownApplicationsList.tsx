@@ -14,7 +14,7 @@ import { updateGmailApplication } from "@/lib/gmail/browserStore";
 import type { LocalGmailApplication } from "@/lib/gmail/browserStore";
 
 export default function UnknownApplicationsList() {
-  const { applications, loading, error, refresh } = useLocalGmailApplications();
+  const { applications, reviewMessages, loading, error, refresh } = useLocalGmailApplications();
   const [editing, setEditing] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<{
     company: string;
@@ -80,7 +80,7 @@ export default function UnknownApplicationsList() {
     );
   }
 
-  if (unknownApps.length === 0) {
+  if (unknownApps.length === 0 && reviewMessages.length === 0) {
     return (
       <div className="rounded-md border border-border bg-surface p-6">
         <h2 className="text-lg font-semibold text-text">Unknown Applications</h2>
@@ -88,7 +88,7 @@ export default function UnknownApplicationsList() {
           No applications with unknown company found.
         </p>
         <p className="mt-1 text-xs text-text-muted">
-          All Gmail-detected applications have been identified or you haven't synced Gmail yet.
+          All Gmail-detected applications have been identified or you haven&apos;t synced Gmail yet.
         </p>
       </div>
     );
@@ -98,14 +98,22 @@ export default function UnknownApplicationsList() {
     <div className="rounded-md border border-border bg-surface p-6">
       <div className="mb-4">
         <h2 className="text-lg font-semibold text-text">
-          Unknown Applications ({unknownApps.length})
+          Unknown Applications ({unknownApps.length + reviewMessages.length})
         </h2>
         <p className="mt-1 text-sm text-text-secondary">
-          These job applications were detected from your Gmail but need company identification.
+          These Gmail messages need company identification or review of their application status.
         </p>
       </div>
 
       <div className="space-y-3">
+        {reviewMessages.map(message => (
+          <div key={message.gmailMessageId} className="rounded-md border border-border bg-bg p-4">
+            <h3 className="text-sm font-semibold text-text">{message.company || message.senderDomain || "Unknown employer"}</h3>
+            <p className="mt-1 text-sm text-text-secondary">{message.jobTitle || "Unknown role"} · Status unknown — review source email</p>
+            <p className="mt-1 text-xs text-text-muted">{message.emailDate ? new Date(message.emailDate).toLocaleDateString() : "Date unknown"}</p>
+            <a className="mt-2 inline-block text-sm text-accent" href={`https://mail.google.com/mail/u/0/#all/${encodeURIComponent(message.gmailMessageId)}`} target="_blank" rel="noopener noreferrer">View source email</a>
+          </div>
+        ))}
         {unknownApps.map((app) => {
           const isEditing = editing === app.id;
 

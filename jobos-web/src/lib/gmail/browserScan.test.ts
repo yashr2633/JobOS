@@ -6,6 +6,7 @@ import { GmailApiError } from "./client.ts";
 import { safeNextPath } from "../supabase/safeNextPath.ts";
 import { readFileSync } from "node:fs";
 import { requestGmailBrowserAccessToken } from "./browserOAuth.ts";
+import { mergeReviewMessages } from "./reviewMessages.ts";
 
 const message = (id: string, snippet = "We have received your application.") => ({
   id, threadId: `t${id}`, internalDate: "1791331200000", snippet,
@@ -111,14 +112,62 @@ test("repeated pagination and malformed lists fail recoverably",async t=>{
   await assert.rejects(scanGmailInBrowser({accessToken:"test-only",window:"30d"}),/invalid message list/);
 });
 
-for (const status of [429,503]) test(`persistent HTTP ${status} stops new requests after bounded retries`,async t=>{
+for (const status of [429,503]) test(`isolated exhausted HTTP ${status} retries do not abandon the remaining queue`,async t=>{
   let reads=0;
   t.mock.method(globalThis,"fetch",async(input:URL)=>{
     if(new URL(String(input)).pathname.endsWith("/messages"))return Response.json({messages:Array.from({length:40},(_,i)=>({id:String(i),threadId:`t${i}`}))});
-    reads++;return new Response("vendor payload",{status});
+    reads++;
+    const id=new URL(String(input)).pathname.split('/').at(-1)!;
+    return id==='0'?new Response("vendor payload",{status}):Response.json(message(id));
   });
-  await assert.rejects(scanGmailInBrowser({accessToken:"test-only",window:"30d"}),GmailApiError);
-  assert.equal(reads,15,"five workers each retry at most three times, then stop");
+  const result=await scanGmailInBrowser({accessToken:"test-only",window:"90d"});
+  assert.equal(reads,42,"one failed message receives bounded retries; all other messages are attempted");
+  assert.equal(result.messagesProcessed,40);
+  assert.equal(result.metadataFailed,1);
+  assert.equal(result.candidateMessages.length,39);
+  assert.equal(result.reviewMessages.length,0);
+});
+
+test("body escalation follows Gmail order despite slower metadata and preserves deferred unknowns",async t=>{
+  const bodies:string[]=[];
+  t.mock.method(globalThis,'fetch',async(input:URL)=>{
+    const url=new URL(String(input));
+    if(url.pathname.endsWith('/messages'))return Response.json({messages:Array.from({length:42},(_,i)=>({id:String(i),threadId:`t${i}`}))});
+    const id=url.pathname.split('/').at(-1)!;
+    const email=message(id,'Regarding your application');
+    email.payload.headers[0].value='Recruiting <careers@greenhouse.io>';
+    if(url.searchParams.get('format')==='full')bodies.push(id);
+    else if(id==='0')await new Promise(resolve=>setTimeout(resolve,30));
+    return Response.json(email);
+  });
+  const result=await scanGmailInBrowser({accessToken:'test-only',window:'60d'});
+  assert.deepEqual(bodies,[...Array(40)].map((_,i)=>String(i)));
+  assert.equal(result.ambiguousCount,42);
+  assert.equal(result.reviewMessages.length,42);
+  assert.equal(result.candidateMessages.length,0,'unknown status must not become an invented application');
+  assert.equal(result.reviewMessages[0].gmailMessageId,'0');
+  assert.ok(!JSON.stringify(result.reviewMessages).includes('Regarding your application'),'raw subjects/bodies are not persisted');
+  assert.equal(mergeReviewMessages(result.reviewMessages,[],['0']).length,41);
+  assert.equal(mergeReviewMessages(result.reviewMessages,[],[]).length,42,'shorter/partial scans retain prior review evidence');
+});
+
+test("large-window ATS lifecycle fixtures retain distinct employers and roles",async t=>{
+  const emails=[
+    {...message('alpha'),snippet:'Thank you for applying to the Backend Engineer role at Alpha Corp. We have received your application.'},
+    {...message('alpha-other'),snippet:'Thank you for applying to the Data Analyst role at Alpha Corp. We have received your application.'},
+    {...message('beta'),snippet:'Thank you for applying to the Backend Engineer role at Beta Corp. We have received your application.'},
+    {...message('interview'),snippet:'We would like to invite you to an interview for your application.'},
+    {...message('reject'),snippet:'Unfortunately we will not be moving forward with your application.'},
+  ];
+  for(const email of emails){email.payload.headers[0].value='Recruiting <notifications@greenhouse.io>';email.payload.headers[1].value='Your application update';email.threadId='shared-ats-thread';}
+  t.mock.method(globalThis,'fetch',async(input:URL)=>{
+    const id=new URL(String(input)).pathname.split('/').at(-1)!;
+    return Response.json(id==='messages'?{messages:emails.map(({id,threadId})=>({id,threadId}))}:emails.find(m=>m.id===id));
+  });
+  const result=await scanGmailInBrowser({accessToken:'test-only',window:'90d'});
+  assert.equal(result.candidateMessages.length,5);
+  assert.equal(result.candidateMessages.find(m=>m.gmailMessageId==='interview')?.status,'Interview');
+  assert.equal(result.candidateMessages.find(m=>m.gmailMessageId==='reject')?.status,'Rejected');
 });
 
 test("analytics starts in the background only for complete scans and binds the original user",()=>{

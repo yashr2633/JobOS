@@ -33,11 +33,13 @@ import {
   storeGmailApplications,
   isIndexedDBAvailable,
   setGmailIntegrationState,
+  getGmailIntegrationState,
   type StoreGmailApplicationInput,
 } from "@/lib/gmail/browserStore";
 import { createClient } from "@/lib/supabase/client";
 import { useGmailToken } from "@/lib/gmail/GmailTokenProvider";
 import { GmailApiError } from "@/lib/gmail/client";
+import { mergeReviewMessages } from "@/lib/gmail/reviewMessages";
 
 /** Persisted facts about the most recent scan job. Null fields stay unreported. */
 export interface LatestScanView {
@@ -283,12 +285,17 @@ export default function GmailScanModule({
       }
 
       // Update integration state
-      try { await setGmailIntegrationState({
+      try {
+        const previousState = await getGmailIntegrationState(user.id);
+        await setGmailIntegrationState({
         userId: user.id,
         initialized: true,
-        lastSuccessfulScanAt: new Date().toISOString(),
+        reviewMessages: mergeReviewMessages(previousState?.reviewMessages ?? [], result.reviewMessages, applicationsToStore.map(message => message.gmailMessageId)),
+        lastSuccessfulScanAt: result.messagesFailed || result.truncated ? previousState?.lastSuccessfulScanAt ?? null : new Date().toISOString(),
         lastScanWindow: runWindow,
-      }); } catch {
+      });
+        window.dispatchEvent(new Event("jobos:gmail-applications-changed"));
+      } catch {
         setAnalyticsWarning("Applications were saved, but scan history could not be saved. Please retry if needed.");
       }
 
@@ -378,7 +385,7 @@ export default function GmailScanModule({
       // Note about ambiguous messages
       if (result.ambiguousCount > 0) {
         setImportNote(
-          `${result.ambiguousCount} ambiguous message${result.ambiguousCount === 1 ? "" : "s"} could not be classified automatically.`
+          `${result.ambiguousCount} ambiguous message${result.ambiguousCount === 1 ? "" : "s"} saved for review at /track-my-jobs; their application status is unknown.`
         );
       }
       if (result.truncated) setImportNote("The scan reached its 2,000-message limit. Use a shorter date window to finish scanning.");
