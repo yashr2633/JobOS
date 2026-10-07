@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import { safeNextPath } from "@/lib/supabase/safeNextPath";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
@@ -69,10 +70,7 @@ export default function LoginForm() {
   // Only allow relative same-origin destinations, so ?next= cannot be used to
   // redirect a freshly authenticated user off-site.
   const rawNext = searchParams.get("next");
-  const next =
-    rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//")
-      ? rawNext
-      : "/";
+  const next = safeNextPath(rawNext);
 
   const authErrorKey = searchParams.get("auth_error");
   const authErrorMessage = authErrorKey

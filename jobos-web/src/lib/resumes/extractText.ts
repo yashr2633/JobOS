@@ -9,7 +9,7 @@
  */
 
 import mammoth from "mammoth";
-import { LIMITS } from "@/lib/ai/schemas";
+import { LIMITS } from "../ai/schemas.ts";
 
 export type SupportedResumeExtension = "pdf" | "docx";
 

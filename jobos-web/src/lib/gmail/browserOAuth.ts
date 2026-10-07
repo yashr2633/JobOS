@@ -32,47 +32,44 @@ declare global {
   }
 }
 
+let loadingGoogleIdentity: Promise<void> | null = null;
 function loadGoogleIdentityServices(): Promise<void> {
   if (window.google?.accounts?.oauth2) {
     return Promise.resolve();
   }
 
-  return new Promise((resolve, reject) => {
+  if (loadingGoogleIdentity) return loadingGoogleIdentity;
+  loadingGoogleIdentity = new Promise<void>((resolve, reject) => {
     const existing = document.querySelector<HTMLScriptElement>(
       `script[src="${GIS_SCRIPT_SRC}"]`
     );
 
+    const script = existing ?? document.createElement("script");
+    const finish = (error?: Error) => {
+      clearTimeout(timeout);
+      script.removeEventListener("load", handleLoad);
+      script.removeEventListener("error", handleError);
+      if (error) { script.remove(); reject(error); } else resolve();
+    };
+    const handleError = () => finish(new Error("Could not load Google authorization. Please retry."));
     const handleLoad = () => {
       if (window.google?.accounts?.oauth2) {
-        resolve();
+        finish();
       } else {
-        reject(new Error("Google Identity Services failed to initialize."));
+        finish(new Error("Google authorization failed to initialize. Please retry."));
       }
     };
 
-    if (existing) {
-      existing.addEventListener("load", handleLoad, { once: true });
-      existing.addEventListener(
-        "error",
-        () => reject(new Error("Could not load Google Identity Services.")),
-        { once: true }
-      );
-      return;
-    }
-
-    const script = document.createElement("script");
+    const timeout = setTimeout(handleError, 15_000);
     script.src = GIS_SCRIPT_SRC;
     script.async = true;
     script.defer = true;
     script.addEventListener("load", handleLoad, { once: true });
-    script.addEventListener(
-      "error",
-      () => reject(new Error("Could not load Google Identity Services.")),
-      { once: true }
-    );
+    script.addEventListener("error", handleError, { once: true });
 
-    document.head.appendChild(script);
-  });
+    if (!existing) document.head.appendChild(script);
+  }).finally(() => { loadingGoogleIdentity = null; });
+  return loadingGoogleIdentity;
 }
 
 /**
@@ -97,7 +94,7 @@ export async function resolveGoogleSubForAccessToken(
     `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(
       accessToken
     )}`,
-    { method: "GET" }
+    { method: "GET", signal: AbortSignal.timeout(8_000) }
   );
 
   if (!response.ok) {
@@ -130,9 +127,11 @@ export async function requestGmailBrowserAccessToken(): Promise<{
   await loadGoogleIdentityServices();
 
   return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error("Google authorization timed out. Please retry.")), 120_000);
     const oauth2 = window.google?.accounts?.oauth2;
 
     if (!oauth2) {
+      clearTimeout(timeout);
       reject(new Error("Google OAuth is unavailable."));
       return;
     }
@@ -142,12 +141,11 @@ export async function requestGmailBrowserAccessToken(): Promise<{
       scope: GMAIL_SCOPE,
 
       callback: (response) => {
+        clearTimeout(timeout);
         if (response.error || !response.access_token) {
           reject(
             new Error(
-              response.error_description ||
-                response.error ||
-                "Google did not return an access token."
+              "Google authorization was not completed. Please retry."
             )
           );
           return;
@@ -161,6 +159,7 @@ export async function requestGmailBrowserAccessToken(): Promise<{
       },
 
       error_callback: (error) => {
+        clearTimeout(timeout);
         reject(
           new Error(
             error.type === "popup_closed"
@@ -175,6 +174,9 @@ export async function requestGmailBrowserAccessToken(): Promise<{
     // DO NOT force prompt: "consent" - let Google reuse previous consent
     // First-time users will see consent screen automatically
     // Returning users will get token immediately if consent was granted
-    client.requestAccessToken();
+    try { client.requestAccessToken(); } catch {
+      clearTimeout(timeout);
+      reject(new Error("Google authorization popup failed. Please retry."));
+    }
   });
 }

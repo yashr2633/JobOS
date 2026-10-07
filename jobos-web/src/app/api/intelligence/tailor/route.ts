@@ -28,7 +28,7 @@ import {
   TAILOR_RESUME_SYSTEM,
   TAILORING_NOTE,
   buildTailorResumePrompt,
-  validateTailoredResume,
+  validateTailoredResumeAgainstSource,
   verifyTailoredResume,
 } from "@/lib/ai/tailorResume";
 
@@ -99,7 +99,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       userContent: buildTailorResumePrompt(resumeText, jdText),
       // Reasoning task: the strongest configured tier, same as interpretation.
       task: "deep",
-      validate: validateTailoredResume,
+      validate: (value) => validateTailoredResumeAgainstSource(value, resumeText),
+      maxTokens: 6_000,
+      deadlineAt: Date.now() + 45_000,
       label: "resume_tailor",
     });
 

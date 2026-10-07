@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import {
   assembleTailoredText,
   TAILORING_NOTE,
-  type TailoredResume,
+  validateTailoredResume,
 } from "@/lib/ai/tailorResume";
 import {
   parseResumeDocument,
@@ -82,11 +82,12 @@ export default function TailorResumePanel({
       const response = await fetch("/api/intelligence/tailor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(65_000),
         body: JSON.stringify({ applicationId, resumeId }),
       });
 
       const data = (await response.json().catch(() => ({}))) as {
-        tailored?: TailoredResume;
+        tailored?: unknown;
         note?: string;
         error?: string;
       };
@@ -95,14 +96,17 @@ export default function TailorResumePanel({
         throw new Error(data.error ?? "Resume tailoring could not be completed.");
       }
 
-      setDraft(assembleTailoredText(data.tailored));
-      setChanges(data.tailored.changes);
+      const validated = validateTailoredResume(data.tailored);
+      if (!validated.ok) throw new Error("The tailored resume was incomplete. Please try again.");
+      setDraft(assembleTailoredText(validated.value));
+      setChanges(validated.value.changes);
       setNote(data.note ?? TAILORING_NOTE);
       setView("preview");
       setStatus("ready");
     } catch (err: unknown) {
       setError(
-        err instanceof Error ? err.message : "Resume tailoring could not be completed."
+        err instanceof Error && err.name === "TimeoutError" ? "Resume tailoring timed out. Please try again."
+          : err instanceof Error ? err.message : "Resume tailoring could not be completed."
       );
       setStatus("error");
     }
@@ -153,6 +157,7 @@ export default function TailorResumePanel({
         const response = await fetch("/api/resumes/export", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: AbortSignal.timeout(35_000),
           body: JSON.stringify({
             applicationId,
             // The edited draft, never the original model response.

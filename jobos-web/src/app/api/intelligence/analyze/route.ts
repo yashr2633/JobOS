@@ -132,6 +132,7 @@ function describeAiFailure(category: AiFailureCategory): {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const deadlineAt = Date.now() + 50_000;
   // ── 1. Parse request body ────────────────────────────────────────────────
   let body: unknown;
   try {
@@ -280,6 +281,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         task: "lightweight",
         validate: validateParsedJD,
         label: "jd_parse",
+        deadlineAt,
       });
 
       parsedJd = jdResult.value;
@@ -299,6 +301,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         task: "lightweight",
         validate: validateParsedResume,
         label: "resume_parse",
+        deadlineAt,
       });
 
       parsedResume = resumeResult.value;
@@ -329,6 +332,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       task: "deep",
       validate: validateMatchInterpretation,
       label: "interpretation",
+      deadlineAt,
     });
 
     // -- Stage 5: Persist and return ----------------------------------------

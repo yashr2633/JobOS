@@ -1,7 +1,7 @@
 /**
  * Minimal Gmail REST client.
  *
- * SERVER ONLY. Raw `fetch` against two endpoints — deliberately not the
+ * Shared browser/server transport. Raw `fetch` — deliberately not the
  * `googleapis` package, which would pull in a large discovery layer for what is
  * two HTTP calls. This mirrors how lib/gmail/oauth.ts already talks to Google's
  * token endpoint directly.
@@ -15,6 +15,7 @@ const GMAIL_API_BASE = "https://gmail.googleapis.com/gmail/v1/users/me";
 /** Bounded retry policy. Kept small: the sync loop itself is resumable. */
 const MAX_ATTEMPTS = 3;
 const BASE_BACKOFF_MS = 500;
+const REQUEST_TIMEOUT_MS = 15_000;
 
 export type GmailFailureKind =
   /** 401 — token rejected. Caller should refresh once and retry once. */
@@ -101,41 +102,40 @@ async function gmailGet<T>(
       await sleep(BASE_BACKOFF_MS * 2 ** (attempt - 1));
     }
 
-    let response: Response;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
-      response = await fetch(url, {
+      const response = await fetch(url, {
         method: "GET",
         headers: { Authorization: `Bearer ${accessToken}` },
+        signal: controller.signal,
       });
-    } catch (error: unknown) {
+
+      if (response.ok) return (await response.json()) as T;
+
+      // Read only to classify; never expose Gmail's payload or message IDs.
+      const body = await response.text();
+      const kind = classify(response.status, body);
+
       lastError = new GmailApiError(
-        "unavailable",
-        error instanceof Error ? error.message : "Gmail network failure"
+        kind,
+        kind === "unauthorized" ? "Gmail authorization expired. Please reconnect Gmail."
+          : `Gmail request failed (HTTP ${response.status}). Please retry.`,
+        response.status
       );
-      continue;
+
+      if (!RETRYABLE.has(kind)) throw lastError;
+    } catch (error: unknown) {
+      if (error instanceof GmailApiError) throw error;
+      lastError = new GmailApiError("unavailable", "Gmail could not be reached. Check your connection and retry.");
+    } finally {
+      clearTimeout(timeout);
     }
-
-    if (response.ok) {
-      return (await response.json()) as T;
-    }
-
-    // Body is read only to classify the failure. It is never logged or
-    // returned, because Gmail error payloads can echo query content.
-    const body = await response.text().catch(() => "");
-    const kind = classify(response.status, body);
-
-    lastError = new GmailApiError(
-      kind,
-      `Gmail API ${path} failed (HTTP ${response.status}, ${kind})`,
-      response.status
-    );
-
-    if (!RETRYABLE.has(kind)) throw lastError;
   }
 
   throw (
     lastError ??
-    new GmailApiError("unknown", `Gmail API ${path} failed after retries`)
+    new GmailApiError("unknown", "Gmail request failed after retries. Please retry.")
   );
 }
 
@@ -170,6 +170,11 @@ export async function listMessages(
     maxResults: String(options.maxResults ?? 100),
   });
 
+  if (!data || typeof data !== "object" || Array.isArray(data) ||
+    (data.messages !== undefined && (!Array.isArray(data.messages) || data.messages.some(ref => !ref || typeof ref.id !== "string" || !ref.id))) ||
+    (data.nextPageToken !== undefined && typeof data.nextPageToken !== "string")) {
+    throw new GmailApiError("unknown", "Gmail returned an invalid message list. Please retry.");
+  }
   return {
     messages: data.messages ?? [],
     nextPageToken: data.nextPageToken ?? null,
@@ -225,6 +230,7 @@ export async function getMessageMetadata(
 ): Promise<GmailMessage> {
   return gmailGet<GmailMessage>(`/messages/${messageId}`, accessToken, {
     format: "metadata",
+    fields: "id,threadId,internalDate,snippet,payload(headers)",
     metadataHeaders: [...METADATA_HEADERS],
   });
 }

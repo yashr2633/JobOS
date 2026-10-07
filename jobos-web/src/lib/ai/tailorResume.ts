@@ -107,7 +107,7 @@ export interface TailoredSection {
 
 /** The fixed, user-visible truthfulness guarantee. Never model-supplied. */
 export const TAILORING_NOTE =
-  "Tailored using only information already present in your resume. No skills, experience, dates, or achievements were invented.";
+  "Tailored from your resume for this role. Review all wording and factual details before applying.";
 
 export const TAILOR_RESUME_SYSTEM = `You are an expert resume editor helping a candidate tailor their EXISTING resume to a specific job description for better ATS keyword alignment and relevance.
 
@@ -147,7 +147,8 @@ Return ONLY valid JSON of this exact shape:
 
 - "contact": verbatim from the resume. Empty string where the resume is silent.
 - "skills": only skills already in the resume, ordered by relevance to the job.
-- "experience[].title" and "detail": copied from the resume (reworded at most, never invented).
+- "experience[].title" and "detail": copied verbatim from the resume, never rewritten or invented.
+- "skills", "education" and "certifications": copy the source wording verbatim; reorder only.
 - "projects": the resume's own projects, kept separate from certifications.
 - "additionalSections[].heading": a conventional uppercase heading, e.g. "INTERESTS".
 - "changes": short plain-language notes on what you emphasized or reordered — never claims of new facts.
@@ -428,4 +429,32 @@ export function assembleTailoredText(tailored: TailoredResume): string {
   while (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
 
   return lines.join("\n");
+}
+
+/** Reject invented stable facts and new numerical claims before showing a draft. */
+export function validateTailoredResumeAgainstSource(value: unknown, source: string):
+  { ok: true; value: TailoredResume } | { ok: false; error: string } {
+  const result = validateTailoredResume(value);
+  if (!result.ok) return result;
+  const normalizeFact = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}+#]+/gu, " ").trim();
+  const facts = ` ${normalizeFact(source)} `;
+  const resume = result.value;
+  for (const [heading, count] of [["(?:work |professional )?experience|employment history", resume.experience.length],
+    ["education", resume.education.length], ["(?:technical )?skills", resume.skills.length],
+    ["certifications", resume.certifications.length], ["projects", resume.projects.length]] as const) {
+    if (new RegExp(`^\\s*(?:${heading})\\s*:?\\s*$`, "im").test(source) && count === 0) {
+      return {ok:false,error:"Tailoring omitted a section present in the source resume."};
+    }
+  }
+  const stable = [...resume.skills, ...resume.education, ...resume.certifications,
+    ...resume.experience.flatMap(role => [role.title, role.detail]).filter(Boolean)];
+  if (stable.some(fact => !facts.includes(` ${normalizeFact(fact)} `))) {
+    return { ok: false, error: "Tailoring introduced a fact absent from the source resume." };
+  }
+  const numbers = (text: string) => text.match(/\b\d+(?:[.,]\d+)*(?:%|\+)?/g) ?? [];
+  const sourceNumbers = new Set(numbers(source));
+  if (numbers(assembleTailoredText(resume)).some(number => !sourceNumbers.has(number))) {
+    return { ok: false, error: "Tailoring introduced a numerical claim absent from the source resume." };
+  }
+  return { ok: true, value: verifyTailoredResume(resume, source) };
 }

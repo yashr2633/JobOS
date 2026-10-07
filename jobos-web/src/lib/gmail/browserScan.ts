@@ -19,6 +19,7 @@ import {
   listMessages,
   getMessageMetadata,
   getMessageFull,
+  GmailApiError,
   type GmailMessageRef,
 } from "./client.ts";
 import { buildGmailQuery, type ScanWindow } from "./query.ts";
@@ -29,6 +30,7 @@ import type { EvidenceReason } from "./applicationEvidence.ts";
 import { resolveEmployer } from "./employer.ts";
 import { inferStatusFromCategory } from "./statusInference.ts";
 import type { ApplicationStatus } from "@/app/applications/types";
+import { extractExplicitRole } from "./localApplications.ts";
 
 /** Configuration for the browser scan. */
 export interface BrowserScanConfig {
@@ -79,6 +81,10 @@ export interface ClassifiedMessage {
 
 /** Final scan results. */
 export interface BrowserScanResult {
+  /** Requests that could not be read; these are not legitimate zero results. */
+  messagesFailed: number;
+  metadataFailed: number;
+  truncated: boolean;
   /** Total messages listed from Gmail. */
   messagesListed: number;
   /** Total messages fetched and classified. */
@@ -101,8 +107,6 @@ export interface BrowserScanResult {
 const POC_MESSAGE_LIMIT = 2000;
 
 /** Maximum messages to fetch per batch (bounded concurrency). */
-const BATCH_SIZE = 10;
-
 /** Maximum ambiguous messages to escalate with full body fetch. */
 const BODY_ESCALATION_LIMIT = 40;
 
@@ -115,23 +119,32 @@ const METADATA_CONCURRENCY = 5;
 async function mapWithConcurrency<T, R>(
   items: T[],
   limit: number,
-  fn: (item: T) => Promise<R>
+  fn: (item: T) => Promise<R>,
+  shouldStop?: () => boolean
 ): Promise<R[]> {
   const results: R[] = new Array(items.length);
   let cursor = 0;
+  let stopped = false;
 
   async function worker(): Promise<void> {
-    while (cursor < items.length) {
+    while (!stopped && !shouldStop?.() && cursor < items.length) {
       const index = cursor;
       cursor += 1;
-      results[index] = await fn(items[index]);
+      try {
+        results[index] = await fn(items[index]);
+      } catch (error) {
+        stopped = true;
+        throw error;
+      }
     }
   }
 
   const workerCount = Math.min(limit, items.length);
-  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  const workers = await Promise.allSettled(Array.from({ length: workerCount }, () => worker()));
+  const failure = workers.find((result) => result.status === "rejected");
+  if (failure?.status === "rejected") throw failure.reason;
 
-  return results;
+  return results.filter(() => true);
 }
 
 /**
@@ -161,6 +174,12 @@ export async function scanGmailInBrowser(
   let bodyEscalated = 0;
   let bodyResolved = 0;
   let ambiguousCount = 0;
+  let messagesFailed = 0;
+  let transportStopped = false;
+  let truncated = false;
+  let lastFailure: unknown;
+  const seenMessages = new Set<string>();
+  const seenPages = new Set<string>();
 
   // Phase 1: List all messages matching the query
   onProgress?.({
@@ -172,6 +191,7 @@ export async function scanGmailInBrowser(
 
   while (true) {
     if (allMessageRefs.length >= POC_MESSAGE_LIMIT) {
+      truncated = true;
       onProgress?.({
         messagesListed: allMessageRefs.length,
         messagesProcessed: 0,
@@ -187,7 +207,12 @@ export async function scanGmailInBrowser(
       maxResults: 100,
     });
 
-    allMessageRefs.push(...listResult.messages);
+    for (const ref of listResult.messages) {
+      if (!ref || typeof ref.id !== "string" || !ref.id || seenMessages.has(ref.id)) continue;
+      if (allMessageRefs.length >= POC_MESSAGE_LIMIT) { truncated = true; break; }
+      seenMessages.add(ref.id);
+      allMessageRefs.push(ref);
+    }
 
     onProgress?.({
       messagesListed: allMessageRefs.length,
@@ -197,12 +222,19 @@ export async function scanGmailInBrowser(
     });
 
     if (!listResult.nextPageToken) break;
+    if (seenPages.has(listResult.nextPageToken)) {
+      throw new Error("Gmail returned repeated pages. Please retry the scan.");
+    }
+    seenPages.add(listResult.nextPageToken);
     pageToken = listResult.nextPageToken;
   }
 
   if (allMessageRefs.length === 0) {
     return {
       messagesListed: 0,
+      messagesFailed: 0,
+      metadataFailed: 0,
+      truncated: false,
       messagesProcessed: 0,
       candidates: 0,
       candidateMessages: [],
@@ -224,31 +256,12 @@ export async function scanGmailInBrowser(
   const ambiguousEmails: Array<{ email: ParsedEmail; reason: EvidenceReason }> = [];
   let processed = 0;
 
-  // Process in batches to avoid memory issues
-  for (let i = 0; i < allMessageRefs.length; i += BATCH_SIZE) {
-    const batch = allMessageRefs.slice(i, i + BATCH_SIZE);
-
-    // Fetch metadata with bounded concurrency
-    const metadataResults = await mapWithConcurrency(
-      batch,
-      METADATA_CONCURRENCY,
-      async (ref) => {
-        try {
-          const gmailMessage = await getMessageMetadata(accessToken, ref.id);
-          return parseGmailMessage(gmailMessage);
-        } catch {
-          // If fetch fails, skip this message
-          return null;
-        }
-      }
-    );
-
-    // Classify each message
-    for (const email of metadataResults) {
-      if (email === null) {
-        processed++;
-        continue;
-      }
+  // Keep five workers busy across the list, without waiting for a slow batch.
+  await mapWithConcurrency(allMessageRefs, METADATA_CONCURRENCY, async (ref) => {
+    try {
+      const gmailMessage = await getMessageMetadata(accessToken, ref.id);
+      if (gmailMessage?.id !== ref.id) throw new Error("Gmail returned an invalid message.");
+      const email = parseGmailMessage(gmailMessage);
 
       const { evidence, verdict } = evaluateEmailWithEvidence(email);
 
@@ -257,8 +270,7 @@ export async function scanGmailInBrowser(
         (evidenceReasonCounts[evidence.reason] ?? 0) + 1;
 
       if (!verdict.candidate) {
-        processed++;
-        continue;
+        return;
       }
 
       candidates++;
@@ -266,8 +278,7 @@ export async function scanGmailInBrowser(
       if (verdict.needsAI) {
         // Ambiguous - will escalate with body later
         ambiguousEmails.push({ email, reason: evidence.reason });
-        processed++;
-        continue;
+        return;
       }
 
       // Deterministic classification succeeded
@@ -295,22 +306,32 @@ export async function scanGmailInBrowser(
           isLifecycle: evidence.isLifecycleEvent,
           status: inferredStatus,
           company,
-          jobTitle: null, // Not extracted from metadata
+          jobTitle: extractExplicitRole(email.subject, email.snippet, email.bodyText),
           jobUrl: email.jobUrl,
           jobPortal,
         });
       }
 
+    } catch (error) {
+      messagesFailed++;
+      lastFailure = error;
+      if (error instanceof GmailApiError && (error.kind === "rate_limit" || error.kind === "unavailable")) transportStopped = true;
+      if (error instanceof GmailApiError && error.kind === "unauthorized") throw error;
+    } finally {
       processed++;
-    }
-
-    onProgress?.({
+      if (processed % 10 === 0 || processed === allMessageRefs.length) onProgress?.({
       messagesListed: allMessageRefs.length,
       messagesProcessed: processed,
       candidates,
       status: `Processed ${processed}/${allMessageRefs.length} messages, ${candidates} candidates found...`,
-    });
+      });
+    }
+  }, () => transportStopped);
+  if (messagesFailed === processed) {
+    throw lastFailure instanceof GmailApiError ? lastFailure
+      : new Error("No Gmail messages could be read. Please retry the scan.");
   }
+  const metadataFailed = messagesFailed;
 
   // Phase 3: Escalate ambiguous messages with full body fetch
   if (ambiguousEmails.length > 0) {
@@ -324,7 +345,6 @@ export async function scanGmailInBrowser(
     const toEscalate = ambiguousEmails.slice(0, BODY_ESCALATION_LIMIT);
     const deferred = ambiguousEmails.slice(BODY_ESCALATION_LIMIT);
 
-    bodyEscalated = toEscalate.length;
 
     const escalationResults = await mapWithConcurrency(
       toEscalate,
@@ -332,6 +352,7 @@ export async function scanGmailInBrowser(
       async ({ email, reason }) => {
         try {
           const fullMessage = await getMessageFull(accessToken, email.gmailMessageId);
+          if (fullMessage?.id !== email.gmailMessageId) throw new Error("Gmail returned an invalid message.");
           const fullEmail = parseGmailMessage(fullMessage);
 
           const { evidence, verdict } = evaluateEmailWithEvidence(fullEmail);
@@ -371,17 +392,22 @@ export async function scanGmailInBrowser(
               isLifecycle: evidence.isLifecycleEvent,
               status: inferredStatus,
               company,
-              jobTitle: null,
+              jobTitle: extractExplicitRole(fullEmail.subject, fullEmail.snippet, fullEmail.bodyText),
               jobUrl: fullEmail.jobUrl,
               jobPortal,
             },
           };
-        } catch {
+        } catch (error) {
+          messagesFailed++;
+          if (error instanceof GmailApiError && (error.kind === "rate_limit" || error.kind === "unavailable")) transportStopped = true;
+          if (error instanceof GmailApiError && error.kind === "unauthorized") throw error;
           // Fetch failed, stays ambiguous
           return { resolved: false, email, reason };
         }
-      }
+      },
+      () => transportStopped
     );
+    bodyEscalated = escalationResults.length;
 
     for (const result of escalationResults) {
       if (result.resolved && "classified" in result && result.classified) {
@@ -393,11 +419,14 @@ export async function scanGmailInBrowser(
     }
 
     // Deferred messages stay ambiguous
-    ambiguousCount += deferred.length;
+    ambiguousCount += deferred.length + toEscalate.length - escalationResults.length;
   }
 
   return {
     messagesListed: allMessageRefs.length,
+    messagesFailed,
+    metadataFailed,
+    truncated,
     messagesProcessed: processed,
     candidates,
     candidateMessages,

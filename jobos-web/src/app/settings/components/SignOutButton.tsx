@@ -22,17 +22,17 @@ export default function SignOutButton() {
     setBusy(true);
     setError(null);
 
-    const supabase = createClient();
-    const { error: signOutError } = await supabase.auth.signOut();
-
-    if (signOutError) {
+    try {
+      const supabase = createClient();
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) throw signOutError;
+      router.push("/login");
+      router.refresh();
+    } catch {
       setError("Could not sign out. Please try again.");
+    } finally {
       setBusy(false);
-      return;
     }
-
-    router.push("/login");
-    router.refresh();
   }
 
   return (

@@ -98,12 +98,23 @@ export interface GmailIntegrationState {
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
+    let settled = false;
+    const timeout = setTimeout(() => {
+      settled = true;
+      reject(new Error("Local Gmail storage is unavailable. Close other JobTrackOS tabs and retry."));
+    }, 10_000);
 
     request.onerror = () => {
+      settled = true;
+      clearTimeout(timeout);
       reject(new Error("Failed to open IndexedDB"));
     };
 
     request.onsuccess = () => {
+      clearTimeout(timeout);
+      if (settled) { request.result.close(); return; }
+      settled = true;
+      request.result.onversionchange = () => request.result.close();
       resolve(request.result);
     };
 
@@ -144,6 +155,19 @@ function makeLocalId(userId: string, gmailMessageId: string): string {
   return `gmail-${userId}-${gmailMessageId}`;
 }
 
+/** Observe commit/abort immediately, including failure after a request succeeds. */
+function transactionDone(transaction: IDBTransaction, db: IDBDatabase): Promise<void> {
+  const done = new Promise<void>((resolve, reject) => {
+    transaction.oncomplete = () => { db.close(); resolve(); };
+    transaction.onabort = transaction.onerror = () => {
+      db.close();
+      reject(new Error("Local Gmail changes could not be saved. Please retry."));
+    };
+  });
+  void done.catch(() => {});
+  return done;
+}
+
 /**
  * Store multiple Gmail applications in IndexedDB.
  * 
@@ -160,6 +184,7 @@ export async function storeGmailApplications(
   const transaction = db.transaction(STORE_NAME, "readwrite");
   const store = transaction.objectStore(STORE_NAME);
   const index = store.index("userMessage");
+  const done = transactionDone(transaction, db);
 
   let added = 0;
   let updated = 0;
@@ -184,11 +209,11 @@ export async function storeGmailApplications(
         // Update existing record - preserve existing jobPortal and source if not updating
         const updatedRecord: LocalGmailApplication = {
           ...existing,
-          company: input.company,
-          role: input.role,
-          jobUrl: input.jobUrl,
+          company: existing.company ?? input.company,
+          role: existing.role ?? input.role,
+          jobUrl: existing.jobUrl ?? input.jobUrl,
           appliedDate: input.appliedDate,
-          status: input.status,
+          status: existing.status,
           category: input.category,
           confidence: input.confidence,
           evidenceReason: input.evidenceReason,
@@ -197,6 +222,11 @@ export async function storeGmailApplications(
           source: input.jobPortal ?? existing.jobPortal ?? "Email",
           updatedAt: now,
         };
+
+        if (JSON.stringify({ ...updatedRecord, updatedAt: existing.updatedAt }) === JSON.stringify(existing)) {
+          skipped++;
+          continue;
+        }
 
         await new Promise<void>((resolve, reject) => {
           const request = store.put(updatedRecord);
@@ -237,16 +267,14 @@ export async function storeGmailApplications(
 
         added++;
       }
-    } catch (error) {
-      // Skip records that fail
-      skipped++;
+    } catch {
+      // Failed requests abort this atomic transaction; never report partial saves.
+      await done;
+      throw new Error("Local Gmail changes could not be saved. Please retry.");
     }
   }
 
-  await new Promise<void>((resolve, reject) => {
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
-  });
+  await done;
 
   db.close();
 
@@ -314,6 +342,7 @@ export async function clearGmailApplicationsForUser(
 ): Promise<number> {
   const db = await openDatabase();
   const transaction = db.transaction(STORE_NAME, "readwrite");
+  const done = transactionDone(transaction, db);
   const store = transaction.objectStore(STORE_NAME);
   const index = store.index("userId");
 
@@ -333,10 +362,7 @@ export async function clearGmailApplicationsForUser(
     });
   }
 
-  await new Promise<void>((resolve, reject) => {
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
-  });
+  await done;
 
   db.close();
 
@@ -447,6 +473,7 @@ export async function setGmailIntegrationState(
 ): Promise<void> {
   const db = await openDatabase();
   const transaction = db.transaction(INTEGRATION_STORE_NAME, "readwrite");
+  const done = transactionDone(transaction, db);
   const store = transaction.objectStore(INTEGRATION_STORE_NAME);
 
   await new Promise<void>((resolve, reject) => {
@@ -455,10 +482,7 @@ export async function setGmailIntegrationState(
     request.onerror = () => reject(request.error);
   });
 
-  await new Promise<void>((resolve, reject) => {
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
-  });
+  await done;
 
   db.close();
 }
@@ -471,6 +495,7 @@ export async function clearGmailIntegrationState(
 ): Promise<void> {
   const db = await openDatabase();
   const transaction = db.transaction(INTEGRATION_STORE_NAME, "readwrite");
+  const done = transactionDone(transaction, db);
   const store = transaction.objectStore(INTEGRATION_STORE_NAME);
 
   await new Promise<void>((resolve, reject) => {
@@ -479,10 +504,7 @@ export async function clearGmailIntegrationState(
     request.onerror = () => reject(request.error);
   });
 
-  await new Promise<void>((resolve, reject) => {
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
-  });
+  await done;
 
   db.close();
 }
@@ -504,6 +526,7 @@ export async function updateGmailApplication(
 ): Promise<void> {
   const db = await openDatabase();
   const transaction = db.transaction([STORE_NAME], "readwrite");
+  const done = transactionDone(transaction, db);
   const store = transaction.objectStore(STORE_NAME);
 
   const id = `gmail-${userId}-${gmailMessageId}`;
@@ -536,10 +559,7 @@ export async function updateGmailApplication(
     request.onerror = () => reject(request.error);
   });
 
-  await new Promise<void>((resolve, reject) => {
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
-  });
+  await done;
 
   db.close();
 

@@ -47,7 +47,6 @@ function relative(file: string): string {
 /** Modules that read or write OAuth token columns. Server-only, always. */
 const SERVER_ONLY_MODULES = [
   "lib/gmail/tokens",
-  "lib/gmail/client",
   "lib/gmail/sync",
   "lib/api/gmail",
   "lib/api/gmailActivity",
@@ -81,7 +80,7 @@ test("no client component references Google OAuth secrets", () => {
     const contents = read(file);
     if (!isClientComponent(contents)) continue;
 
-    if (/GOOGLE_CLIENT_SECRET|GOOGLE_CLIENT_ID/.test(contents)) {
+    if (/GOOGLE_CLIENT_SECRET|(?<!NEXT_PUBLIC_)GOOGLE_CLIENT_ID/.test(contents)) {
       offenders.push(relative(file));
     }
   }
@@ -91,12 +90,18 @@ test("no client component references Google OAuth secrets", () => {
 
 test("no client component references raw token fields", () => {
   const offenders: string[] = [];
+  const browserTokenOwners = new Set(["app/dashboard/components/GmailScanModule.tsx", "lib/gmail/browserOAuth.ts", "lib/gmail/GmailTokenProvider.tsx"]);
 
   for (const file of sourceFiles()) {
     const contents = read(file);
     if (!isClientComponent(contents)) continue;
 
     if (/\b(access_token|refresh_token|accessToken|refreshToken)\b/.test(contents)) {
+      if (browserTokenOwners.has(relative(file))) {
+        const executable = stripTsComments(contents);
+        assert.doesNotMatch(executable, /localStorage|sessionStorage|indexedDB|refresh_token|refreshToken/);
+        continue;
+      }
       offenders.push(relative(file));
     }
   }
@@ -108,7 +113,7 @@ test("OAuth secrets are never exposed under a NEXT_PUBLIC_ name", () => {
   for (const file of sourceFiles()) {
     const contents = read(file);
     assert.equal(
-      /NEXT_PUBLIC_[A-Z_]*(GOOGLE|GMAIL|CLIENT_SECRET)/.test(contents),
+      /NEXT_PUBLIC_[A-Z_]*(?:SECRET|ACCESS_TOKEN|REFRESH_TOKEN)/.test(contents),
       false,
       `${relative(file)} exposes a Google credential to the browser`
     );
@@ -574,6 +579,10 @@ test("every Gmail API route authorizes before it touches data", () => {
   for (const file of routes) {
     const stripped = stripTsComments(read(file));
     const name = relative(file);
+    if (/status:\s*410/.test(stripped)) {
+      assert.doesNotMatch(stripped, /createClient|\.from\(|runReconciliation|runSync/);
+      continue;
+    }
 
     // Ordering is asserted inside the exported handler, which is the only entry
     // point. A module-level helper may legitimately be declared above it and
@@ -631,6 +640,10 @@ test("the import route's reject and resolve_unknown actions run inside the guard
   );
 
   const authIndex = stripped.indexOf("auth.getUser()");
+  if (/status:\s*410/.test(stripped)) {
+    assert.doesNotMatch(stripped, /createClient|\.from\(|decision\.action/);
+    return;
+  }
   assert.ok(authIndex >= 0);
 
   for (const action of ["reject", "resolve_unknown"]) {
@@ -654,6 +667,10 @@ test("the reconcile route is authorized", (t) => {
 
   const stripped = stripTsComments(source);
   const authIndex = stripped.indexOf("auth.getUser()");
+  if (/status:\s*410/.test(stripped)) {
+    assert.doesNotMatch(stripped, /createClient|\.from\(|runReconciliation/);
+    return;
+  }
 
   assert.ok(authIndex >= 0, "the reconcile route must identify the caller");
   assert.match(stripped, /if \(authError \|\| !user\)/);

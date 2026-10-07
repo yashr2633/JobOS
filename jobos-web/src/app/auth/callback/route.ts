@@ -10,16 +10,13 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { safeNextPath } from "@/lib/supabase/safeNextPath";
 import { PRODUCTION_APP_ORIGIN, VERCEL_APP_ORIGIN } from "@/lib/supabase/oauthRedirect";
 
 /**
  * Only allow same-origin relative paths as a post-login destination, so a
  * crafted link cannot turn the callback into an open redirect.
  */
-function safeNextPath(raw: string | null): string {
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/";
-  return raw;
-}
 
 /**
  * Strip credential-shaped substrings before anything is logged.

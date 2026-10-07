@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -37,6 +37,7 @@ import {
 } from "@/lib/gmail/browserStore";
 import { createClient } from "@/lib/supabase/client";
 import { useGmailToken } from "@/lib/gmail/GmailTokenProvider";
+import { GmailApiError } from "@/lib/gmail/client";
 
 /** Persisted facts about the most recent scan job. Null fields stay unreported. */
 export interface LatestScanView {
@@ -120,7 +121,9 @@ export default function GmailScanModule({
   opportunityCount,
 }: GmailScanModuleProps) {
   const router = useRouter();
-  const { accessToken, setAccessToken } = useGmailToken();
+  const { accessToken, setAccessToken, clearToken } = useGmailToken();
+  const running = useRef(false);
+  const runNumber = useRef(0);
 
   const [scanning, setScanning] = useState(false);
   /** How much mailbox the next scan reads. 30 days is the recommendation. */
@@ -168,10 +171,10 @@ export default function GmailScanModule({
     setConnectError(null);
 
     try {
-      const { accessToken: newToken } = await requestGmailBrowserAccessToken();
+      const { accessToken: newToken, expiresIn } = await requestGmailBrowserAccessToken();
       
       // Store token in shared context (memory only)
-      setAccessToken(newToken);
+      setAccessToken(newToken, expiresIn);
       setConnectError(null);
       setMessage("Gmail connected! Ready to scan.");
     } catch (err: unknown) {
@@ -192,12 +195,15 @@ export default function GmailScanModule({
    * Results are persisted to IndexedDB partitioned by user.
    */
   const runScan = useCallback(async () => {
+    if (running.current) return;
 
     if (!isIndexedDBAvailable()) {
       setError("IndexedDB is not available in this browser. Cannot persist scan results.");
       return;
     }
 
+    running.current = true;
+    const thisRun = ++runNumber.current;
     setScanning(true);
     setError(null);
     setMessage(null);
@@ -218,7 +224,7 @@ export default function GmailScanModule({
       if (!currentToken) {
         const auth = await requestGmailBrowserAccessToken();
         currentToken = auth.accessToken;
-        setAccessToken(currentToken);
+        setAccessToken(currentToken, auth.expiresIn);
       }
 
       // Get the current user from Supabase (client-side only for partitioning)
@@ -248,6 +254,9 @@ export default function GmailScanModule({
         (msg) => msg.emailDate // Only require a valid date, not company
       );
 
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser?.id !== user.id) throw new Error("Your session changed. Sign in and scan again.");
+
       // Persist to IndexedDB
       let storeResult = { added: 0, updated: 0, skipped: 0 };
       
@@ -274,12 +283,14 @@ export default function GmailScanModule({
       }
 
       // Update integration state
-      await setGmailIntegrationState({
+      try { await setGmailIntegrationState({
         userId: user.id,
         initialized: true,
         lastSuccessfulScanAt: new Date().toISOString(),
         lastScanWindow: runWindow,
-      });
+      }); } catch {
+        setAnalyticsWarning("Applications were saved, but scan history could not be saved. Please retry if needed.");
+      }
 
       // Record this scan for server-side analytics.
       //
@@ -295,7 +306,8 @@ export default function GmailScanModule({
       // Kept in its own try/catch: the scan and its IndexedDB results are
       // already committed and must survive a recording failure. But the failure
       // is surfaced, never presented as success.
-      try {
+      void (async () => { try {
+        if (result.messagesFailed || result.messagesProcessed < result.messagesListed || result.truncated) return;
         const googleSub = await resolveGoogleSubForAccessToken(currentToken);
 
         const windowEnd = new Date();
@@ -305,8 +317,10 @@ export default function GmailScanModule({
         const response = await fetch("/api/gmail/sync/record", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: AbortSignal.timeout(8_000),
           body: JSON.stringify({
             googleSub,
+            expectedUserId: user.id,
             windowStart: windowStart.toISOString(),
             windowEnd: windowEnd.toISOString(),
             applicationsFound: storeResult.added + storeResult.updated,
@@ -316,33 +330,27 @@ export default function GmailScanModule({
         });
 
         if (!response.ok) {
-          const body = await response.text();
-          console.error(
-            "Gmail analytics recording failed",
-            response.status,
-            body
-          );
           throw new Error(
             `Gmail analytics recording failed: ${response.status}`
           );
         }
-      } catch (recordError) {
+      } catch {
         // Status/message only — no token, no email content.
-        console.error(
-          "Gmail analytics recording failed:",
-          recordError instanceof Error ? recordError.message : "unknown error"
-        );
-        setAnalyticsWarning(
+        if (runNumber.current === thisRun) setAnalyticsWarning(
           "Your scan and applications were saved, but this scan could not be recorded for usage analytics."
         );
-      }
+      } })();
 
       setScanFinished(true);
       setScannedWindow(runWindow);
+      setLiveTotals({ created: storeResult.added, updated: storeResult.updated, listed: result.messagesListed,
+        candidates: result.candidates, deduplicated: storeResult.skipped, fresh: null });
 
       // Format results
       const countsText = [
-        `${result.messagesListed} Gmail messages scanned`,
+        `${result.messagesProcessed - result.metadataFailed} Gmail messages read`,
+        result.messagesFailed > 0 ? `${result.messagesFailed} requests failed; retry to complete` : null,
+        result.messagesListed > result.messagesProcessed ? `${result.messagesListed - result.messagesProcessed} messages not read; retry to complete` : null,
         `${result.candidates} application-related`,
         result.bodyEscalated > 0
           ? `${result.bodyEscalated} re-fetched with body content`
@@ -361,10 +369,10 @@ export default function GmailScanModule({
       
       const persistedTotal = storeResult.added + storeResult.updated;
       setMessage(
-        `Scan complete! ${persistedTotal} application${persistedTotal === 1 ? "" : "s"} updated.`
+        `${result.messagesFailed > 0 || result.truncated ? "Partial scan saved." : "Scan complete!"} ${persistedTotal} application${persistedTotal === 1 ? "" : "s"} updated.`
       );
       setMessageDetail(
-        `${storeResult.added} new, ${storeResult.updated} updated.`
+        `${storeResult.added} new, ${storeResult.updated} updated, ${storeResult.skipped} unchanged.`
       );
 
       // Note about ambiguous messages
@@ -373,6 +381,7 @@ export default function GmailScanModule({
           `${result.ambiguousCount} ambiguous message${result.ambiguousCount === 1 ? "" : "s"} could not be classified automatically.`
         );
       }
+      if (result.truncated) setImportNote("The scan reached its 2,000-message limit. Use a shorter date window to finish scanning.");
 
       // Refresh the page to show updated counts
       router.refresh();
@@ -380,13 +389,15 @@ export default function GmailScanModule({
       setError(err instanceof Error ? err.message : "The scan failed.");
       
       // Check if it's an auth error
-      if (err instanceof Error && err.message.includes("401")) {
+      if (err instanceof GmailApiError && err.kind === "unauthorized") {
+        clearToken();
         setNeedsReconnect(true);
       }
     } finally {
+      running.current = false;
       setScanning(false);
     }
-  }, [accessToken, setAccessToken, selectedWindow, router]);
+  }, [accessToken, setAccessToken, clearToken, selectedWindow, router]);
 
   /**
    * Only genuine exceptions surface here, and the old review queue is not one.

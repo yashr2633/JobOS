@@ -345,6 +345,13 @@ test("the scan route reports message counts and application counts separately", 
     join(process.cwd(), "src", "app", "api", "gmail", "sync", "route.ts"),
     "utf8"
   );
+  if (/status:\s*410/.test(source)) {
+    assert.doesNotMatch(source, /createClient|runSync|\.from\(/);
+    const browser = readFileSync(join(process.cwd(), "src/lib/gmail/browserScan.ts"), "utf8");
+    assert.match(browser, /messagesListed/);
+    assert.match(browser, /candidateMessages/);
+    return;
+  }
 
   // Four distinct fields, so no consumer has to derive one from another.
   for (const field of [

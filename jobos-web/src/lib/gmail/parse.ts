@@ -105,7 +105,8 @@ export function parseMessageDate(message: GmailMessage): string | null {
 export function decodeBase64Url(data: string | undefined): string {
   if (!data) return "";
   try {
-    return Buffer.from(data, "base64url").toString("utf8");
+    const binary = atob(data.replace(/-/g, "+").replace(/_/g, "/"));
+    return new TextDecoder().decode(Uint8Array.from(binary, (char) => char.charCodeAt(0)));
   } catch {
     return "";
   }

@@ -138,6 +138,17 @@ function uniqueContent(): string {
   return `payload-${uniqueCounter}`;
 }
 
+test("a shared expired deadline makes no provider call or retry", async () => {
+  process.env.GEMINI_API_KEY = "test-only";
+  process.env.AI_MAX_RETRIES = "3";
+  let calls = 0;
+  handler = async () => { calls++; return geminiOk({ skills: ["TypeScript"] }); };
+  await assert.rejects(generateStructured({systemPrompt:"test",userContent:uniqueContent(),task:"deep",
+    validate:validateSkills,label:"deadline_test",deadlineAt:Date.now()-1}),
+    (error:unknown) => error instanceof AiGatewayError && error.category === "timeout");
+  assert.equal(calls,0);
+});
+
 interface RunOverrides {
   task?: AiTaskKind;
   timeoutMs?: number;

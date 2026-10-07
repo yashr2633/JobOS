@@ -417,6 +417,11 @@ test("the reset route derives the user from the session, never the request", () 
   const route = read("app/api/gmail/reset/route.ts");
   const code = codeOnly(route);
 
+  if (/status:\s*410/.test(code)) {
+    assert.doesNotMatch(code, /createClient|resetGmailApplications|\.from\(/);
+    return;
+  }
+
   assert.match(code, /supabase\.auth\.getUser\(\)/, "reads the session");
   // The shared Gmail-route guard idiom, also asserted by gmail/security.test.ts.
   assert.match(code, /if \(authError \|\| !user\) return err\(/);
@@ -429,6 +434,10 @@ test("the reset route derives the user from the session, never the request", () 
 
 test("the reset requires an explicit confirmation token", () => {
   const code = codeOnly(read("app/api/gmail/reset/route.ts"));
+  if (/status:\s*410/.test(code)) {
+    assert.doesNotMatch(code, /resetGmailApplications|\.delete\(/);
+    return;
+  }
   assert.match(code, /confirm !== RESET_CONFIRMATION/);
 });
 
@@ -470,10 +479,12 @@ test("the reset never disconnects Gmail or clears credentials", () => {
   assert.match(code, /history_id: null/);
 });
 
-test("both Gmail insert paths stamp the Gmail origin", () => {
+test("legacy automatic imports retain origin and retired manual imports stay inert", () => {
   // Without this the reset cannot find what it must delete.
   assert.match(read("lib/gmail/autoImport.ts"), /source: "gmail"/);
-  assert.match(read("app/api/gmail/sync/import/route.ts"), /source: "gmail"/);
+  const route = codeOnly(read("app/api/gmail/sync/import/route.ts"));
+  assert.match(route, /status:\s*410/);
+  assert.doesNotMatch(route, /createClient|\.insert\(|\.from\(/);
 });
 
 test("the manual insert paths stamp the manual origin", () => {
@@ -619,9 +630,13 @@ test("smooth scrolling is enabled and reduced-motion overrides it", () => {
 
 test("the dashboard renders the range-aware chart, not the fixed weekly one", () => {
   const page = read("app/page.tsx");
+  const client = read("app/dashboard/components/DashboardReportClient.tsx");
 
-  assert.match(page, /<ActivityChart/);
-  assert.match(page, /activity=\{report\.activity\}/, "fed by the window report");
+  assert.match(page, /<DashboardReportClient/);
+  assert.match(client, /useMergedApplications/);
+  assert.match(client, /computeWindowReport\(applications, window, new Date\(nowIso\)\)/);
+  assert.match(client, /<ActivityChart/);
+  assert.match(client, /activity=\{report\.activity\}/, "fed by the window report");
   // The superseded component must not be reachable.
   assert.doesNotMatch(page, /WeeklyProgressChart/);
 });

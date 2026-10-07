@@ -17,13 +17,14 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 interface GmailTokenContextValue {
   /** Current access token (memory-only) or null */
   accessToken: string | null;
   /** Set the current access token */
-  setAccessToken: (token: string | null) => void;
+  setAccessToken: (token: string | null, expiresIn?: number) => void;
   /** Clear the token (e.g., on logout or explicit disconnect) */
   clearToken: () => void;
 }
@@ -31,11 +32,30 @@ interface GmailTokenContextValue {
 const GmailTokenContext = createContext<GmailTokenContextValue | null>(null);
 
 export function GmailTokenProvider({ children }: { children: React.ReactNode }) {
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [accessToken, updateAccessToken] = useState<string | null>(null);
+  const expiryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const setAccessToken = useCallback((token: string | null, expiresIn = 3600) => {
+    if (expiryTimer.current) clearTimeout(expiryTimer.current);
+    updateAccessToken(token);
+    if (token) expiryTimer.current = setTimeout(() => updateAccessToken(null), Math.max(0, expiresIn * 1000 - 30_000));
+  }, []);
 
   const clearToken = useCallback(() => {
     setAccessToken(null);
-  }, []);
+  }, [setAccessToken]);
+
+  useEffect(() => {
+    let previousUser: string | null | undefined;
+    const { data: { subscription } } = createClient().auth.onAuthStateChange((event, session) => {
+      const userId = session?.user.id ?? null;
+      if (event === "SIGNED_OUT" || (previousUser !== undefined && previousUser !== userId)) setAccessToken(null);
+      previousUser = userId;
+    });
+    return () => {
+      subscription.unsubscribe();
+      if (expiryTimer.current) clearTimeout(expiryTimer.current);
+    };
+  }, [setAccessToken]);
 
   return (
     <GmailTokenContext.Provider

@@ -938,6 +938,11 @@ const SYNC_ROUTE = join(
  */
 test("the sync route decides the mode from the request, not from sync history", () => {
   const source = readFileSync(SYNC_ROUTE, "utf8");
+  // The retired route must remain inert; the active browser path has its own tests.
+  if (/status:\s*410/.test(source)) {
+    assert.doesNotMatch(source, /createClient|runSync|\.from\(/);
+    return;
+  }
 
   // The fix: mode comes from the caller's declared intent.
   assert.match(

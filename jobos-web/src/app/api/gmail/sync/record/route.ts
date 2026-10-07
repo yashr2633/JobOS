@@ -24,6 +24,7 @@ import { recordCompletedScan } from "@/lib/api/gmailActivity";
 interface RecordScanRequest {
   /** Google OAuth 'sub' claim of the Gmail account that ran the scan. */
   googleSub: string;
+  expectedUserId?: string;
   /** Scan window start (ISO 8601). */
   windowStart: string;
   /** Scan window end (ISO 8601). */
@@ -55,12 +56,17 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as RecordScanRequest;
     const {
       googleSub,
+      expectedUserId,
       windowStart,
       windowEnd,
       applicationsFound,
       messagesProcessed,
       candidates,
     } = body;
+
+    if (expectedUserId !== undefined && expectedUserId !== user.id) {
+      return NextResponse.json({error:"Session changed during this scan."}, {status:409});
+    }
 
     if (!googleSub || !windowStart || !windowEnd) {
       return NextResponse.json(

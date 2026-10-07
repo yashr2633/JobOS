@@ -11,13 +11,22 @@ interface AuthButtonProps {
 export default function AuthButton({ userEmail }: AuthButtonProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
 
   async function handleLogout() {
     setLoading(true);
-    await supabase.auth.signOut();
-    router.push("/login");
-    router.refresh();
+    setError(null);
+    try {
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) throw signOutError;
+      router.push("/login");
+      router.refresh();
+    } catch {
+      setError("Could not sign out. Please retry.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   if (!userEmail) {
@@ -36,6 +45,7 @@ export default function AuthButton({ userEmail }: AuthButtonProps) {
       >
         {loading ? "..." : "Log out"}
       </button>
+      {error && <span role="alert" className="text-sm text-danger">{error}</span>}
     </div>
   );
 }

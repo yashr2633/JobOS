@@ -11,6 +11,20 @@
  */
 
 import test from "node:test";
+import { validateTailoredResumeAgainstSource } from "./tailorResume.ts";
+
+test("tailoring rejects unsupported stable facts and new achievement metrics", () => {
+  const resume = {summary:"Engineer building services.",skills:["TypeScript"],experience:[{title:"Software Engineer",detail:"Acme",bullets:["Built services."]}],education:["Bachelor of Computer Science"],certifications:[],projects:[],additionalSections:[],changes:[]};
+  const source = "Software Engineer\nAcme\nTypeScript\nBuilt services.\nBachelor of Computer Science";
+  assert.equal(validateTailoredResumeAgainstSource(resume,source).ok,true);
+  for (const invented of [
+    {...resume,skills:["Kubernetes"]},
+    {...resume,experience:[{...resume.experience[0],detail:"Invented Corp"}]},
+    {...resume,education:["PhD Computer Science"]},
+    {...resume,certifications:["AWS Certified"]},
+    {...resume,summary:"Reduced costs by 40%."},
+  ]) assert.equal(validateTailoredResumeAgainstSource(invented,source).ok,false);
+});
 import assert from "node:assert/strict";
 
 import {
@@ -117,8 +131,9 @@ test("assembly omits empty sections and never fabricates", () => {
   assert.equal(text.trim(), "SKILLS\nGo");
 });
 
-test("the truthfulness note is fixed and mentions no fabrication", () => {
-  assert.match(TAILORING_NOTE, /only information already present/i);
+test("the fixed note describes the source and requires factual review", () => {
+  assert.match(TAILORING_NOTE, /from your resume/i);
+  assert.match(TAILORING_NOTE, /review all wording and factual details/i);
 });
 
 // ---------------------------------------------------------------------------

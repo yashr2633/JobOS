@@ -33,14 +33,10 @@ import {
 import { computeWindowReport } from "./dashboard/report";
 import {
   firstParamValue,
-  reportingWindowDays,
   resolveReportingWindow,
 } from "./dashboard/reportingWindow";
-import KpiRow from "./dashboard/components/KpiRow";
+import DashboardReportClient from "./dashboard/components/DashboardReportClient";
 import ReportingWindowControl from "./dashboard/components/ReportingWindowControl";
-import StatusDistribution from "./dashboard/components/StatusDistribution";
-import PortalBreakdownClient from "./dashboard/components/PortalBreakdownClient";
-import ActivityChart from "./dashboard/components/ActivityChart";
 import RecentActivity from "./dashboard/components/RecentActivity";
 import QuickActions from "./dashboard/components/QuickActions";
 import GmailScanModule from "./dashboard/components/GmailScanModule";
@@ -234,7 +230,6 @@ export default async function Home({ searchParams }: HomeProps) {
   const now = new Date();
   // Applications only. No scan counter is an input to this call.
   const report = computeWindowReport(applications, reportingWindow, now);
-  const windowDays = reportingWindowDays(reportingWindow);
 
   // Real recorded events only, named against the applications in view.
   const recentActivity = buildRecentActivity(
@@ -304,40 +299,9 @@ export default async function Home({ searchParams }: HomeProps) {
               here is a persisted `applications` row — no Gmail counter is a KPI
               input anywhere in this section. */}
           <section id="reporting" className="scroll-mt-6">
-            <KpiRow
-              window={reportingWindow}
-              totalApplications={report.totalApplications}
-              statusCounts={report.statusCounts}
-            />
-<div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                {/* Range-aware: buckets span the selected window and include
-                    today, so the 7/30/90 selector actually changes the chart. */}
-                <ActivityChart
-                  activity={report.activity}
-                  windowDays={windowDays}
-                />
-              </div>
-              <div className="lg:col-span-1">
-                <StatusDistribution
-                  statusCounts={report.statusCounts}
-                  total={report.totalApplications}
-                  windowDays={windowDays}
-                />
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
-              <div className="lg:col-span-2">
+            <DashboardReportClient serverApplications={report.applications} window={reportingWindow} nowIso={now.toISOString()}>
                 <RecentActivity activities={recentActivity} />
-              </div>
-              <div className="lg:col-span-1">
-                <PortalBreakdownClient
-                  serverApplications={report.applications}
-                  windowDays={windowDays}
-                />
-              </div>
-            </div>
+            </DashboardReportClient>
           </section>
 
           {/* SECONDARY: the input source. Gmail feeds the pipeline above; it does

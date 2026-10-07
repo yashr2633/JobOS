@@ -173,6 +173,8 @@ export interface GenerateStructuredParams<T> {
   label: string;
   maxTokens?: number;
   timeoutMs?: number;
+  /** Optional shared deadline across stages/retries, before the hosting limit. */
+  deadlineAt?: number;
   requestId?: string;
 }
 
@@ -367,10 +369,12 @@ async function attemptProvider<T>(args: {
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
     if (attempt > 0) {
       // Exponential backoff: 500ms, 1s, 2s — bounded by maxRetries (≤ 3).
-      await sleep(500 * 2 ** (attempt - 1));
+      await sleep(Math.max(0, Math.min(500 * 2 ** (attempt - 1), (params.deadlineAt ?? Infinity) - Date.now())));
     }
 
     const attemptStart = Date.now();
+    const remainingMs = (params.deadlineAt ?? Infinity) - attemptStart;
+    if (remainingMs <= 0) return { ok: false, category: "timeout" };
 
     try {
       const raw = await provider.generateJson({
@@ -378,7 +382,7 @@ async function attemptProvider<T>(args: {
         userContent: params.userContent,
         task: params.task,
         maxTokens,
-        timeoutMs,
+        timeoutMs: Math.min(timeoutMs, remainingMs),
       });
 
       const validated = params.validate(raw);

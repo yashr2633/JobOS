@@ -127,7 +127,7 @@ test("the tailoring engine and its anti-fabrication contract are untouched", () 
 test("the tailor route still returns the server-authored guarantee", () => {
   const source = read(TAILOR_ROUTE);
   assert.match(source, /note: TAILORING_NOTE/);
-  assert.match(source, /validate: validateTailoredResume/);
+  assert.match(source, /validate: \(value\) => validateTailoredResumeAgainstSource\(value, resumeText\)/);
 });
 
 test("there is exactly one tailoring prompt in the codebase", () => {

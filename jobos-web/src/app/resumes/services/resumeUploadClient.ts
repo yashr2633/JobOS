@@ -24,6 +24,7 @@ export async function uploadResumeFile(
 
   const response = await fetch("/api/resumes/upload", {
     method: "POST",
+    signal: AbortSignal.timeout(65_000),
     body: formData,
   });
 

@@ -6,14 +6,15 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import type { Application } from "@/app/applications/types";
 import { useLocalGmailApplications } from "./useLocalGmailApplications";
+import type { LocalGmailApplication } from "./browserStore";
 
 /**
  * Convert local Gmail application to Application shape for UI.
  */
-function localToApplication(local: any): Application {
+function localToApplication(local: LocalGmailApplication): Application {
   return {
     id: local.id,
     company: local.company || "Unknown Company",
@@ -44,9 +45,7 @@ function deduplicateApplications(
   // Track server applications by company + role + date (normalized)
   for (const app of server) {
     const key = [
-      app.company.toLowerCase().trim(),
-      app.role.toLowerCase().trim(),
-      app.appliedDate,
+      app.gmailMessageId ?? app.id,
     ].join("|");
     seen.add(key);
   }
@@ -54,9 +53,7 @@ function deduplicateApplications(
   // Add local applications that don't match server records
   for (const app of local) {
     const key = [
-      app.company.toLowerCase().trim(),
-      app.role.toLowerCase().trim(),
-      app.appliedDate,
+      app.gmailMessageId ?? app.id,
     ].join("|");
 
     if (!seen.has(key)) {
@@ -89,15 +86,13 @@ export function useMergedApplications(
     error: localError,
   } = useLocalGmailApplications();
 
-  const [merged, setMerged] = useState<Application[]>(serverApplications);
-
-  useEffect(() => {
+  const merged = useMemo(() => {
     if (!localLoading && !localError) {
       const localAsApps = localApps.map(localToApplication);
       const deduplicated = deduplicateApplications(serverApplications, localAsApps);
-      setMerged(deduplicated);
+      return deduplicated;
     } else {
-      setMerged(serverApplications);
+      return serverApplications;
     }
   }, [serverApplications, localApps, localLoading, localError]);
 

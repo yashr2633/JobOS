@@ -32,7 +32,7 @@ export async function analyzeApplication(
       resumeId,
       jobDescription: jobDescription ?? null,
     }),
-    signal,
+    signal: AbortSignal.any([signal, AbortSignal.timeout(65_000)]),
   });
 
   if (!response.ok) {

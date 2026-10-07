@@ -523,6 +523,7 @@ export default function ResumeMatchContent() {
                   )}
                 </div>
                 <TailorResumePanel
+                  key={`${selectedApplication.id}:${selectedResumeId ?? "none"}`}
                   applicationId={selectedApplication.id}
                   resumeId={selectedResumeId}
                   applicationLabel={`${selectedApplication.company}-${selectedApplication.role}`}

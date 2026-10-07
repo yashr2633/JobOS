@@ -6,14 +6,14 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   getGmailApplicationsForUser,
-  getGmailApplicationCountsByStatus,
   type LocalGmailApplication,
 } from "./browserStore";
 import type { ApplicationStatus } from "@/app/applications/types";
+import { consolidateLocalApplications } from "./localApplications";
 
 export interface UseLocalGmailApplicationsResult {
   applications: LocalGmailApplication[];
@@ -37,8 +37,10 @@ export function useLocalGmailApplications(): UseLocalGmailApplicationsResult {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const requestNumber = useRef(0);
 
-  const loadApplications = async () => {
+  const loadApplications = useCallback(async () => {
+    const request = ++requestNumber.current;
     try {
       setLoading(true);
       setError(null);
@@ -46,6 +48,7 @@ export function useLocalGmailApplications(): UseLocalGmailApplicationsResult {
       // Get current user
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
+      if (request !== requestNumber.current) return;
 
       if (!user) {
         setApplications([]);
@@ -61,14 +64,15 @@ export function useLocalGmailApplications(): UseLocalGmailApplicationsResult {
       }
 
       // Load from IndexedDB
-      const [apps, statusCounts] = await Promise.all([
-        getGmailApplicationsForUser(user.id),
-        getGmailApplicationCountsByStatus(user.id),
-      ]);
+      const apps = consolidateLocalApplications(await getGmailApplicationsForUser(user.id));
+      if (request !== requestNumber.current) return;
+      const statusCounts: Record<ApplicationStatus, number> = {Applied:0, Interview:0, Offer:0, Rejected:0, Ghosted:0};
+      for (const app of apps) statusCounts[app.status]++;
 
       setApplications(apps);
       setCounts(statusCounts);
     } catch (err) {
+      if (request !== requestNumber.current) return;
       setError(err instanceof Error ? err.message : "Failed to load local applications");
       setApplications([]);
       setCounts({
@@ -79,12 +83,19 @@ export function useLocalGmailApplications(): UseLocalGmailApplicationsResult {
         Ghosted: 0,
       });
     } finally {
-      setLoading(false);
+      if (request === requestNumber.current) setLoading(false);
     }
-  };
+  }, []);
+
+  const invalidateRequest = useCallback(() => { requestNumber.current++; }, []);
 
   useEffect(() => {
-    void loadApplications();
+    const { data: { subscription } } = createClient().auth.onAuthStateChange((event) => {
+      if (event === "INITIAL_SESSION" || event === "SIGNED_OUT" || event === "SIGNED_IN") {
+        setApplications([]);
+        void loadApplications();
+      }
+    });
 
     const handleLocalGmailChange = () => {
       void loadApplications();
@@ -96,12 +107,14 @@ export function useLocalGmailApplications(): UseLocalGmailApplicationsResult {
     );
 
     return () => {
+      invalidateRequest();
+      subscription.unsubscribe();
       window.removeEventListener(
         "jobos:gmail-applications-changed",
         handleLocalGmailChange
       );
     };
-  }, []);
+  }, [loadApplications, invalidateRequest]);
 
   return {
     applications,
