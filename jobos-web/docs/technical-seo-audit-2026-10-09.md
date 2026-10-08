@@ -1,154 +1,80 @@
-# JobTrackOS technical SEO audit — October 9, 2026
+# JobTrackOS technical SEO and sitemap verification — October 9, 2026
 
-## Review state
+## Current audit and scope
 
-**Implemented and validated locally. No deployment or Git push was performed.**
+This report supersedes the initial local audit of SEO commit 24e2aaf. The earlier SEO implementation is deployed; the latest follow-up changes only the existing anonymous homepage paragraph and this report. No authenticated application logic, styles, layout structure, authentication, OAuth, Gmail processing, application tracking, resume matching/tailoring/export, analytics, dependencies, database/schema/RLS, DNS or domain settings changed. Unrelated untracked assets remain untouched.
 
-- Review branch: `codex/technical-seo-2026-10-09`.
-- Preserved production baseline: `cedaf85bd5110195df85d5c384bfba73fd142050`.
-- Rollback branch: `codex/seo-rollback-2026-10-09`, pointing to that baseline.
-- Production URL: https://www.jobtrackos.online/.
-- Remote `main` still pointed to the baseline when checked after implementation.
-- Unrelated untracked chart data, investor-deck and promo-video assets were left untouched.
+Production origin: https://www.jobtrackos.online/.
 
-## 1. Existing SEO status and route inventory
+## Sitemap investigation and actual Google evidence
 
-Anonymous HTTP responses from the actual production origin were inspected without cookies. Source routes, metadata, middleware and installed Next.js documentation were inspected separately.
+The pre-SEO production baseline cedaf85 returned 404 for sitemap.xml and robots.txt. Commit 24e2aaf implemented and deployed both endpoints. This is the confirmed earlier site-side defect; it is already fixed.
 
-| Route | Existing production observation | Intended indexing |
-| --- | --- | --- |
-| `/` | 200; server-rendered public marketing content, existing brand/tagline title and description | Index anonymous public content only |
-| `/privacy-policy` | 200; distinct title and factual description; server-rendered legal content | Index |
-| `/terms` | 200; distinct title and factual description; server-rendered legal content | Index |
-| `/login`, `/signup` | 200; inherited homepage metadata, no explicit exclusion | Exclude |
-| `/applications`, `/jobs`, `/admin/*`, `/resumes/*`, `/resume-match`, `/settings/*`, `/track-my-jobs` | Authenticated application routes; existing auth guards protect personal content | Exclude |
-| `/auth/*`, `/api/*` | Authentication callbacks and API endpoints | Exclude |
-| `/robots.txt`, `/sitemap.xml` | Both returned 404 on production | Publish discovery endpoints after approved deployment |
+The user's existing Domain property showed the exact canonical sitemap as Unknown / Couldn't fetch / 0 pages, submitted October 9, with a failed last-read entry on the same date. The error detail only said "Sitemap could not be read"; it did not provide an HTTP status or a more specific cause.
 
-The homepage also serves the signed-in dashboard at the same `/` URL. That shared route requires conditional indexing metadata; making every response to `/` indexable would be inappropriate.
+Fresh anonymous requests, desktop/mobile Googlebot user-agent requests, Google-InspectionTool user-agent requests and HEAD requests to the www sitemap all returned 200 application/xml. Responses were identical, 294 bytes, SHA256 498fde1dd73cf5128393e701e013cb5e51970d039b90841050d11e8c8ec7c072. Strict XML parsing confirmed urlset in the standard sitemap namespace and exactly three canonical public URLs. No login HTML, authentication requirement, noindex header or security challenge was observed. Vercel served a valid cached response; no Cloudflare challenge headers appeared. Apex sitemap and robots endpoints redirect 308 to the www endpoints, while the submitted www sitemap has no redirect. No routing or security change was justified.
 
-The non-www HTTPS homepage returned **308** to `https://www.jobtrackos.online/`. Canonicals therefore use the existing www HTTPS origin. No redirect or domain configuration was changed.
+Crucially, Search Console's genuine live test of the exact sitemap at **9 Oct 2026, 03:35:03** confirmed **Crawl allowed: Yes; Page fetch: Successful; Indexing allowed: Yes**, using Google Inspection Tool smartphone. Its tested-page SOURCE showed the valid XML and exactly the same public URLs. This is actual Google fetch evidence, beyond spoofed user-agent checks.
 
-## 2. Issues found
+The exact sitemap was resubmitted in the existing verified Domain property and Google displayed **Sitemap submitted successfully**. The saved report still showed its old failed read immediately after submission; asynchronous sitemap processing is separate from live fetch success. The precise cause of that prior Google failure is not exposed by its report. A stale failure from the earlier 404 or temporary Google processing is plausible, not proven. No claim is made that all URLs are indexed or that submission guarantees indexing.
 
-- Missing robots.txt and XML sitemap.
-- Missing canonical links on the three public pages.
-- Homepage title could describe the existing product more directly.
-- Missing explicit Open Graph/Twitter sharing metadata and product identity structured data.
-- Login/signup and the signed-in homepage lacked explicit noindex directives.
-- Private routes and API responses lacked a consistent indexing header.
-
-No broken internal links were found among the links rendered on the three public pages: `/`, `/login`, `/signup`, `/privacy-policy`, `/terms` all returned 200. Each public page had one H1 followed by H2 sections; the existing headings and link structure were retained.
-
-Public content was present in the initial server HTML rather than requiring client rendering. The homepage's existing private/no-store caching reflects its shared authenticated route. Legal pages remain static. Fonts, caching, routing and bundles were not refactored for speculative performance gains. Core Web Vitals, field performance and Lighthouse scores were not measured; basic HTTP timing would not establish those metrics.
-
-## 3. Changes implemented
-
-- Homepage SEO title: **JobTrackOS | Job Application Tracker & Resume Match**.
-- Homepage description: **Track job applications, organize Gmail job updates, match your resume with job descriptions, and tailor resumes with JobTrackOS.**
-- Centralized public canonical and sharing metadata; existing legal titles/descriptions retained.
-- Public pages explicitly opt into index/follow. Other pages inherit noindex/nofollow; private route prefixes, login/signup, callbacks and APIs also receive `X-Robots-Tag: noindex, nofollow, noarchive`.
-- Homepage metadata checks only Supabase session cookie **names**, including chunked cookies, to conservatively return noindex for the dashboard response. It does not validate/read token values, request authentication, mutate cookies or change existing access guards. Expired session cookie names also conservatively produce noindex.
-- Added a sitemap containing only the three public canonical pages. No fabricated modification dates, response counts or priority values.
-- Added robots.txt advertising the sitemap. Crawling is allowed so crawlers can read noindex on excluded pages. Existing authentication still protects actual user data: indexing directives are not access control.
-- Added public-only Organization and WebSite JSON-LD with supported product facts. No ratings, offers, pricing, statistics, personal data, search action, job aggregation or interview preparation claims.
-- Added a static 1200 × 630 social share image using Next.js's existing image renderer and product colors. No dependency installation or visible UI change.
-- Preserved the existing Google verification metadata exactly.
-
-Google explains why blocked crawling can prevent noindex from being read in its [noindex documentation](https://developers.google.com/search/docs/crawling-indexing/block-indexing). This is why robots.txt does not disallow the private paths.
-
-## 4. Exact files changed
-
-All paths below are relative to the repository root.
-
-| File | Change |
-| --- | --- |
-| `jobos-web/next.config.ts` | Indexing headers only |
-| `jobos-web/src/app/layout.tsx` | Metadata base, descriptive defaults, default private indexing directive |
-| `jobos-web/src/app/page.tsx` | Conditional homepage metadata and anonymous public JSON-LD |
-| `jobos-web/src/app/privacy-policy/page.tsx` | Canonical, indexing and sharing metadata |
-| `jobos-web/src/app/terms/page.tsx` | Canonical, indexing and sharing metadata |
-| `jobos-web/src/app/robots.ts` | New robots.txt route |
-| `jobos-web/src/app/sitemap.ts` | New public-only sitemap route |
-| `jobos-web/src/app/opengraph-image.tsx` | New static social image route |
-| `jobos-web/src/lib/seo/metadata.ts` | Shared SEO metadata and supported public structured data |
-| `jobos-web/src/lib/seo/metadata.test.ts` | Four SEO regression tests |
-| `jobos-web/src/app/uiIntegrity.test.ts` | Update existing title/description assertion for the requested SEO title |
-| `jobos-web/docs/technical-seo-audit-2026-10-09.md` | This review report |
-
-## 5. Validation results
-
-| Check | Result |
-| --- | --- |
-| TypeScript: `npx tsc --noEmit` | PASS |
-| ESLint on all changed TypeScript/TSX files | PASS, no errors/warnings |
-| Production build: `npm run build` | PASS, 43 generated routes/pages |
-| Existing AI tests | 99 PASS |
-| Existing resume/upload/extraction/export tests | 65 PASS |
-| Existing Gmail/OAuth/token/security/pipeline tests | 442 PASS |
-| Existing application tests | 40 PASS |
-| Existing dashboard tests | 65 PASS |
-| Existing UI/account tests | 114 PASS |
-| New SEO tests: `node --test src/lib/seo/metadata.test.ts` | 4 PASS |
-| Built production server HTTP checks | 18 groups PASS |
-| Source invariance checks | PASS |
-| `git diff --check` | PASS |
-
-Total automated unit/regression tests: **829 passed, zero failures** across the listed suites. Known unrelated Job Discovery tests and repository-wide historical lint were outside this scope and were not represented as passing. The build's existing middleware deprecation and multiple-lockfile warnings remain; no migration or cleanup was attempted.
-
-The final built server was tested at localhost, with anonymous Googlebot requests:
-
-- Three public pages: 200, one H1, correct canonical, index/follow, no inherited Googlebot noindex, Open Graph/Twitter metadata, public homepage JSON-LD and preserved Google verification tag.
-- A synthetic session-cookie name (not a real credential): homepage noindex.
-- Seven protected route checks: original 307 login redirects preserved, with noindex headers.
-- Login and signup: 200 and noindex in both metadata and headers.
-- Representative API checks: existing admin 401 and deprecated Gmail status 410 preserved, both with noindex headers. The 410 is existing behavior, not a new error.
-- robots.txt and sitemap.xml: 200; sitemap contains exactly three public URLs.
-- Social image: 200 image/png, 1200 × 630; visually inspected for correct text and layout.
-
-Browser layout checks at observed **391 × 844** and **1279 × 800 CSS pixels** found no horizontal document overflow. A further default-width check also passed. Browser console inspection found no warnings/errors on the local anonymous homepage. The browser screenshot service cropped captures under Windows scaling; screenshots alone were not treated as proof of full-page mobile rendering. Layout measurements and source invariance provide the additional evidence. No responsive CSS was changed.
-
-Source comparisons confirmed that the authenticated homepage function, visible public JSX (apart from non-visible JSON-LD), legal text, RootLayout body/providers/theme, and all protected feature implementation files were unchanged from the baseline. Authentication, OAuth, Gmail, tracking, Resume Match, tailoring, exports, billing, environment, database/schema/RLS and user data were not modified.
-
-These are automated/source and anonymous built-server regression checks, **not a claim that live signed-in Google/Gmail/resume flows were rerun on the new version**. The new version has not been deployed. No destructive production tests were run.
-
-## 6. Remaining risks and limitations
-
-1. Production still serves the preserved version; the new SEO endpoints and metadata are available only in the validated local build until approved deployment and production verification.
-2. Google Search Console indexing status, chosen canonical and Core Web Vitals were not verified. No claim is made that Google has indexed the site or that adding a sitemap guarantees indexing.
-3. A browser with an expired Supabase session-cookie name conservatively receives homepage noindex until that cookie is cleared by the existing auth flow. Fresh anonymous crawlers receive index/follow. Actual signed-in metadata should be smoke-tested after an approved deployment; the synthetic cookie check is not a live auth test.
-
-## 7. Exact sitemap URL
-
-**https://www.jobtrackos.online/sitemap.xml**
-
-At audit time this production URL returned 404. The final local production build returns valid XML with:
+Sitemap: https://www.jobtrackos.online/sitemap.xml
 
 - https://www.jobtrackos.online/
 - https://www.jobtrackos.online/privacy-policy
 - https://www.jobtrackos.online/terms
 
-## 8. Manual Google Search Console actions
+robots.txt returns 200 text/plain; charset=utf-8, with User-Agent: *, Allow: / and the exact www sitemap URL. Private pages can be crawled to read noindex; existing access controls still protect their data. No fabricated lastModified, priority, response counts or private URLs were added.
 
-The domain property `jobtrackos.online` already exists. No DNS-verification changes are assumed or requested.
+## Public SEO and search positioning
 
-After approving and completing deployment:
+The existing implementation correctly supplies public canonicals, descriptive unique public metadata, Open Graph/Twitter tags and a static 1200x630 sharing image. Organization and WebSite JSON-LD describe supported public identity without prices, offers, ratings, statistics or planned capabilities. Additional SoftwareApplication rich-result claims were not necessary or substantiated.
 
-1. Open the existing domain property. Under **Sitemaps**, submit `https://www.jobtrackos.online/sitemap.xml` and confirm that Google can fetch it.
-2. Use **URL Inspection → Test live URL** for the homepage and the two legal URLs. Confirm public crawl access, indexability and the www HTTPS canonical; request indexing where appropriate.
-3. Check the sitemap and Page indexing reports after Google processes them. Use URL Inspection to confirm Google's selected canonical and actual indexing status; requests alone do not prove indexing.
-4. Confirm login/signup/private routes are excluded after recrawling. Do not request indexing for dashboards, application/resume data, callbacks or APIs.
+The homepage title remains JobTrackOS | Job Application Tracker & Resume Match. Its accurate description remains unchanged. One repetitive public paragraph now truthfully describes the India-first focus, Gmail source-email traceability and existing resume comparison, tailoring and export tools. Existing JSX structure, classes, headings, calls to action and Gmail disclosures are unchanged. Public copy and metadata are server-rendered. Public navigation links work, and a deliberately missing public path returns real HTTP 404 with noindex.
 
-See Google's [sitemap submission guidance](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap). Sitemap submission does not guarantee crawling or indexing. No Search Console setting or indexing request was changed during this audit.
+Private pages retain default noindex/nofollow; protected path prefixes, account/auth routes and APIs retain indexing headers. Anonymous protected pages still redirect to login; protected APIs still return 401; OAuth callback handling remains intact. Homepage session-cookie names conservatively suppress indexing for the authenticated dashboard without reading or changing credentials.
 
-## 9. Rollback procedure
+Search Console confirms the canonical homepage **URL is on Google / Page is indexed**. Its saved crawl was 18 Sept 2026, before the latest SEO release, with Google-selected canonical equal to the inspected www homepage. This does not prove Google has indexed the revised copy yet. The property overview shows no Core Web Vitals field data, so no CWV score or performance improvement is claimed. Existing shared-root private/no-store caching and application bundles were not refactored speculatively.
 
-Nothing needs rolling back in production now because nothing was deployed.
+## Exact follow-up files changed
 
-The preserved point is `codex/seo-rollback-2026-10-09` at `cedaf85bd5110195df85d5c384bfba73fd142050`. The prior Gmail recovery branch also retains that commit.
+1. jobos-web/src/app/page.tsx — one existing anonymous marketing paragraph, four lines replacing three.
+2. jobos-web/docs/technical-seo-audit-2026-10-09.md — current evidence, validation and recovery record.
 
-If this SEO commit is later approved and deployed, use the project's existing Vercel rollback process to restore the previously successful deployment of that exact baseline. Alternatively, revert the SEO commit on the deployment branch and run the existing normal deployment process. Do not reset/force-push shared history or change DNS, domains, OAuth settings, credentials or database configuration. Recheck public access and the critical signed-in path after a rollback.
+The original deployed SEO commit 24e2aaf also contains next.config.ts, app/layout.tsx, app/page.tsx, app/privacy-policy/page.tsx, app/terms/page.tsx, app/robots.ts, app/sitemap.ts, app/opengraph-image.tsx, lib/seo/metadata.ts, lib/seo/metadata.test.ts, app/uiIntegrity.test.ts and this report, all under jobos-web. Those routing/metadata implementations are unchanged by this follow-up.
 
-## 10. Deployment confirmation
+## Final validation before follow-up deployment
 
-**NO deployment was performed. NO branch was pushed.** The SEO work is a local review commit on its separate branch. Development stops here pending explicit production deployment approval.
+- Typecheck: PASS.
+- Changed-file lint: PASS.
+- Production build: PASS, 43 routes/pages, including static sitemap and robots endpoints.
+- Relevant SEO/UI/account tests: **118 PASS, zero failures**.
+- Source invariance: PASS; only the specified public paragraph changed, with all authenticated logic, styles and other implementation files unchanged from current production 24e2aaf.
+- Built production server: **18 SEO groups + 8 safe API/OAuth groups PASS**.
+- Additional server-rendered public copy, HTTP 404/noindex and public navigation checks: PASS.
+- Browser inspection at observed 1280x720 and 390x844 CSS pixels: no horizontal overflow, clipping or overlapping text; no local homepage warning/error logs.
+- Git diff whitespace check: PASS.
+
+Earlier broad release verification had 828 passing tests and one **pre-existing** dashboard property failure for invalid synthetic date 2026-02-30. Baseline cedaf85 source/tests were identical and an exact seed replay reproduced the failure; the user explicitly approved deployment with it documented. This follow-up does not change that implementation or test and does not claim the historical failure is fixed. Known unrelated Job Discovery tests and repository-wide historical lint are outside this SEO scope. Existing build lockfile/middleware warnings remain unchanged.
+
+## Deployment and rollback
+
+All above pre-deployment checks passed. Follow-up deployment will use the existing non-force push to main and Vercel Git integration; no new architecture or configuration.
+
+Immediate rollback: codex/seo-fetch-rollback-2026-10-09 at **24e2aaf138991e09eb25c0fca3fa4ae6a48f26e5**, the verified production before this copy follow-up. Existing Vercel production deployment: https://jobtrackos-9mqezaro9-homie7.vercel.app, deployment BsJ5Q8YuQpLdNK2vjbZCctHaUqSw.
+
+Original pre-SEO rollback remains codex/seo-rollback-2026-10-09 at **cedaf85bd5110195df85d5c384bfba73fd142050**, Vercel https://jobtrackos-k2114q7tq-homie7.vercel.app. This restores the prior Gmail recovery version but also removes sitemap/robots SEO improvements.
+
+Use Vercel's existing restore process for the named successful deployment, or a normal non-force Git revert through main. Never force-push shared history or change DNS, credentials, OAuth or schema. Recheck the actual production site after rollback.
+
+The final deployment SHA, matched Vercel deployment status and post-deployment smoke/Google results are recorded in the final chat and the separate release verification artifact, avoiding an extra documentation-only production deployment.
+
+## Google Search Console follow-up
+
+Use the existing jobtrackos.online Domain property. No duplicate property or DNS verification is required.
+
+Already completed: inspect the exact sitemap with Google's live test, confirm successful crawl/fetch and XML source, and resubmit it successfully.
+
+After deployment: live-test https://www.jobtrackos.online/, confirm successful fetch, indexing allowed and the www canonical, then request indexing for the updated homepage if eligible. Keep private application, account, callback and API URLs excluded. Monitor Sitemaps for Success/3 discovered pages after processing, Page indexing for exclusions/canonical changes, and Performance for clicks/impressions; repeated submissions do not guarantee or accelerate indexing.
+
+Official guidance: https://support.google.com/webmasters/answer/7451001 and https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap.

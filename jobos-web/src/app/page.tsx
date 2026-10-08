@@ -412,9 +412,10 @@ function PublicHome() {
           know where things stand.
         </p>
         <p className="mt-4 max-w-2xl text-base leading-7 text-text-secondary">
-          JobTrackOS helps job seekers organize and track their job
-          applications in one place. Users can monitor application statuses,
-          manage opportunities, and keep their job search organized.
+          Built for job seekers in India, JobTrackOS helps organize
+          application-related Gmail updates and trace them to source emails.
+          Compare your resume with job descriptions, then tailor and export it
+          using the resume tools.
         </p>
 
         <div className="mt-8 flex flex-wrap gap-3">
