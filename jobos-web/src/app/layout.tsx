@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { THEME_INIT_SCRIPT, ThemeProvider } from "./components/theme";
 import { GmailTokenProvider } from "@/lib/gmail/GmailTokenProvider";
+import { HOME_TITLE, HOME_DESCRIPTION, PRIVATE_ROBOTS, SITE_ORIGIN } from "@/lib/seo/metadata";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,17 +16,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_ORIGIN),
   // "JobTrackOS" is one word in the wordmark but reads as "Job Track O-S".
   title: {
-    default: "JobTrackOS — Know where your career stands.",
+    default: HOME_TITLE,
     template: "%s · JobTrackOS",
   },
   applicationName: "JobTrackOS",
   verification: {
     google: "u1gIp8A23DWVeW47dbsKaoFSsMXwIGvH9LyRQcEFSPw",
   },
-  description:
-    "Know where your career stands. Track job applications, organize Gmail job activity, and tailor resumes with JobTrackOS.",
+  description: HOME_DESCRIPTION,
+  // Default closed to indexing; only the public marketing/legal pages opt in.
+  robots: PRIVATE_ROBOTS,
 };
 
 /**

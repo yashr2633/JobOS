@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { publicPageMetadata } from "@/lib/seo/metadata";
 
 /**
  * Public Terms of Service.
@@ -10,10 +11,7 @@ import Link from "next/link";
  * only; no claims of certification, compliance, or guarantees the project has
  * not verified.
  */
-export const metadata: Metadata = {
-  title: "Terms of Service",
-  description: "The terms that govern your use of JobTrackOS.",
-};
+export const metadata: Metadata = publicPageMetadata("/terms", "Terms of Service", "The terms that govern your use of JobTrackOS.");
 
 const LAST_UPDATED = "August 25, 2026";
 

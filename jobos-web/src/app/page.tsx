@@ -25,6 +25,9 @@
  */
 
 import AppShell from "./components/AppShell";
+import type { Metadata } from "next";
+import { cookies } from "next/headers";
+import { homepageMetadata, PUBLIC_STRUCTURED_DATA_JSON } from "@/lib/seo/metadata";
 import SessionTracker from "./components/SessionTracker";
 import {
   RECENT_ACTIVITY_LIMIT,
@@ -52,6 +55,13 @@ import type {
 
 interface HomeProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  // Cookie names conservatively exclude the signed-in dashboard at the same URL.
+  // No auth request, token parsing, cookie mutation or change to the page's guard.
+  const cookieStore = await cookies();
+  return homepageMetadata(cookieStore.getAll().map(cookie => cookie.name));
 }
 
 export default async function Home({ searchParams }: HomeProps) {
@@ -362,6 +372,7 @@ export default async function Home({ searchParams }: HomeProps) {
 function PublicHome() {
   return (
     <main className="min-h-full bg-bg text-text">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: PUBLIC_STRUCTURED_DATA_JSON }} />
       {/* Top bar — the wordmark establishes the OAuth app name on the homepage. */}
       <header className="border-b border-border">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-4 sm:px-6">

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { publicPageMetadata } from "@/lib/seo/metadata";
 
 /**
  * Public Privacy Policy.
@@ -14,11 +15,7 @@ import Link from "next/link";
  * ability to disconnect. It intentionally avoids asserting certifications,
  * encryption specifics, or retention periods that are not verified in the code.
  */
-export const metadata: Metadata = {
-  title: "Privacy Policy",
-  description:
-    "How JobTrackOS handles your account information and optional Gmail data.",
-};
+export const metadata: Metadata = publicPageMetadata("/privacy-policy", "Privacy Policy", "How JobTrackOS handles your account information and optional Gmail data.");
 
 const LAST_UPDATED = "August 25, 2026";
 

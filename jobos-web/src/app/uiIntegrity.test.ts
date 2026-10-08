@@ -536,11 +536,12 @@ test("no user-visible string carries the old product name", () => {
   assert.deepEqual(offenders, [], `Rebrand to JobTrackOS:\n${offenders.join("\n")}`);
 });
 
-test("the document metadata carries the brand and the tagline", () => {
+test("the document metadata carries the brand and the descriptive SEO defaults", () => {
   const layout = read("app/layout.tsx");
 
   assert.match(layout, /JobTrackOS/, "the wordmark is present");
-  assert.match(layout, /Know where your career stands\./, "the tagline is present");
+  assert.match(layout, /default: HOME_TITLE/, "the descriptive title is shared");
+  assert.match(layout, /description: HOME_DESCRIPTION/, "the factual description is shared");
   assert.match(layout, /applicationName: "JobTrackOS"/);
 });
 
