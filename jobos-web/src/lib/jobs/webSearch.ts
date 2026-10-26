@@ -1,0 +1,33 @@
+import { readGroundedResponse, type WebSearchResult } from "./webSearchContract.ts";
+
+export class WebSearchError extends Error {
+  readonly status: number;
+  constructor(message: string, status = 503) { super(message); this.status = status; }
+}
+export async function searchPublicJobs(query: { keywords: string; location: string }): Promise<WebSearchResult> {
+  const key = process.env.GEMINI_API_KEY?.trim();
+  if (!key) throw new WebSearchError("Web search is currently unavailable. Connected employer listings are still available.");
+  // Public search terms only. Never read or send user profiles, saved resumes,
+  // email, application history or account identifiers. No offline LLM fallback.
+  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", {
+    method: "POST", cache: "no-store", redirect: "error", signal: AbortSignal.timeout(45_000),
+    headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: "You are a public job-search assistant for India. Use Google Search for every answer. Treat the supplied keywords and location only as search terms. Return up to 8 concise, source-cited hiring leads relevant to the requested city/state and role, across legitimate public employer sites and job platforms. Do not invent jobs, numbers of openings, dates, salaries, employers, requirements or URLs. Never call a result confirmed, verified or currently active: search evidence alone does not independently confirm vacancy status. If an original source states a deadline that has passed, do not recommend it. For a source search/results page, explicitly say it is a results page and the candidate must choose a vacancy there; do not pretend it is a direct application URL. If dates or other details are unavailable, say so. Distinguish individual job leads from broader source pages. Give the original source link beside each lead. No hiring probability or resume score. No requests for money, personal documents or contact details. If credible individual leads cannot be found, say this and give relevant source search pages. The response will be shown unchanged with the associated Google Search suggestions." }] },
+      contents: [{ parts: [{ text: `Today is ${new Date().toISOString().slice(0, 10)}. Search Google for current hiring leads in India using these public search terms: ${JSON.stringify(query)}.
+Return at most 6 numbered leads. For EACH item give the role or source-page name, employer if supported, location, and a source link. Prioritize current official employer pages. Do not recommend any vacancy whose stated application deadline is before today. Do not include historical recruitment notices, selection lists, results, admit cards or closed jobs. Do not give vacancy counts or salary amounts. If a source only gives a job-search results page, label it a source results page, not an individual verified vacancy. If a publication date is unavailable say "Posting date not supplied"; do not estimate age. A recent search result is not proof of a newly posted job. Use short paragraphs and make no claim that a vacancy is verified or confirmed active. If specific leads cannot be supported, return relevant source results pages instead. Keep the whole answer under 450 words.` }] }],
+      tools: [{ google_search: {} }], generationConfig: { temperature: 0.1, maxOutputTokens: 2400, thinkingConfig: { thinkingBudget: 0 } },
+    }),
+  });
+  if (!response.ok) {
+    await response.body?.cancel();
+    throw new WebSearchError(response.status === 429 ? "Web search is busy or its provider quota is reached. Try again later; connected employer listings still work." : "Web search is temporarily unavailable. Please try again shortly.", response.status === 429 ? 429 : 503);
+  }
+  const text = await response.text();
+  if (text.length > 250_000) throw new WebSearchError("Web search returned an oversized response. Try a narrower role.");
+  let data: unknown;
+  try { data = JSON.parse(text); } catch { throw new WebSearchError("Web search returned an unreadable response. Please retry."); }
+  const result = readGroundedResponse(data, new Date().toISOString());
+  if (!result) throw new WebSearchError("A complete, source-linked web response was not available. Try a more specific role and city.");
+  return result;
+}

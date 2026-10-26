@@ -155,7 +155,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return err("Request body must be a JSON object.", 400);
   }
 
-  const { applicationId: rawApplicationId, discoveryJobId: rawJobId, resumeId, jobDescription } = body as Record<string, unknown>;
+  const { applicationId: rawApplicationId, discoveryJobId: rawJobId, discoverySourceUrl, resumeId, jobDescription } = body as Record<string, unknown>;
   const applicationId = typeof rawApplicationId === "string" ? rawApplicationId.trim() : null;
   const discoveryJobId = typeof rawJobId === "string" ? rawJobId.trim() : undefined;
 
@@ -196,7 +196,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   let intelligenceInput: { jobDescription: string | null; parsedJd: ParsedJD | null } | null;
   if (discoveryJobId) {
     try {
-      const job = await getLiveJob(discoveryJobId);
+      const job = await getLiveJob(discoveryJobId, typeof discoverySourceUrl === "string" ? discoverySourceUrl : undefined);
       intelligenceInput = job ? { jobDescription: job.description, parsedJd: null } : null;
     } catch { return err("The employer's job listing is temporarily unavailable. Please retry.", 503); }
   } else {

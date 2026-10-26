@@ -13,6 +13,8 @@ export interface CompanySource {
 
 // VERIFIED working sources only - tested against real public endpoints
 export const INDIA_SOURCES: CompanySource[] = [
+  { company: "Sika", provider: "smartrecruiters", board: "SikaAG", country: "India", enabled: true, notes: "Official SmartRecruiters listings and public India API verified 2026-10-27: 55 source-listed roles, including Kolkata, Durgapur, Surat, Rajkot, Jhagadia, Gandhidham and Guwahati. Source release is not original publication." },
+  { company: "METRO/MAKRO", provider: "smartrecruiters", board: "METROMAKRO", country: "India", enabled: true, notes: "Employer SmartRecruiters board and public India API verified 2026-10-27: 55 source-listed roles, primarily Pune; finance, operations and technology." },
   { company: "SGS", provider: "smartrecruiters", board: "SGS", country: "India", enabled: true, notes: "Public India feed verified 2026-10-26 from employer ATS listings; testing, inspection, certification, finance and operations." },
   { company: "Eurofins", provider: "smartrecruiters", board: "Eurofins", country: "India", enabled: true, notes: "Public India feed verified 2026-10-26 from employer ATS listings; laboratory, life sciences, quality, software and support, including Tiruppur." },
   { company: "Bosch Group", provider: "smartrecruiters", board: "BoschGroup", country: "India", enabled: true, notes: "Public India postings and individual apply links verified 2026-10-26; official Bosch SmartRecruiters career board. Release dates may represent republication." },

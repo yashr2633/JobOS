@@ -17,7 +17,7 @@ import { publicPageMetadata } from "@/lib/seo/metadata";
  */
 export const metadata: Metadata = publicPageMetadata("/privacy-policy", "Privacy Policy", "How JobTrackOS handles your account information and optional Gmail data.");
 
-const LAST_UPDATED = "August 25, 2026";
+const LAST_UPDATED = "October 26, 2026";
 
 /** Official monitored support address (matches Google OAuth Branding). */
 const SUPPORT_EMAIL = "kenilja946@gmail.com";
@@ -52,6 +52,24 @@ export default function PrivacyPolicyPage() {
               email activity, and tailor resumes. This policy explains what
               information JobTrackOS collects, how it is used, and the choices
               you have. By using JobTrackOS you agree to this policy.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="mb-2 text-lg font-semibold text-text">Optional public job search</h2>
+            <p>
+              When you choose Search the web in Find Jobs, your search keywords
+              and location are sent to Google Gemini with Google Search to find
+              public hiring pages. Your resume, profile, Gmail data and application
+              history are not included in this request. Results are shown for that
+              search and are not saved to our jobs database. Google processes
+              these search requests under its applicable service terms.
+            </p>
+            <p className="mt-2">
+              Find Jobs also loads public employer listings and India-eligible
+              remote jobs from Himalayas. Submitted role, skill or company search
+              keywords may be sent to Himalayas to find relevant listings. Your
+              resume, profile and account details are not sent to that source.
             </p>
           </section>
 

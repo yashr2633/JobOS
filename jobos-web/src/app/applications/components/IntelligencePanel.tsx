@@ -14,6 +14,7 @@ interface IntelligencePanelProps {
   application: Application;
   /** Public job preview: analysis does not create an Applied record. */
   discoveryJobId?: string;
+  discoverySourceUrl?: string;
   /** If provided, override the stored job description with this text */
   jobDescription?: string;
   /**
@@ -42,6 +43,7 @@ interface IntelligencePanelProps {
 export default function IntelligencePanel({
   application,
   discoveryJobId,
+  discoverySourceUrl,
   jobDescription,
   resumeId: controlledResumeId,
   onResultChange,
@@ -147,6 +149,7 @@ export default function IntelligencePanel({
         {
           applicationId: discoveryJobId ? undefined : application.id,
           discoveryJobId,
+          discoverySourceUrl,
           resumeId: effectiveResumeId,
           jobDescription,
         },
@@ -208,7 +211,7 @@ export default function IntelligencePanel({
 
     return (
       <div className="rounded-md border border-border bg-surface p-5">
-        <h3 className="text-sm font-semibold text-text">AI Intelligence</h3>
+        <h3 className="text-sm font-semibold text-text">Resume Match insights</h3>
         <p className="mt-1 text-sm text-text-secondary">
           Analyze your application against the job description to get a match
           score, missing skills, and recommendations.
@@ -356,11 +359,11 @@ export default function IntelligencePanel({
         {discoveryJobId ? <span className="text-xs text-text-muted">Before applying</span> : <StatusBadge status={application.status} />}
       </div>
 
-      <div className="mt-4 flex items-center gap-5">
+      <div className="mt-4 flex flex-wrap items-center gap-5">
         <MatchScoreRing score={score} confidence={confidence} size="lg" />
-        <div className="flex-1">
-          <div>
-            <span className="text-xl font-semibold text-text">{score}/100</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-lg bg-accent px-3 py-2 text-2xl font-semibold tabular-nums text-accent-fg">{score}<span className="ml-1 text-sm font-medium">/100</span></span>
             <span className="ml-2 text-sm text-text-muted">
               {confidence === "high" ? "High confidence" : confidence === "medium" ? "Medium confidence" : "Low confidence"}
             </span>

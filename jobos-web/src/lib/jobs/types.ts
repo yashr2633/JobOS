@@ -23,6 +23,8 @@ export interface Job {
   requirements: string[];
   location: string;
   workMode: WorkMode | null;
+  /** Source explicitly permits India and IST; never inferred from 'remote'. */
+  remoteIndiaEligible?: boolean;
   minYearsExperience: number | null;
   skills: string[];
   salary: { min: number | null; max: number | null; currency: string; period: string | null } | null;

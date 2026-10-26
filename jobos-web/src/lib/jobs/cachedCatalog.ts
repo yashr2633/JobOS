@@ -4,6 +4,8 @@ import { additionalSources } from "./ats";
 import { smartRecruitersSources } from "./smartrecruiters";
 import { normalizeIndiaLocation } from "./sources-india";
 import { completeSnapshot, needsSourceRefresh, publicCatalogForDisplay } from "./catalogPolicy";
+import { HIMALAYAS_CACHE_SECONDS, readHimalayasFeed } from "./himalayas";
+import { publicJobQuery } from "./searchSuggestions";
 
 // Only public employer data enters the persistent cache. No authentication,
 // resume, profile or saved state is read within this function.
@@ -32,4 +34,23 @@ export async function getCachedCatalog(): Promise<Catalog> {
   // Next may serve old data during background refresh or provider failure.
   // Never represent that as freshly verified or keep it active indefinitely.
   return publicCatalogForDisplay(catalog, Date.now());
+}
+
+// Public search terms only; separate daily cache follows the provider's update
+// cadence. Remote outages never invalidate a healthy employer snapshot.
+const remotePending = new Map<string, ReturnType<typeof readHimalayasFeed>>();
+async function loadRemoteIndia(query: string) {
+  const active = remotePending.get(query);
+  if (active) return active;
+  if (remotePending.size >= 8) throw new Error("Additional sources are busy");
+  const pending = readHimalayasFeed(query); remotePending.set(query, pending);
+  try { return await pending; } finally { remotePending.delete(query); }
+}
+// Version the normalized snapshot when eligibility/location policy changes.
+const readRemoteIndia = unstable_cache(loadRemoteIndia, ["himalayas-india-v2"], { revalidate: HIMALAYAS_CACHE_SECONDS });
+export async function getCachedRemoteCatalog(query = ""): Promise<Catalog> {
+  const safeQuery = publicJobQuery(query);
+  let feed = await readRemoteIndia(safeQuery);
+  if (Date.now() - Date.parse(feed.checkedAt) > HIMALAYAS_CACHE_SECONDS * 1000) feed = await loadRemoteIndia(safeQuery);
+  return publicCatalogForDisplay(visibleCatalog({ jobs: feed.jobs, checkedAt: feed.checkedAt, warnings: [], sources: [{ provider: "Himalayas", board: "India remote", jobs: feed.jobs.length, checkedAt: feed.checkedAt, status: "ok", coverage: `${feed.limited ? "Recent/search slice, up to 100 records" : "Search slice"}; explicit India eligibility; daily source snapshot; original posting dates unavailable.` }] }), Date.now());
 }

@@ -16,13 +16,13 @@ import Link from "next/link";
  * `/resume-match` both redirect here, and saved-resume management happens inside
  * this workflow. The stored resume data and the `resumes` table are untouched.
  */
-export default async function ResumesPage({ searchParams }: { searchParams: Promise<{ job?: string }> }) {
-  const { job: jobId } = await searchParams;
+export default async function ResumesPage({ searchParams }: { searchParams: Promise<{ job?: string; jobSource?: string }> }) {
+  const { job: jobId, jobSource } = await searchParams;
   if (jobId) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) redirect("/login?next=/jobs");
-    const loaded = await Promise.all([getLiveJob(jobId), discoveryData(supabase, user.id)]).catch(() => null);
+    const loaded = await Promise.all([getLiveJob(jobId, jobSource), discoveryData(supabase, user.id)]).catch(() => null);
     if (loaded?.[0]) {
       const [job, personal] = loaded;
       return <AppShell><DiscoveryResumeMatch job={job} resumes={personal.resumes} initialResumeId={personal.profile.resumeId} /></AppShell>;

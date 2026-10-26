@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   try {
     const text = await request.text();
     if (text.length > 2000) return NextResponse.json({ error: "Request too large." }, { status: 413 });
-    const { jobId, action, appliedDate } = JSON.parse(text);
+    const { jobId, action, appliedDate, sourceUrl } = JSON.parse(text);
     if (typeof jobId !== "string" || jobId.length > 150 || !actions.includes(action)) return NextResponse.json({ error: "Invalid job action." }, { status: 400 });
     if (action === "confirm") {
       if (typeof appliedDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(appliedDate) || !Number.isFinite(Date.parse(appliedDate))) return NextResponse.json({ error: "Choose the date you applied." }, { status: 400 });
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     if (action === "dismiss") patch.apply_started_at = null;
     if (["save", "hide", "apply"].includes(action)) {
       let job;
-      try { job = await getLiveJob(jobId); }
+      try { job = await getLiveJob(jobId, typeof sourceUrl === "string" ? sourceUrl : undefined); }
       catch { return NextResponse.json({ error: "The employer's listing is temporarily unavailable. Please retry later.", code: "source_unavailable" }, { status: 503 }); }
       if (!job) return NextResponse.json({ error: "This job is no longer listed by the employer. Refresh your feed." }, { status: 410 });
       if (action === "apply") { patch.apply_started_at = new Date().toISOString(); patch.saved = true; }

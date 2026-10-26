@@ -1,6 +1,7 @@
 import { mentions, roleAlignment, scoreJob } from "./matching.ts";
 import type { CareerProfile, Job, JobFit, ResumeEvidence } from "./types.ts";
 import { normalizeIndiaLocation } from "./sources-india.ts";
+import { sourceCheckWindow } from "./sourcePolicy.ts";
 
 export const DEFAULT_RANKING = {
   maxAgeDays: 30, minFit: 45, minRoleAlignment: 0.5, minSkillAlignment: 0.5,
@@ -31,7 +32,7 @@ export function isActiveRecommendation(job: Job, now: number, config = DEFAULT_R
   const checkedAgo = now - Date.parse(job.fetchedAt);
   return job.availability === "listed"
     && (!job.postedAt || (Number.isFinite(Date.parse(job.postedAt)) && Date.parse(job.postedAt) <= now))
-    && Number.isFinite(checkedAgo) && checkedAgo >= 0 && checkedAgo <= config.maxSourceAgeMinutes * 60_000
+    && Number.isFinite(checkedAgo) && checkedAgo >= 0 && checkedAgo <= sourceCheckWindow(job, config.maxSourceAgeMinutes * 60_000)
     && (!job.expiresAt || Date.parse(job.expiresAt) > now);
 }
 
@@ -74,6 +75,6 @@ export function rankJob(job: Job, profile: CareerProfile, resume: ResumeEvidence
   };
 }
 export function compareRanked(a: RankedJob, b: RankedJob, newest = false): number {
-  const date = (b.job.postedAt ?? b.job.releasedAt ?? "").localeCompare(a.job.postedAt ?? a.job.releasedAt ?? "");
+  const date = (b.job.postedAt ?? b.job.releasedAt ?? b.job.updatedAt ?? "").localeCompare(a.job.postedAt ?? a.job.releasedAt ?? a.job.updatedAt ?? "");
   return (newest ? date : b.rankScore - a.rankScore || a.freshnessBand - b.freshnessBand || date) || a.job.id.localeCompare(b.job.id);
 }

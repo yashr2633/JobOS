@@ -3,6 +3,8 @@ import type { Job } from "./types.ts";
 import { normalizeIndiaLocation } from "./sources-india.ts";
 import { extractSkills } from "./matching.ts";
 import { roleEvidenceText } from "./jobEvidence.ts";
+import { locationMatches, resolveLocation, resolveState } from "./locations.ts";
+import { isRoleQuery } from "./searchSuggestions.ts";
 
 /** Identical server/browser text, regardless of server or device timezone. */
 export function verificationTime(value: string) {
@@ -19,7 +21,8 @@ export function matchesJobQuery(job: Job, query: string) {
   const identity = [job.title, job.company, job.location, job.workMode, job.category].filter(Boolean).join(" ");
   // Role/company searches use listing identity. Only an explicit recognized
   // skill query expands into the role requirements, not company boilerplate.
-  const evidence = extractSkills(query).length ? `${identity}\n${roleEvidenceText(job.description)}` : identity;
+  const technicalSkillQuery = !isRoleQuery(query) && extractSkills(query).some(skill => !/^(sales|marketing|communication|leadership|project management)$/i.test(skill));
+  const evidence = technicalSkillQuery ? `${identity}\n${roleEvidenceText(job.description)}` : identity;
   return terms.every(term => new RegExp(`(^|[^a-z0-9])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9]|$)`, "i").test(evidence));
 }
 
@@ -27,18 +30,19 @@ export function includeProfileMatch(item: Pick<RankedJob, "eligible">, view: str
   // Manual searches and general browsing must work outside saved preferences.
   return view !== "for-you" || !!query.trim() || !personalized || item.eligible;
 }
-export function matchesIndiaLocation(job: Pick<Job, "location" | "workMode">, filter: string) {
+export function matchesIndiaLocation(job: Pick<Job, "location" | "workMode"> & Partial<Pick<Job, "remoteIndiaEligible">>, filter: string) {
   const evidence = normalizeIndiaLocation(job.location);
   if (!evidence.isIndia || evidence.isForeignOnly) return false;
   if (!filter || filter === "India" || filter === "Pan India") return true;
   if (filter === "Remote - India") return job.workMode === "Remote";
+  if (job.remoteIndiaEligible && job.workMode === "Remote" && (resolveLocation(filter) || resolveState(filter))) return true;
   const target = normalizeIndiaLocation(filter).normalized.toLowerCase().trim();
   if (target === "delhi ncr") return /\b(delhi|ncr|noida|gurugram)\b/i.test(evidence.normalized);
-  return evidence.normalized.toLowerCase().includes(target);
+  return locationMatches(evidence.normalized, filter);
 }
-export function matchesDateWindow(job: Pick<Job, "postedAt" | "releasedAt">, days: string, now: number) {
+export function matchesDateWindow(job: Pick<Job, "postedAt" | "releasedAt"> & Partial<Pick<Job, "updatedAt">>, days: string, now: number) {
   if (!days) return true;
-  const evidence = job.postedAt ?? job.releasedAt;
+  const evidence = job.postedAt ?? job.releasedAt ?? job.updatedAt;
   if (!evidence) return false;
   const time = Date.parse(evidence);
   return Number.isFinite(time) && time <= now && time >= now - Number(days) * 86_400_000;

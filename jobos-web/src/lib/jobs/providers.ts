@@ -3,6 +3,7 @@ import type { Job } from "./types.ts";
 import { additionalSources, lever, ashby } from "./ats.ts";
 import { INDIA_SOURCES } from "./sources-india.ts";
 import { smartrecruiters, smartRecruitersSources } from "./smartrecruiters.ts";
+import { getHimalayasJob } from "./himalayas.ts";
 
 export interface JobProvider {
   source: string;
@@ -85,7 +86,7 @@ export const greenhouse: JobProvider = {
 };
 
 export const JOB_PROVIDERS: Record<string, JobProvider> = { greenhouse, lever, ashby, smartrecruiters };
-export interface SourceHealth { provider: string; board: string; status: "ok" | "failed"; checkedAt: string; jobs: number; reason?: "rate-limited" | "timed out" | "incomplete feed" | "source unavailable" }
+export interface SourceHealth { provider: string; board: string; status: "ok" | "failed"; checkedAt: string; jobs: number; coverage?: string; reason?: "rate-limited" | "timed out" | "incomplete feed" | "source unavailable" }
 export interface Catalog { jobs: Job[]; warnings: string[]; checkedAt: string; sources?: SourceHealth[] }
 function failureReason(error: unknown): NonNullable<SourceHealth["reason"]> {
   const message = error instanceof Error ? `${error.name} ${error.message}` : "";
@@ -146,7 +147,12 @@ export async function getCatalog(): Promise<Catalog> {
   try { return visibleCatalog(await promise); } finally { if (pending?.promise === promise) pending = null; }
 }
 
-export async function getLiveJob(id: string): Promise<Job | null> {
+export async function getLiveJob(id: string, sourceUrl?: string): Promise<Job | null> {
+  if (id.startsWith("himalayas:")) {
+    const job = await getHimalayasJob(id, sourceUrl);
+    if (!job) unavailable.set(id, Date.now() + 24 * 60 * 60_000);
+    return job;
+  }
   const parts = id.match(/^([a-z]+):([a-zA-Z0-9_-]{1,80}):([a-zA-Z0-9_-]{1,64})$/);
   if (!parts || !(parts[1] === "greenhouse" ? configuredBoards().includes(parts[2]) : [...additionalSources(), ...smartRecruitersSources()].some((s) => s.enabled && s.provider === parts[1] && s.board === parts[2]))) return null;
   const provider = JOB_PROVIDERS[parts[1]];
