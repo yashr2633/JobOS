@@ -85,8 +85,13 @@ export const greenhouse: JobProvider = {
 };
 
 export const JOB_PROVIDERS: Record<string, JobProvider> = { greenhouse, lever, ashby, smartrecruiters };
-export interface SourceHealth { provider: string; board: string; status: "ok" | "failed"; checkedAt: string; jobs: number }
+export interface SourceHealth { provider: string; board: string; status: "ok" | "failed"; checkedAt: string; jobs: number; reason?: "rate-limited" | "timed out" | "incomplete feed" | "source unavailable" }
 export interface Catalog { jobs: Job[]; warnings: string[]; checkedAt: string; sources?: SourceHealth[] }
+function failureReason(error: unknown): NonNullable<SourceHealth["reason"]> {
+  const message = error instanceof Error ? `${error.name} ${error.message}` : "";
+  return /429/.test(message) ? "rate-limited" : /timeout|abort/i.test(message) ? "timed out"
+    : /incomplete|pagination/i.test(message) ? "incomplete feed" : "source unavailable";
+}
 // Bounded per-process cache + shared pending promise prevents burst refetches.
 // Failures never masquerade as a refreshed catalog. No indefinite stale fallback.
 let cache: { key: string; until: number; value: Catalog } | null = null;
@@ -115,7 +120,8 @@ export async function getCatalog(): Promise<Catalog> {
     settled.forEach((r, index) => {
       value.sources!.push({ provider: sources[index].provider, board: sources[index].board,
         status: r.status === "fulfilled" ? "ok" : "failed", checkedAt: value.checkedAt,
-        jobs: r.status === "fulfilled" ? r.value.length : 0 });
+        jobs: r.status === "fulfilled" ? r.value.length : 0,
+        ...(r.status === "rejected" ? { reason: failureReason(r.reason) } : {}) });
       if (r.status === "fulfilled") value.jobs.push(...r.value);
       else {
         failedCount++;

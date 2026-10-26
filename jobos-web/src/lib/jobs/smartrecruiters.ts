@@ -45,7 +45,15 @@ export function normalizeSmartRecruiters(raw: unknown, board: string, company: s
     fetchedAt, applicationUrl: apply, sourceUrl, availability: "listed",
   });
 }
-async function request(board: string, path: string, signal: AbortSignal): Promise<unknown | null> {
+class PublicSourceError extends Error {
+  readonly status: number;
+  readonly retryMs: number;
+  constructor(status: number, retryMs: number) {
+    super(`Public employer source unavailable (${status})`);
+    this.status = status; this.retryMs = retryMs;
+  }
+}
+async function requestOnce(board: string, path: string, signal: AbortSignal): Promise<unknown | null> {
   sourceFor(board);
   await acquire();
   try {
@@ -59,11 +67,32 @@ async function request(board: string, path: string, signal: AbortSignal): Promis
     cache: "no-store", redirect: "error", signal,
   });
   if (response.status === 404 || response.status === 410) return null;
-  if (!response.ok) throw new Error(`Public employer source unavailable (${response.status})`);
+  if (!response.ok) {
+    const header = response.headers.get("retry-after");
+    const seconds = header ? Number(header) : NaN;
+    const retryAt = header ? Date.parse(header) : NaN;
+    const retryMs = Number.isFinite(seconds) ? Math.max(0, seconds * 1000)
+      : Number.isFinite(retryAt) ? Math.max(0, retryAt - Date.now()) : 1000;
+    await response.body?.cancel();
+    throw new PublicSourceError(response.status, retryMs);
+  }
   const body = await response.text();
   if (body.length > 15_000_000) throw new Error("Public employer response too large");
   return JSON.parse(body);
   } finally { release(); }
+}
+async function request(board: string, path: string, signal: AbortSignal): Promise<unknown | null> {
+  for (let attempt = 0; ; attempt++) {
+    try { return await requestOnce(board, path, signal); }
+    catch (error) {
+      const transient = error instanceof PublicSourceError && (error.status === 429 || error.status >= 500);
+      // One retry only, within the board's existing total deadline. Do not
+      // retry ahead of a provider's longer Retry-After request.
+      if (!transient || attempt > 0 || error.retryMs > 3000 || signal.aborted) throw error;
+      await new Promise(resolve => setTimeout(resolve, Math.max(500, error.retryMs)));
+      signal.throwIfAborted();
+    }
+  }
 }
 let nextRequestAt = 0;
 let active = 0;
@@ -84,19 +113,26 @@ export const smartrecruiters: JobProvider = {
     const first = row(await request(board, path(0), signal));
     const total = first.totalFound;
     if (!Array.isArray(first.content) || typeof total !== "number" || !Number.isInteger(total) || total < 0 || total > 3000) throw new Error("Employer feed exceeds verified pagination bounds");
-    const entries: unknown[] = [...first.content];
+    const entries: unknown[] = [...first.content], totals = [total];
+    let target = total, nextOffset = 100;
     // Page batches plus the shared request limiter keep concurrency bounded.
     // No per-card detail requests are issued while loading the feed.
-    for (let offset = 100; offset < total; offset += 300) {
-      const offsets = [offset, offset + 100, offset + 200].filter(n => n < total);
+    while (nextOffset < target) {
+      const offsets: number[] = [];
+      while (offsets.length < 3 && nextOffset < target) { offsets.push(nextOffset); nextOffset += 100; }
       const pages = await Promise.all(offsets.map(n => request(board, path(n), signal)));
       for (const page of pages) {
-        if (!Array.isArray(row(page).content)) throw new Error("Incomplete public employer feed");
-        entries.push(...row(page).content as unknown[]);
+        const result = row(page), count = result.totalFound;
+        if (!Array.isArray(result.content) || typeof count !== "number" || !Number.isInteger(count) || count < 0 || count > 3000) throw new Error("Incomplete public employer feed");
+        totals.push(count); target = Math.max(target, count);
+        entries.push(...result.content as unknown[]);
       }
     }
-    // Do not pass off a truncated page as a complete synchronization.
-    if (entries.length < total) throw new Error("Incomplete public employer pagination");
+    // Public offset feeds are mutable: genuine closures may lower totalFound
+    // during a scan. Compare against observed totals, not an obsolete first
+    // count; still reject real truncation and never fabricate missing rows.
+    if (totals.at(-1) === 0) return [];
+    if (entries.length < Math.min(...totals)) throw new Error("Incomplete public employer pagination");
     const now = new Date().toISOString();
     return entries.map(item => normalizeSmartRecruiters(item, board, source.company, now)).filter((job): job is Job => !!job);
   },

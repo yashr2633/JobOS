@@ -4,6 +4,7 @@ import { includeProfileMatch, matchesDateWindow, matchesIndiaLocation, matchesJo
 import { normalizeSmartRecruiters, smartrecruiters } from "./smartrecruiters.ts";
 import { fetchResumeOptions } from "../resumes/options.ts";
 import { getCatalog, JOB_PROVIDERS } from "./providers.ts";
+import { completeSnapshot, needsSourceRefresh, publicCatalogForDisplay } from "./catalogPolicy.ts";
 
 const now = "2026-10-26T12:00:00Z";
 const raw = (id = "123") => ({ id, name: "Quality Engineer", visibility: "PUBLIC", location: { city: "Tiruppur", country: "in" },
@@ -118,6 +119,62 @@ test("truncated or unbounded employer pages fail explicitly instead of looking c
     assert.equal(await smartrecruiters.get("BoschGroup", "123"), null);
     await assert.rejects(smartrecruiters.get("UnconfiguredCompany", "123"), /Unknown/);
   } finally { globalThis.fetch = original; }
+});
+
+test("normal closures and new postings during pagination do not discard a whole employer feed", async () => {
+  const original = globalThis.fetch;
+  try {
+    for (const laterTotal of [204, 305]) {
+      const offsets: number[] = [];
+      globalThis.fetch = async input => {
+        const offset = Number(new URL(String(input)).searchParams.get("offset")); offsets.push(offset);
+        const total = offset === 0 ? 205 : laterTotal;
+        return Response.json({ totalFound: total, content: Array.from({ length: Math.max(0, Math.min(100, total - offset)) }, (_, i) => raw(String(offset + i + 1))) });
+      };
+      const jobs = await smartrecruiters.list("BoschGroup");
+      assert.equal(jobs.length, laterTotal);
+      assert.equal(new Set(jobs.map(job => job.id)).size, laterTotal);
+      if (laterTotal === 305) assert.ok(offsets.includes(300), "follow a newly observed last page");
+    }
+  } finally { globalThis.fetch = original; }
+});
+
+test("transient rate limits get one bounded retry and long Retry-After is respected", async () => {
+  const original = globalThis.fetch;
+  let calls = 0;
+  try {
+    globalThis.fetch = async () => ++calls === 1 ? new Response(null, { status: 429, headers: { "Retry-After": "0" } })
+      : Response.json({ totalFound: 1, content: [raw()] });
+    assert.equal((await smartrecruiters.list("BoschGroup")).length, 1);
+    assert.equal(calls, 2);
+    calls = 0;
+    globalThis.fetch = async () => { calls++; return new Response(null, { status: 429, headers: { "Retry-After": "60" } }); };
+    await assert.rejects(smartrecruiters.list("BoschGroup"), /429/);
+    assert.equal(calls, 1);
+    calls = 0;
+    globalThis.fetch = async () => { calls++; return new Response(null, { status: 429, headers: { "Retry-After": new Date(Date.now() + 60_000).toUTCString() } }); };
+    await assert.rejects(smartrecruiters.list("BoschGroup"), /429/);
+    assert.equal(calls, 1, "an HTTP-date Retry-After must not be retried early either");
+  } finally { globalThis.fetch = original; }
+});
+
+test("partial outages cannot replace a healthy snapshot or reset verification/publication dates", () => {
+  const snapshot = { jobs: [normalizeSmartRecruiters(raw(), "BoschGroup", "Bosch", now)!], warnings: [] as string[], checkedAt: now,
+    sources: [{ provider: "smartrecruiters", board: "BoschGroup", status: "ok" as const, checkedAt: now, jobs: 1 }] };
+  const before = JSON.stringify(snapshot), at = Date.parse(now);
+  assert.equal(completeSnapshot(snapshot), true);
+  assert.equal(completeSnapshot({ ...snapshot, warnings: ["Some sources unavailable"] }), false);
+  assert.equal(completeSnapshot({ ...snapshot, sources: [{ ...snapshot.sources[0], status: "failed" }] }), false);
+  const older = publicCatalogForDisplay(snapshot, at + 7 * 60_000);
+  assert.equal(older.jobs.length, 1);
+  assert.equal(older.jobs[0].fetchedAt, now);
+  assert.equal(older.jobs[0].postedAt, null);
+  assert.equal(older.jobs[0].releasedAt, snapshot.jobs[0].releasedAt);
+  assert.ok(older.warnings.some(message => /previously checked/i.test(message)));
+  assert.equal(needsSourceRefresh(snapshot, at + 7 * 60_000), false);
+  assert.equal(needsSourceRefresh(snapshot, at + 21 * 60_000), true);
+  assert.equal(publicCatalogForDisplay(snapshot, at + 21 * 60_000).jobs.length, 0);
+  assert.equal(JSON.stringify(snapshot), before);
 });
 
 test("Resume Match dropdown reads only IDs and labels, retaining default-first order", async () => {
