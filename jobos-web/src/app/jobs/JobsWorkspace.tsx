@@ -13,7 +13,6 @@ import { selectedResume } from "@/lib/jobs/profile";
 import JobCard from "./JobCard";
 import LocationSearch from "./LocationSearch";
 import ResumeFitScore from "./ResumeFitScore";
-import WebJobSearch from "./WebJobSearch";
 import JobSearchInput from "./JobSearchInput";
 import { buildSearchVocabulary, publicJobQuery } from "@/lib/jobs/searchSuggestions";
 import { includeProfileMatch, matchesDateWindow, matchesIndiaLocation, matchesJobQuery, verificationTime } from "@/lib/jobs/browsing";
@@ -245,12 +244,11 @@ export default function JobsWorkspace({ profile: initialProfile, states: initial
       {(experience || mode || category || employment) && <p className="mt-2 text-xs leading-5 text-text-muted">Filters use employer-supplied details. Missing experience, work mode or category is not assumed; open a job to check its full requirements.</p>}
       {[query, location !== "India", company, category, employment, mode, experience, posted !== defaultPosted].some(Boolean) && <button className="mt-1 min-h-[36px] text-xs text-accent hover:underline" onClick={() => { setQuery(""); setLocation("India"); setCompany(""); setCategory(""); setEmployment(""); setMode(""); setExperience(""); setPosted(defaultPosted); setLimit(30); startRefresh(() => router.replace("/jobs", { scroll: false })); }}>Reset filters</button>}
     </div>
-    {discovering && <details className="mb-5 rounded-lg border border-border bg-surface p-4"><summary className="cursor-pointer text-sm font-medium text-text-secondary">Need to explore beyond the connected job sources?</summary><div className="mt-3"><WebJobSearch key={`${query}\u0000${location}`} keywords={query} location={location} /></div></details>}
     <>
       {remoteLoading && <p role="status" className="mb-3 text-xs text-text-muted">Checking additional India-eligible remote jobs… Employer results remain available.</p>}
       {remoteError && <p role="status" className="mb-3 text-xs text-warning">{remoteError}</p>}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-xs text-text-muted"><span role="status" aria-live="polite">{refreshPending ? "Checking connected sources…" : `${ranked.length} matching jobs in this feed`}</span><button disabled={refreshPending} onClick={refreshFeed} className="min-h-[36px] text-accent hover:underline disabled:opacity-50">{refreshPending ? "Refreshing…" : "Refresh"}</button></div>
-      {!ranked.length && <div className="rounded-xl bg-surface p-7"><h2 className="font-semibold">No connected listings match these filters</h2><p className="mt-2 max-w-xl text-sm leading-6 text-text-secondary">Our connected employers may not cover this location or role. This does not mean there are no jobs there. Use Search the web above to look beyond this feed, or adjust the date and role filters.</p></div>}
+      {!ranked.length && <div className="rounded-xl bg-surface p-7"><h2 className="font-semibold">No connected listings match these filters</h2><p className="mt-2 max-w-xl text-sm leading-6 text-text-secondary">Our connected employers may not cover this location or role. This does not mean there are no jobs there. Try a broader role, nearby city or a wider date range. Refresh to recheck connected sources.</p></div>}
       <div className="grid items-start gap-4 lg:grid-cols-2">{ranked.slice(0, limit).map((item) => <JobCard key={item.job.id} item={item} state={stateMap.get(item.job.id)} now={now} busy={busy} hasResume={!!resume} onView={() => { setSelected(item.job.id); setDetailError(null); setError(null); setNotice(null); }} onAction={(action) => void act(item.job.id, action)} />)}</div>
       {ranked.length > limit && <button className={buttonClass + " mt-5"} onClick={() => setLimit(limit + 30)}>Show more jobs</button>}
     </>
