@@ -12,6 +12,7 @@ import { getCatalog, getLiveJob, greenhouse, normalizeGreenhouse } from "./provi
 // These existing fixtures exercise Greenhouse alone; other adapters have their own tests.
 process.env.JOB_DISCOVERY_LEVER_BOARDS = "";
 process.env.JOB_DISCOVERY_ASHBY_BOARDS = "";
+process.env.JOB_DISCOVERY_SMARTRECRUITERS_BOARDS = "";
 
 const job: Job = normalizeGreenhouse({
   id: 123, title: "Data Analyst", internal_job_id: 456,

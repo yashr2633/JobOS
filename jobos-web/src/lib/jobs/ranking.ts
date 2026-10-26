@@ -74,6 +74,6 @@ export function rankJob(job: Job, profile: CareerProfile, resume: ResumeEvidence
   };
 }
 export function compareRanked(a: RankedJob, b: RankedJob, newest = false): number {
-  const date = (b.job.postedAt ?? "").localeCompare(a.job.postedAt ?? "");
+  const date = (b.job.postedAt ?? b.job.releasedAt ?? "").localeCompare(a.job.postedAt ?? a.job.releasedAt ?? "");
   return (newest ? date : b.rankScore - a.rankScore || a.freshnessBand - b.freshnessBand || date) || a.job.id.localeCompare(b.job.id);
 }

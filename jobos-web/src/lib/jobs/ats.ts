@@ -1,7 +1,7 @@
 import type { JobProvider } from "./providers.ts";
 import type { Job } from "./types.ts";
 import { dateValue, enrichJob, plainText, safeJobUrl } from "./normalize.ts";
-import { INDIA_SOURCES, type CompanySource } from "./sources-india.ts";
+import { INDIA_SOURCES } from "./sources-india.ts";
 
 export interface JobSource { provider: "lever" | "ashby"; board: string; company: string; boardUrl: string; enabled: boolean }
 // Real board identifiers from India source registry with environment override
@@ -11,8 +11,8 @@ export function additionalSources(): JobSource[] {
   const envAshby = process.env.JOB_DISCOVERY_ASHBY_BOARDS;
   
   // If env is set, use that (backward compat), otherwise use India registry
-  const useLeverEnv = envLever && envLever !== "palantir";
-  const useAshbyEnv = envAshby && envAshby !== "ashby";
+  const useLeverEnv = envLever !== undefined && envLever !== "palantir";
+  const useAshbyEnv = envAshby !== undefined && envAshby !== "ashby";
   
   return (["lever", "ashby"] as const).flatMap((provider) => {
     // Use environment if explicitly set

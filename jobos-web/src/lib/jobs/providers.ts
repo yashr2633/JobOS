@@ -2,6 +2,7 @@ import { dateValue, deduplicateJobs, enrichJob, plainText, safeJobUrl } from "./
 import type { Job } from "./types.ts";
 import { additionalSources, lever, ashby } from "./ats.ts";
 import { INDIA_SOURCES } from "./sources-india.ts";
+import { smartrecruiters, smartRecruitersSources } from "./smartrecruiters.ts";
 
 export interface JobProvider {
   source: string;
@@ -17,7 +18,7 @@ const text = (value: unknown) => typeof value === "string" ? value : "";
 export function configuredBoards(): string[] {
   // If env explicitly sets boards, use those (for backward compatibility)
   const envBoards = process.env.JOB_DISCOVERY_GREENHOUSE_BOARDS;
-  if (envBoards && envBoards !== "canonical") {
+  if (envBoards !== undefined && envBoards !== "canonical") {
     return [...new Set(envBoards.split(",").map((s) => s.trim()).filter((s) => /^[a-z0-9_-]{1,80}$/.test(s)))].slice(0, 20);
   }
   
@@ -83,14 +84,15 @@ export const greenhouse: JobProvider = {
   },
 };
 
-export const JOB_PROVIDERS: Record<string, JobProvider> = { greenhouse, lever, ashby };
-export interface Catalog { jobs: Job[]; warnings: string[]; checkedAt: string }
+export const JOB_PROVIDERS: Record<string, JobProvider> = { greenhouse, lever, ashby, smartrecruiters };
+export interface SourceHealth { provider: string; board: string; status: "ok" | "failed"; checkedAt: string; jobs: number }
+export interface Catalog { jobs: Job[]; warnings: string[]; checkedAt: string; sources?: SourceHealth[] }
 // Bounded per-process cache + shared pending promise prevents burst refetches.
 // Failures never masquerade as a refreshed catalog. No indefinite stale fallback.
 let cache: { key: string; until: number; value: Catalog } | null = null;
 let pending: { key: string; promise: Promise<Catalog> } | null = null;
 const unavailable = new Map<string, number>();
-function visibleCatalog(value: Catalog): Catalog {
+export function visibleCatalog(value: Catalog): Catalog {
   const now = Date.now();
   for (const [id, until] of unavailable) if (until <= now) unavailable.delete(id);
   return { ...value, jobs: value.jobs.filter((j) => !unavailable.has(j.id) && (!j.expiresAt || Date.parse(j.expiresAt) > now)) };
@@ -100,17 +102,7 @@ export async function getCatalog(): Promise<Catalog> {
   const greenhouseBoards = configuredBoards().map((board) => ({provider: "greenhouse" as const, board}));
   const leverAshbyBoards = additionalSources().filter((s) => s.enabled);
   
-  // Add additional India sources from registry for Lever/Ashby
-  const indiaLever = INDIA_SOURCES.filter(s => s.enabled && s.provider === "lever").map(s => ({
-    provider: s.provider,
-    board: s.board,
-  }));
-  const indiaAshby = INDIA_SOURCES.filter(s => s.enabled && s.provider === "ashby").map(s => ({
-    provider: s.provider,
-    board: s.board,
-  }));
-  
-  const sources = [...greenhouseBoards, ...leverAshbyBoards, ...indiaLever, ...indiaAshby]
+  const sources = [...greenhouseBoards, ...leverAshbyBoards, ...smartRecruitersSources()]
     .filter((s, i, arr) => arr.findIndex(x => x.provider === s.provider && x.board === s.board) === i); // deduplicate
   
   const key = sources.map((s) => `${s.provider}:${s.board}`).join(",");
@@ -118,9 +110,12 @@ export async function getCatalog(): Promise<Catalog> {
   if (pending?.key === key) return visibleCatalog(await pending.promise);
   const promise = (async () => {
     const settled = await Promise.allSettled(sources.map((s) => JOB_PROVIDERS[s.provider].list(s.board)));
-    const value: Catalog = { jobs: [], warnings: [], checkedAt: new Date().toISOString() };
+    const value: Catalog = { jobs: [], warnings: [], checkedAt: new Date().toISOString(), sources: [] };
     let failedCount = 0;
     settled.forEach((r, index) => {
+      value.sources!.push({ provider: sources[index].provider, board: sources[index].board,
+        status: r.status === "fulfilled" ? "ok" : "failed", checkedAt: value.checkedAt,
+        jobs: r.status === "fulfilled" ? r.value.length : 0 });
       if (r.status === "fulfilled") value.jobs.push(...r.value);
       else {
         failedCount++;
@@ -132,13 +127,13 @@ export async function getCatalog(): Promise<Catalog> {
     else if (failedCount > 0 && value.jobs.length === 0) {
       // Only show generic message if ALL sources failed
       value.warnings.push("Job sources are temporarily unavailable. Please try again later.");
-    } else if (failedCount > sources.length / 2) {
+    } else if (failedCount > 0) {
       // Show gentle notice if majority failed but some succeeded
       value.warnings.push("Some job sources are unavailable. Results may be incomplete.");
     }
     // Otherwise silent success - don't mention individual failures
     value.jobs = deduplicateJobs(value.jobs);
-    cache = { key, until: Date.now() + (value.warnings.length ? 60_000 : 15 * 60_000), value };
+    cache = { key, until: Date.now() + (value.warnings.length ? 60_000 : 5 * 60_000), value };
     return value;
   })();
   pending = { key, promise };
@@ -147,7 +142,7 @@ export async function getCatalog(): Promise<Catalog> {
 
 export async function getLiveJob(id: string): Promise<Job | null> {
   const parts = id.match(/^([a-z]+):([a-zA-Z0-9_-]{1,80}):([a-zA-Z0-9_-]{1,64})$/);
-  if (!parts || !(parts[1] === "greenhouse" ? configuredBoards().includes(parts[2]) : additionalSources().some((s) => s.enabled && s.provider === parts[1] && s.board === parts[2]))) return null;
+  if (!parts || !(parts[1] === "greenhouse" ? configuredBoards().includes(parts[2]) : [...additionalSources(), ...smartRecruitersSources()].some((s) => s.enabled && s.provider === parts[1] && s.board === parts[2]))) return null;
   const provider = JOB_PROVIDERS[parts[1]];
   if (!provider) return null;
   try {

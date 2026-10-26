@@ -4,7 +4,7 @@
 
 export interface CompanySource {
   company: string;
-  provider: "greenhouse" | "lever" | "ashby";
+  provider: "greenhouse" | "lever" | "ashby" | "smartrecruiters";
   board: string;
   country: "India" | "Global";
   enabled: boolean;
@@ -13,13 +13,17 @@ export interface CompanySource {
 
 // VERIFIED working sources only - tested against real public endpoints
 export const INDIA_SOURCES: CompanySource[] = [
+  { company: "SGS", provider: "smartrecruiters", board: "SGS", country: "India", enabled: true, notes: "Public India feed verified 2026-10-26 from employer ATS listings; testing, inspection, certification, finance and operations." },
+  { company: "Eurofins", provider: "smartrecruiters", board: "Eurofins", country: "India", enabled: true, notes: "Public India feed verified 2026-10-26 from employer ATS listings; laboratory, life sciences, quality, software and support, including Tiruppur." },
+  { company: "Bosch Group", provider: "smartrecruiters", board: "BoschGroup", country: "India", enabled: true, notes: "Public India postings and individual apply links verified 2026-10-26; official Bosch SmartRecruiters career board. Release dates may represent republication." },
+  { company: "Accor", provider: "smartrecruiters", board: "AccorHotel", country: "India", enabled: true, notes: "Public India postings and individual apply links verified 2026-10-26; hospitality, operations and sales. Release dates may represent republication." },
   // Board linked directly by https://razorpay.com/careers/; public API checked 2026-10-26.
   { company: "Razorpay", provider: "greenhouse", board: "razorpaysoftwareprivatelimited", country: "India", enabled: true, notes: "Official careers link and public GET verified; publication dates supplied. Includes some overseas roles, filtered by candidate location." },
   // These are the ONLY verified working boards from the previous implementation
   // Palantir Lever board - confirmed working
-  { company: "Palantir", provider: "lever", board: "palantir", country: "Global", enabled: true },
+  { company: "Palantir", provider: "lever", board: "palantir", country: "Global", enabled: false, notes: "Public feed verified 2026-10-26 but no India listings found. Excluded from default India synchronization; adapter retained for explicitly configured sources." },
   // Ashby demo board - confirmed working
-  { company: "Ashby", provider: "ashby", board: "ashby", country: "Global", enabled: true },
+  { company: "Ashby", provider: "ashby", board: "ashby", country: "Global", enabled: false, notes: "Public feed verified 2026-10-26 but no India listings found. Excluded from default India synchronization; adapter retained for explicitly configured sources." },
   
   // NOTE: All other Indian company boards were UNVERIFIED GUESSES and have been removed
   // To add a new source:
@@ -37,7 +41,6 @@ export function normalizeIndiaLocation(location: string): {
   city?: string;
   remote?: boolean;
 } {
-  const lower = location.toLowerCase();
   
   // HARD exclusion: Foreign-only locations (EU, EMEA, US states, UAE, etc.)
   const foreignPatterns = [

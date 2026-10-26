@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Application, ApplicationFormData } from "../../applications/types";
 import { createApplication, fetchApplications } from "@/lib/api/applications";
-import { fetchResumes } from "@/lib/api/resumes";
+import { fetchResumeOptions } from "@/lib/resumes/options";
+import WorkspaceLoading from "../../components/WorkspaceLoading";
 import { createClient } from "@/lib/supabase/client";
 import IntelligencePanel from "../../applications/components/IntelligencePanel";
 import ResumeUploadStep, { type UploadedResumeInfo } from "./ResumeUploadStep";
@@ -132,7 +133,7 @@ export default function ResumeMatchContent() {
    * resume the user marked as their default — the right thing to preselect.
    */
   const loadResumes = useCallback(async (): Promise<ResumeOption[]> => {
-    const library = await fetchResumes(supabase);
+    const library = await fetchResumeOptions(supabase);
     const options = library.map((resume) => ({
       id: resume.id,
       label: resume.label,
@@ -293,17 +294,7 @@ export default function ResumeMatchContent() {
   }
 
   if (loading) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <div className="text-center">
-          <div
-            className="mb-4 inline-block h-6 w-6 animate-spin rounded-full border-2 border-border-strong border-t-accent"
-            aria-hidden="true"
-          />
-          <p className="text-sm text-text-secondary">Loading your resumes...</p>
-        </div>
-      </div>
-    );
+    return <WorkspaceLoading title="Resume Match" message="Loading your saved resumes and applications…" />;
   }
 
   if (error) {

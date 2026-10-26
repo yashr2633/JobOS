@@ -27,7 +27,11 @@ export interface Job {
   skills: string[];
   salary: { min: number | null; max: number | null; currency: string; period: string | null } | null;
   employmentType: string | null;
+  category?: string | null;
   postedAt: string | null;
+  /** Provider release/republication time; never substitutes for original publication. */
+  releasedAt?: string | null;
+  descriptionPending?: boolean;
   expiresAt: string | null;
   updatedAt: string | null;
   fetchedAt: string;

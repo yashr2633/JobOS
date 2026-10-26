@@ -1,3 +1,5 @@
+import AppShell from "../components/AppShell";
+import WorkspaceLoading from "../components/WorkspaceLoading";
 export default function Loading() {
-  return <p role="status" className="p-8 text-text-secondary">Loading your job recommendations…</p>;
+  return <AppShell><WorkspaceLoading title="Find jobs" message="Loading your job search…" /></AppShell>;
 }
