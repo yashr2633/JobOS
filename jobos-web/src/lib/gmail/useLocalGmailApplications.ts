@@ -70,7 +70,8 @@ export function useLocalGmailApplications(): UseLocalGmailApplicationsResult {
 
       // Load from IndexedDB
       const [storedApps, integration] = await Promise.all([getGmailApplicationsForUser(user.id), getGmailIntegrationState(user.id).catch(() => null)]);
-      const apps = consolidateLocalApplications(storedApps);
+      const excludedIds = new Set(integration?.excludedMessageIds ?? []);
+      const apps = consolidateLocalApplications(storedApps.filter(app => !excludedIds.has(app.gmailMessageId)));
       if (request !== requestNumber.current) return;
       const statusCounts: Record<ApplicationStatus, number> = {Applied:0, Interview:0, Offer:0, Rejected:0, Ghosted:0};
       for (const app of apps) statusCounts[app.status]++;

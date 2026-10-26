@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./product.css";
 
 /**
  * JobOS design tokens.
@@ -27,16 +28,16 @@
  * properties is clearer than importing a build step.
  */
 :root {
-  --bg: #f8f8f9;
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f2f2f4;
-  --border: #e4e4e8;
-  --border-strong: #d4d4db;
-  --text: #14141a;
-  --text-secondary: #55555f;
-  --text-muted: #8b8b96;
-  --accent: #4f46e5;
-  --accent-hover: #4338ca;
+  --surface-2: #f5f8fc;
+  --border: #dbe4f0;
+  --border-strong: #b8cbe4;
+  --text: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --accent: #175cd3;
+  --accent-hover: #124ba9;
   --accent-fg: #ffffff;
   --success: #15803d;
   --success-bg: #f0fdf4;
@@ -44,7 +45,7 @@
   --warning-bg: #fffbeb;
   --danger: #b91c1c;
   --danger-bg: #fef2f2;
-  --focus: #4f46e5;
+  --focus: #175cd3;
   color-scheme: light;
 }
 
@@ -59,9 +60,9 @@
     --text: #f1f1f3;
     --text-secondary: #a3a3ad;
     --text-muted: #6d6d78;
-    --accent: #6366f1;
-    --accent-hover: #7a7df0;
-    --accent-fg: #ffffff;
+    --accent: #74a7ff;
+    --accent-hover: #9fc2ff;
+    --accent-fg: #0f172a;
     --success: #34d399;
     --success-bg: #052e1c;
     --warning: #fbbf24;
@@ -83,9 +84,9 @@
   --text: #f1f1f3;
   --text-secondary: #a3a3ad;
   --text-muted: #6d6d78;
-  --accent: #6366f1;
-  --accent-hover: #7a7df0;
-  --accent-fg: #ffffff;
+  --accent: #74a7ff;
+  --accent-hover: #9fc2ff;
+  --accent-fg: #0f172a;
   --success: #34d399;
   --success-bg: #052e1c;
   --warning: #fbbf24;

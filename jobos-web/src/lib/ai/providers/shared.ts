@@ -113,7 +113,16 @@ export async function fetchWithTimeout(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    return await fetch(url, { ...init, signal: controller.signal });
+    const response = await fetch(url, { ...init, signal: controller.signal });
+    // Providers can send headers before generation finishes. Keep the abort
+    // deadline active while consuming the body, so a stalled completion cannot
+    // outlive the route's budget and prevent fallback/error handling.
+    const body = await response.arrayBuffer();
+    return new Response([204, 205, 304].includes(response.status) ? null : body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
   } catch (err: unknown) {
     if (
       err instanceof Error &&

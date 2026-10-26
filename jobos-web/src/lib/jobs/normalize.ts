@@ -1,6 +1,7 @@
 import { extractSkills } from "./matching.ts";
 import { normalizeText } from "../ai/normalize.ts";
 import type { Job, WorkMode } from "./types.ts";
+import { roleEvidenceText } from "./jobEvidence.ts";
 
 export function plainText(value: string): string {
   // Feeds may HTML-encode their HTML. Decode before stripping; render as text only.
@@ -39,14 +40,15 @@ export function detectWorkMode(location: string): WorkMode | null {
 }
 
 export function enrichJob(job: Job): Job {
-  const experience = job.description.match(/\b(\d{1,2})(?:\s*[-–]\s*\d{1,2})?\+?\s+years?\s+(?:of\s+)?(?:relevant\s+|professional\s+|industry\s+)?experience\b/i);
+  const evidence = roleEvidenceText(job.description);
+  const experience = evidence.match(/\b(\d{1,2})(?:\s*[-–]\s*\d{1,2})?\+?\s+years?\s+(?:of\s+)?(?:relevant\s+|professional\s+|industry\s+)?experience\b/i);
   return {
     ...job,
     location: job.location.replace(/\bBangalore\b/gi, "Bengaluru").replace(/\bBombay\b/gi, "Mumbai").replace(/\bGurgaon\b/gi, "Gurugram").replace(/\bpan[- ]india\b/gi, "Pan India"),
     workMode: job.workMode ?? detectWorkMode(job.location),
     minYearsExperience: job.minYearsExperience ?? (experience ? Number(experience[1]) : null),
-    skills: extractSkills(job.description),
-    requirements: job.description.split(/\n+/).filter((line) => /\b(required|must have|experience|proficien|knowledge of|ability to)\b/i.test(line)).filter((line) => line.length < 500).slice(0, 12),
+    skills: extractSkills(evidence),
+    requirements: evidence.split(/\n+/).filter((line) => /\b(required|must have|experience|proficien|knowledge of|ability to)\b/i.test(line)).filter((line) => line.length < 500).slice(0, 12),
   };
 }
 

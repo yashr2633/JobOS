@@ -320,13 +320,17 @@ export default function ResumeMatchContent() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-text">
-          Match your resume to a job
+          Match your resume. Then tailor it.
         </h1>
         <p className="mt-1 text-sm text-text-secondary">
-          Choose a job, pick or upload your resume, and get a match score with the
-          skills you are missing.
+          Select a job and resume, understand your fit, then tailor a role-focused
+          version using your existing facts.
         </p>
       </div>
+
+      <ol className="grid gap-3 sm:grid-cols-3" aria-label="Resume workflow">
+        {[["1", "Match", "Select your resume and the role"], ["2", "Review", "Understand matching and weak evidence"], ["3", "Tailor & export", "Review changes before downloading"]].map(([step, label, description]) => <li className="flex items-center gap-3 rounded-xl border border-border bg-surface-2 px-4 py-4" key={step}><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xs font-semibold text-accent">{step}</span><div><strong className="text-sm font-medium">{label}</strong><p className="mt-1 text-xs text-text-muted">{description}</p></div></li>)}
+      </ol>
 
       {applications.length === 0 && !creatingApplication ? (
         <div className="rounded-md border border-border bg-surface px-6 py-12 text-center">

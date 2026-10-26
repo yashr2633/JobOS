@@ -1,6 +1,13 @@
 import type { Application } from "../../app/applications/types.ts";
 import type { LocalGmailApplication } from "./browserStore.ts";
 import { isForwardTransition } from "../applications/lifecycle.ts";
+import { inferStatusFromCategory } from "./statusInference.ts";
+
+/** Reclassification may advance an automatic status, but preserves manual edits. */
+export function statusAfterRescan(existing: Pick<LocalGmailApplication, "status" | "category">, incoming: Pick<LocalGmailApplication, "status">): Application["status"] {
+  return existing.status !== "Offer" && existing.status !== "Rejected" && existing.status === inferStatusFromCategory(existing.category) && isForwardTransition(existing.status, incoming.status)
+    ? incoming.status : existing.status;
+}
 
 /** Group only matching user/thread/company/role evidence, in chronological order. */
 export function consolidateLocalApplications(inputs: LocalGmailApplication[]): LocalGmailApplication[] {

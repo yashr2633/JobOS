@@ -6,7 +6,7 @@ import { GmailApiError } from "./client.ts";
 import { safeNextPath } from "../supabase/safeNextPath.ts";
 import { readFileSync } from "node:fs";
 import { requestGmailBrowserAccessToken } from "./browserOAuth.ts";
-import { mergeReviewMessages } from "./reviewMessages.ts";
+import { mergeReviewMessages, mergeExcludedMessageIds } from "./reviewMessages.ts";
 
 const message = (id: string, snippet = "We have received your application.") => ({
   id, threadId: `t${id}`, internalDate: "1791331200000", snippet,
@@ -38,6 +38,68 @@ test("zero matches complete successfully", async t => {
   assert.equal(result.messagesListed, 0);
   assert.equal(result.messagesFailed, 0);
   assert.deepEqual(result.candidateMessages, []);
+});
+
+test("candidate vacancy-closure notices outrank earlier application confirmation wording", async t => {
+  t.mock.method(globalThis, "fetch", async (input: URL) => {
+    const url = new URL(String(input));
+    if (url.pathname.endsWith("/messages")) return Response.json({ messages: [{ id: "closed", threadId: "tclosed" }] });
+    const email = message("closed", "We appreciate your interest. The requisition you applied for - Analyst - has been closed/filled.");
+    email.payload.headers[1].value = "Analyst Applied For Has Been Closed or Filled";
+    return Response.json(email);
+  });
+  const result = await scanGmailInBrowser({ accessToken: "test-only", window: "30d" });
+  assert.equal(result.candidateMessages.length, 1);
+  assert.equal(result.candidateMessages[0].category, "REJECTION");
+  assert.equal(result.candidateMessages[0].status, "Rejected");
+});
+
+test("public coding contests are excluded while employer assessment invitations remain tracked", async t => {
+  t.mock.method(globalThis, "fetch", async (input: URL) => {
+    const url = new URL(String(input));
+    if (url.pathname.endsWith("/messages")) return Response.json({ messages: [{ id: "contest", threadId: "tc" }, { id: "assessment", threadId: "ta" }] });
+    const contest = url.pathname.endsWith("/contest");
+    const email = message(contest ? "contest" : "assessment", contest ? "Enrol in the coding challenge to win prizes." : "Please complete your online assessment for your application.");
+    email.payload.headers[1].value = contest ? "Last few days to enroll for Coding Contest" : "Your application: online assessment invitation";
+    return Response.json(email);
+  });
+  const result = await scanGmailInBrowser({ accessToken: "test-only", window: "30d" });
+  assert.deepEqual(result.excludedMessageIds, ["contest"]);
+  assert.deepEqual(result.candidateMessages.map(message => [message.gmailMessageId, message.status]), [["assessment", "Interview"]]);
+});
+
+test("confirmed exclusions survive narrower scans and positive evidence restores records", () => {
+  assert.deepEqual(mergeExcludedMessageIds(["old", "restored"], ["new"], ["restored"]), ["old", "new"]);
+  assert.deepEqual(mergeExcludedMessageIds(["old"], [], []), ["old"]);
+});
+
+test("a public quiz registration notice is not an interview", async t => {
+  t.mock.method(globalThis, "fetch", async (input: URL) => {
+    if (new URL(String(input)).pathname.endsWith("/messages")) return Response.json({ messages: [{ id: "quiz", threadId: "tq" }] });
+    const email = message("quiz", "AI Skill Assessment - Test Your Knowledge. Win prizes.");
+    email.payload.headers[1].value = "Campus: Quiz is open for registration !!";
+    return Response.json(email);
+  });
+  const result = await scanGmailInBrowser({ accessToken: "test-only", window: "30d" });
+  assert.deepEqual(result.candidateMessages, []);
+  assert.deepEqual(result.excludedMessageIds, ["quiz"]);
+});
+
+test("status-update subjects read past a clipped confirmation snippet before choosing status", async t => {
+  const formats: string[] = [];
+  t.mock.method(globalThis, "fetch", async (input: URL) => {
+    const url = new URL(String(input));
+    if (url.pathname.endsWith("/messages")) return Response.json({ messages: [{ id: "outcome", threadId: "to" }] });
+    formats.push(url.searchParams.get("format")!);
+    const email = message("outcome", "Thanks for applying for the position of Analyst.");
+    email.payload.headers[1].value = "Acme application: Status update";
+    if (url.searchParams.get("format") === "full") return Response.json({ ...email, payload: { ...email.payload, mimeType: "text/plain", body: { data: btoa("Thanks for applying for the position of Analyst. Unfortunately, this position is no longer available.") } } });
+    return Response.json(email);
+  });
+  const result = await scanGmailInBrowser({ accessToken: "test-only", window: "30d" });
+  assert.deepEqual(formats, ["metadata", "full"]);
+  assert.equal(result.candidateMessages.length, 1);
+  assert.equal(result.candidateMessages[0].status, "Rejected");
 });
 
 test("overlapping Gmail pages fetch each message once and preserve traceability", async t => {

@@ -381,9 +381,13 @@ export default function IntelligencePanel({
         </div>
       </div>
 
+      <p className="mt-4 text-xs leading-6 text-text-muted">
+        This score compares resume evidence with the job description; it is not a probability of getting hired. A skill not evidenced in your resume does not mean you do not have it.
+      </p>
+
       <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">Missing required skills</h4>
+          <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">Required skills to evidence</h4>
           <div className="min-h-[4rem]">
             {/* One skill-gap renderer, shared instead of re-implemented here. */}
             <SkillGapList

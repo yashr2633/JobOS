@@ -1,51 +1,25 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import AppShell from "../components/AppShell";
 import { createClient } from "@/lib/supabase/server";
-import Link from "next/link";
+import { discoveryData } from "@/lib/jobs/data";
+import { getCatalog } from "@/lib/jobs/providers";
+import JobsWorkspace from "./JobsWorkspace";
+import InternalJobs from "./InternalJobs";
 
-export const metadata: Metadata = { title: "Discover Jobs" };
+export const metadata: Metadata = { title: "Find jobs" };
 
-export default async function JobsPage() {
+export default async function JobsPage({ searchParams }: { searchParams: Promise<{ q?: string; job?: string }> }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/jobs");
-
-  return (
-    <AppShell>
-      <div className="flex min-h-[60vh] items-center justify-center px-4 py-12">
-        <div className="max-w-md text-center">
-          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-accent/10">
-            <svg className="h-8 w-8 text-accent" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
-              <circle cx="10.5" cy="10.5" r="6.5" />
-              <path strokeLinecap="round" d="m16 16 5 5" />
-            </svg>
-          </div>
-          
-          <h1 className="mb-2 text-2xl font-semibold tracking-tight text-text">Discover Jobs</h1>
-          <p className="mb-6 text-base text-text-secondary">
-            Personalized job discovery is coming soon.
-          </p>
-          
-          <p className="mb-8 text-sm leading-relaxed text-text-muted">
-            We're working on a better way to help you discover relevant opportunities, check your fit, and track everything in JobTrackOS.
-          </p>
-          
-          <div className="rounded-lg border border-border bg-surface p-4">
-            <p className="text-xs text-text-muted">
-              Your existing{" "}
-              <Link href="/applications" className="font-medium text-accent hover:underline">
-                Applications
-              </Link>
-              {" "}and{" "}
-              <Link href="/resumes" className="font-medium text-accent hover:underline">
-                Resume Match
-              </Link>
-              {" "}features remain available.
-            </p>
-          </div>
-        </div>
-      </div>
-    </AppShell>
-  );
+  const params = await searchParams;
+  const [personal, catalog] = await Promise.allSettled([discoveryData(supabase, user.id), getCatalog()]);
+  return <AppShell>
+    {personal.status === "fulfilled" && catalog.status === "fulfilled"
+      ? <JobsWorkspace {...personal.value} catalog={catalog.value} initialJobId={params.job} initialQuery={params.q} />
+      : <section className="product-panel"><p className="product-kicker">Find jobs</p><h1>Your next opportunity</h1><p className="product-notice mt-5">{personal.status === "rejected" ? "Your job preferences could not load. Job Discovery setup may need to be completed. Your applications and resumes are still available." : "Job sources are temporarily unavailable. Please try again shortly."}</p><Link className="product-button" href="/applications">Open applications</Link></section>}
+    <InternalJobs />
+  </AppShell>;
 }

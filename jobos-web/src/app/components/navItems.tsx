@@ -62,7 +62,7 @@ function SettingsIcon() {
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/", label: "Dashboard", shortLabel: "Home", exact: true, icon: <DashboardIcon /> },
-  { href: "/jobs", label: "Discover Jobs", shortLabel: "Discover", exact: false,
+  { href: "/jobs", label: "Find jobs", shortLabel: "Find jobs", exact: false,
     icon: <svg className={ICON_CLASS} fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path strokeLinecap="round" d="m16 16 5 5" /></svg> },
   {
     href: "/applications",
@@ -83,11 +83,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     alsoActiveFor: ["/resume-match"],
   },
   {
-    href: "/settings",
-    label: "Settings",
-    shortLabel: "Settings",
+    href: "/profile",
+    label: "Profile",
+    shortLabel: "Profile",
     exact: false,
     icon: <SettingsIcon />,
+    alsoActiveFor: ["/settings"],
   },
 ];
 

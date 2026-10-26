@@ -13,6 +13,8 @@ export interface CompanySource {
 
 // VERIFIED working sources only - tested against real public endpoints
 export const INDIA_SOURCES: CompanySource[] = [
+  // Board linked directly by https://razorpay.com/careers/; public API checked 2026-10-26.
+  { company: "Razorpay", provider: "greenhouse", board: "razorpaysoftwareprivatelimited", country: "India", enabled: true, notes: "Official careers link and public GET verified; publication dates supplied. Includes some overseas roles, filtered by candidate location." },
   // These are the ONLY verified working boards from the previous implementation
   // Palantir Lever board - confirmed working
   { company: "Palantir", provider: "lever", board: "palantir", country: "Global", enabled: true },

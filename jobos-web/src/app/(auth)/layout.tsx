@@ -9,14 +9,19 @@
  * `py-8` gives the card breathing room at short heights (a landscape phone)
  * instead of clipping it against the viewport edges.
  */
+import Brand from "../components/Brand";
+import Link from "next/link";
+
 export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-bg px-4 py-8">
-      <div className="w-full max-w-md">{children}</div>
+    <div className="auth-product-shell">
+      <header className="auth-product-header"><Brand /><Link href="/employer/login">Hiring? <strong>Employer login</strong></Link></header>
+      <div className="auth-product-content">{children}</div>
+      <footer className="auth-product-footer"><span>© {new Date().getFullYear()} JobTrackOS</span><div className="flex gap-4"><Link href="/privacy-policy">Privacy</Link><Link href="/terms">Terms</Link><a href="mailto:support@jobtrackos.online">Contact</a></div></footer>
     </div>
   );
 }

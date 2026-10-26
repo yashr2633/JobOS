@@ -24,6 +24,8 @@ const PROTECTED_PREFIXES = [
   "/resume-match",
   "/resumes",
   "/settings",
+  "/profile",
+  "/gmail/review",
   "/track-my-jobs",
 ];
 
@@ -114,7 +116,7 @@ export async function updateSession(request: NextRequest) {
     loginUrl.search = "";
     // Preserve the destination so the user resumes where they were headed.
     if (pathname !== "/") {
-      loginUrl.searchParams.set("next", pathname);
+      loginUrl.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
     }
     return NextResponse.redirect(loginUrl);
   }

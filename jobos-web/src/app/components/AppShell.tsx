@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 
 import MobileNav from "./MobileNav";
 import Navbar from "./Navbar";
-import Sidebar from "./Sidebar";
 
 interface AppShellProps {
   children: ReactNode;
@@ -43,7 +42,7 @@ const MAX_WIDTH_CLASS: Record<NonNullable<AppShellProps["maxWidth"]>, string> = 
  */
 export default function AppShell({ children, maxWidth = "7xl" }: AppShellProps) {
   return (
-    <div className="flex min-h-dvh bg-bg">
+    <div className="product-app flex min-h-dvh bg-bg">
       {/* Keyboard users should not have to tab through navigation on every page. */}
       <a
         href="#main-content"
@@ -52,14 +51,12 @@ export default function AppShell({ children, maxWidth = "7xl" }: AppShellProps) 
         Skip to content
       </a>
 
-      <Sidebar />
-
       <div className="flex min-w-0 flex-1 flex-col">
         <Navbar />
 
         <main
           id="main-content"
-          className="pb-mobile-nav flex-1 p-4 text-text sm:p-6 lg:p-8"
+          className="product-main pb-mobile-nav flex-1 p-4 text-text sm:p-6 lg:p-8"
         >
           <div className={MAX_WIDTH_CLASS[maxWidth]}>{children}</div>
         </main>

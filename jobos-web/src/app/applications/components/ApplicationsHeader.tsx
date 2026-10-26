@@ -25,7 +25,7 @@ export default function ApplicationsHeader({
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-text">
-          Applications
+          Track every application
         </h1>
         <p className="mt-1 text-sm text-text-secondary">
           Every job you&apos;ve applied to, and what&apos;s happening with it.
@@ -43,7 +43,7 @@ export default function ApplicationsHeader({
         )}
 
         <Link
-          href="/track-my-jobs"
+          href="/#gmail-tracking"
           className="inline-flex items-center gap-1.5 rounded-md border border-border px-3.5 py-2 text-sm font-medium text-text-secondary transition-colors hover:border-border-strong hover:bg-surface-2 hover:text-text"
         >
           Sync from Gmail

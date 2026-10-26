@@ -32,7 +32,6 @@ export default function MobileNav() {
       <ul className="flex items-stretch">
         {NAV_ITEMS.map((item) => {
           const active = isNavItemActive(item, pathname);
-          const isComingSoon = item.href === "/jobs";
           return (
             <li key={item.href} className="flex-1">
               <Link
@@ -46,11 +45,6 @@ export default function MobileNav() {
                 {/* Truncate rather than wrap: a wrapped label would change the
                     bar's height and shift the page content above it. */}
                 <span className="max-w-full truncate">{item.shortLabel}</span>
-                {isComingSoon && (
-                  <span className="absolute right-1 top-1 rounded bg-accent/10 px-1 py-0.5 text-[9px] font-semibold text-accent">
-                    Soon
-                  </span>
-                )}
               </Link>
             </li>
           );

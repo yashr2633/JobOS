@@ -5,11 +5,11 @@ interface SkillGapListProps {
   candidateSkills?: string[];
   /** Skills the JD requires */
   requiredSkills: string[];
-  /** Skills the JD requires but candidate doesn't have */
+  /** Required skills not evidenced by the selected resume. */
   missingRequiredSkills: string[];
   /** Nice-to-haves the JD mentions */
   preferredSkills: string[];
-  /** Nice-to-haves the candidate doesn't have */
+  /** Preferred skills not evidenced by the selected resume. */
   missingPreferredSkills: string[];
   variant?: "missing-required" | "missing-preferred" | "matched";
 }
@@ -38,18 +38,18 @@ function formatSkill(skill: string): string {
   return skill.charAt(0).toUpperCase() + skill.slice(1);
 }
 
-export default function SkillGapList({ candidateSkills = [], requiredSkills, missingRequiredSkills, preferredSkills, missingPreferredSkills, variant = "missing-required" }: SkillGapListProps) {
+export default function SkillGapList({ candidateSkills = [], requiredSkills, missingRequiredSkills, missingPreferredSkills, variant = "missing-required" }: SkillGapListProps) {
   let items: string[];
   let title: string;
 
   switch (variant) {
     case "missing-required":
       items = missingRequiredSkills;
-      title = "Required skills missing";
+      title = "Not evidenced in this resume";
       break;
     case "missing-preferred":
       items = missingPreferredSkills;
-      title = "Preferred skills missing";
+      title = "Preferred skills not evidenced";
       break;
     case "matched":
       items = requiredSkills.filter(skill => candidateSkills.some(s => s.toLowerCase().includes(skill.toLowerCase())));
@@ -63,7 +63,7 @@ export default function SkillGapList({ candidateSkills = [], requiredSkills, mis
   if (items.length === 0 && variant !== "matched") {
     return (
       <div className="rounded-md border border-success/20 bg-success-bg p-4 text-center">
-        <p className="text-sm text-success">No missing required skills</p>
+        <p className="text-sm text-success">{variant === "missing-preferred" ? "All preferred skills have resume evidence" : "All required skills have resume evidence"}</p>
       </div>
     );
   }

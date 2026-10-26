@@ -1,5 +1,6 @@
 import { canonicalSkill, findSatisfyingSkill, normalizeText, tokenize } from "../ai/normalize.ts";
 import type { CareerProfile, Job, JobFit, ResumeEvidence } from "./types.ts";
+import { roleEvidenceText } from "./jobEvidence.ts";
 
 // Keywords are evidence of mentions, never a claim that every mention is mandatory.
 const SKILLS = ["JavaScript", "TypeScript", "React", "Next.js", "Vue", "Angular", "Node.js", "Python", "Java", "C++", "C#", "Go", "Rust", "SQL", "PostgreSQL", "MySQL", "MongoDB", "Redis", "AWS", "Azure", "GCP", "Docker", "Kubernetes", "Linux", "Git", "Terraform", "CI/CD", "HTML", "CSS", "REST", "GraphQL", "Excel", "Power BI", "Tableau", "R", "Pandas", "TensorFlow", "PyTorch", "Machine Learning", "Data Analysis", "Salesforce", "Figma", "Accounting", "Sales", "Marketing", "Project Management", "Product Management", "Customer Support", "Communication", "Leadership"];
@@ -51,7 +52,7 @@ export function scoreJob(job: Job, profile: CareerProfile, resume?: ResumeEviden
     (ratio >= 0.6 ? result.strengths : result.gaps).push(ratio >= 0.6 ? "Title aligns with your target roles" : "Title differs from your target roles");
   }
   // Include explicit profile skills outside the small starter vocabulary when mentioned.
-  const jobSkills = uniqueSkills([...job.skills, ...skills.filter((s) => mentions(job.description, s))]);
+  const jobSkills = uniqueSkills([...job.skills, ...skills.filter((s) => mentions(roleEvidenceText(job.description), s))]);
   result.matchedSkills = jobSkills.filter((s) => hasSkill(s, skills));
   result.missingSkills = jobSkills.filter((s) => !hasSkill(s, skills));
   if (jobSkills.length) add("Skills mentioned", 35, result.matchedSkills.length / jobSkills.length);

@@ -4,11 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Catalog } from "@/lib/jobs/providers";
-import { scoreJob, roleAlignment } from "@/lib/jobs/matching";
+import { scoreJob } from "@/lib/jobs/matching";
 import { safeJobUrl } from "@/lib/jobs/normalize";
 import type { CareerProfile, JobState, ResumeEvidence } from "@/lib/jobs/types";
 import CareerProfileForm, { buttonClass, inputClass, primaryClass } from "./CareerProfileForm";
-import { DEFAULT_RANKING, rankJob, compareRanked, type RankingConfig } from "@/lib/jobs/ranking";
+import { DEFAULT_RANKING, rankJob, compareRanked, isActiveRecommendation, type RankingConfig } from "@/lib/jobs/ranking";
 import { selectedResume } from "@/lib/jobs/profile";
 import JobCard from "./JobCard";
 import { INDIAN_CITIES, normalizeIndiaLocation } from "@/lib/jobs/sources-india";
@@ -16,9 +16,9 @@ import { INDIAN_CITIES, normalizeIndiaLocation } from "@/lib/jobs/sources-india"
 const localDate = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const dateLabel = (date: string | null) => date ? new Date(date).toLocaleDateString("en-GB", { timeZone: "UTC" }) : "Not provided";
 
-export default function JobsWorkspace({ profile: initialProfile, states: initialStates, resumes, catalog, initialJobId, ranking = DEFAULT_RANKING, asOf }: {
+export default function JobsWorkspace({ profile: initialProfile, states: initialStates, resumes, catalog, initialJobId, initialQuery = "", ranking = DEFAULT_RANKING, asOf }: {
   profile: CareerProfile; states: JobState[]; resumes: ResumeEvidence[]; catalog: Catalog; initialJobId?: string;
-  ranking?: RankingConfig; asOf?: string;
+  ranking?: RankingConfig; asOf?: string; initialQuery?: string;
 }) {
   const router = useRouter();
   const [profile, setProfile] = useState(initialProfile);
@@ -29,7 +29,7 @@ export default function JobsWorkspace({ profile: initialProfile, states: initial
   const jobsStart = useRef<HTMLDivElement>(null), preferencesStart = useRef<HTMLDivElement>(null);
   const now = Date.parse(asOf ?? catalog.checkedAt);
   const [view, setView] = useState("all");
-  const [query, setQuery] = useState(""), [location, setLocation] = useState("India");
+  const [query, setQuery] = useState(initialQuery.slice(0, 200)), [location, setLocation] = useState("India");
   const [mode, setMode] = useState(""), [experience, setExperience] = useState(""), [posted, setPosted] = useState("");
   const [company, setCompany] = useState("");
   const [limit, setLimit] = useState(30);
@@ -63,6 +63,7 @@ export default function JobsWorkspace({ profile: initialProfile, states: initial
     const source = discovering ? catalog.jobs : [...allJobs.values()];
     return source.filter((job) => {
       const state = stateMap.get(job.id);
+      if (discovering && !isActiveRecommendation(job, now, ranking)) return false;
       if (view === "hidden") { if (!state?.hidden) return false; }
       else if (state?.hidden) return false;
       if (view === "saved" && !state?.saved) return false;
@@ -129,7 +130,7 @@ export default function JobsWorkspace({ profile: initialProfile, states: initial
 
   const messages = <>{error && <p role="alert" className="my-3 rounded-md bg-danger-bg p-3 text-sm text-danger">{error}</p>}{notice && <p role="status" className="my-3 text-sm text-success">{notice}</p>}</>;
   return <>
-    <div className="mb-5 flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-2xl font-semibold tracking-tight">Discover Jobs</h1><p className="mt-1 text-sm text-text-secondary">Search jobs in India from top companies</p></div>{personalized && <button aria-expanded={editing} aria-controls="career-preferences" className={buttonClass} onClick={() => editing ? returnToJobs() : setEditing(true)}>Edit preferences</button>}</div>
+    <div className="mb-7 flex flex-wrap items-start justify-between gap-3"><div><p className="product-kicker">Find jobs</p><h1 className="text-2xl font-semibold tracking-tight">{resume ? "Jobs matched to your resume" : personalized ? "Jobs for your preferences" : "Find your next opportunity"}</h1><p className="mt-2 text-sm text-text-secondary">Search India opportunities and check the original application destination.</p></div><button aria-expanded={editing} aria-controls="career-preferences" className={buttonClass} onClick={() => editing ? returnToJobs() : setEditing(true)}>Edit search preferences</button></div>
     
     {!personalized && <div className="mb-5 rounded-lg bg-surface px-4 py-3 border border-accent/20"><p className="text-sm"><span className="font-medium">Get personalized recommendations:</span> <button className="text-accent hover:underline" onClick={() => setEditing(true)}>Upload or select a resume</button> to see job fit scores and matched skills</p></div>}
     
@@ -162,7 +163,7 @@ export default function JobsWorkspace({ profile: initialProfile, states: initial
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-xs text-text-muted"><span>{ranked.length} jobs found</span><button onClick={() => { setUnavailable([]); router.refresh(); }} className="min-h-[36px] text-accent hover:underline">Refresh</button></div>
       {!ranked.length && <div className="rounded-xl bg-surface p-7"><h2 className="font-semibold">No jobs match your search</h2><p className="mt-2 max-w-xl text-sm leading-6 text-text-secondary">Try adjusting your filters or search terms. New jobs are added as companies publish openings.</p></div>}
-      <div className="grid items-start gap-4 lg:grid-cols-2">{ranked.slice(0, limit).map((item) => <JobCard key={item.job.id} item={item} state={stateMap.get(item.job.id)} now={now} busy={busy} onView={() => { setSelected(item.job.id); setError(null); setNotice(null); }} onAction={(action) => void act(item.job.id, action)} />)}</div>
+      <div className="grid items-start gap-4 lg:grid-cols-2">{ranked.slice(0, limit).map((item) => <JobCard key={item.job.id} item={item} state={stateMap.get(item.job.id)} now={now} busy={busy} hasResume={!!resume} onView={() => { setSelected(item.job.id); setError(null); setNotice(null); }} onAction={(action) => void act(item.job.id, action)} />)}</div>
       {ranked.length > limit && <button className={buttonClass + " mt-5"} onClick={() => setLimit(limit + 30)}>Show more jobs</button>}
     </>
     <p className="mt-5 text-xs leading-5 text-text-muted">Jobs from Greenhouse, Lever, Ashby public boards · {catalog.jobs.length} total listings · cached up to 15 minutes</p>
@@ -173,8 +174,8 @@ export default function JobsWorkspace({ profile: initialProfile, states: initial
         <p className="mt-3 text-sm">{job.location || "Location not provided"} · {job.workMode ?? "Work mode not specified"}</p>
         <div className="mt-3 grid gap-2 text-sm text-text-secondary sm:grid-cols-2"><p>Experience: {job.minYearsExperience === null ? "Not specified" : `${job.minYearsExperience}+ years`}</p><p>Employment: {job.employmentType ?? "Not specified"}</p><p>Salary: {job.salary ? `${job.salary.currency} ${job.salary.min ?? "?"}–${job.salary.max ?? "?"}` : "Not provided"}</p><p>Posted: {dateLabel(job.postedAt)}</p></div>
         {!catalog.jobs.some((j) => j.id === job.id) && <p className="mt-3 text-sm text-warning">Saved snapshot: this job is not in the current feed.</p>}
-        {personalized && <section className="mt-5 rounded-md border border-border bg-surface-2 p-4"><h3 className="font-semibold">Job Fit: {fit.score}/100 · {fit.evidence} evidence</h3><p className="mt-1 text-xs text-text-muted">Match score based on your resume, not hiring probability.</p><div className="mt-4 grid gap-4 sm:grid-cols-2"><div><h4 className="text-sm font-semibold">Strengths</h4><ul className="mt-2 list-disc space-y-1 pl-4 text-sm text-text-secondary">{fit.strengths.map((s) => <li key={s}>{s}</li>)}</ul><p className="mt-2 text-sm">Matched: {fit.matchedSkills.join(", ") || "No skills matched"}</p></div><div><h4 className="text-sm font-semibold">Gaps</h4><ul className="mt-2 list-disc space-y-1 pl-4 text-sm text-text-secondary">{fit.gaps.map((s) => <li key={s}>{s}</li>)}</ul><p className="mt-2 text-sm">Missing: {fit.missingSkills.join(", ") || "None"}</p></div></div></section>}
-        {!personalized && <div className="mt-5 rounded-md border border-accent/20 bg-accent/5 p-4"><p className="text-sm"><span className="font-medium">Want to check your fit for this role?</span> <button className="text-accent hover:underline" onClick={() => { setSelected(null); setEditing(true); }}>Select a resume</button> to see match score, skills alignment, and gaps.</p></div>}
+        {resume && <section className="mt-5 rounded-md border border-border bg-surface-2 p-4"><h3 className="font-semibold">Job Fit: {fit.score}/100 · {fit.evidence} evidence</h3><p className="mt-1 text-xs text-text-muted">Match score based on your resume, not hiring probability.</p><div className="mt-4 grid gap-4 sm:grid-cols-2"><div><h4 className="text-sm font-semibold">Strengths</h4><ul className="mt-2 list-disc space-y-1 pl-4 text-sm text-text-secondary">{fit.strengths.map((s) => <li key={s}>{s}</li>)}</ul><p className="mt-2 text-sm">Matched: {fit.matchedSkills.join(", ") || "No skills matched"}</p></div><div><h4 className="text-sm font-semibold">Gaps</h4><ul className="mt-2 list-disc space-y-1 pl-4 text-sm text-text-secondary">{fit.gaps.map((s) => <li key={s}>{s}</li>)}</ul><p className="mt-2 text-sm">Missing: {fit.missingSkills.join(", ") || "None"}</p></div></div></section>}
+        {!resume && <div className="mt-5 rounded-md border border-accent/20 bg-accent/5 p-4"><p className="text-sm"><span className="font-medium">Want to check your fit for this role?</span> <button className="text-accent hover:underline" onClick={() => { setSelected(null); setEditing(true); }}>Select a resume</button> to see match score, skills alignment, and gaps.</p></div>}
         {messages}
         <div className="mt-5 flex flex-wrap gap-2"><button disabled={busy} className={primaryClass} onClick={() => void act(job.id, "apply")}>{busy ? "Working…" : "Apply on employer site"}</button>{personalized && <Link className={buttonClass} href={`/resumes?job=${encodeURIComponent(job.id)}`}>Check Resume Match</Link>}<button disabled={busy} className={buttonClass} onClick={() => void act(job.id, state?.saved ? "unsave" : "save")}>{state?.saved ? "Unsave" : "Save"}</button><button disabled={busy} className={buttonClass} onClick={() => void act(job.id, state?.hidden ? "restore" : "hide")}>{state?.hidden ? "Restore" : "Not interested"}</button></div>
         {state?.apply_started_at && !state.application_id && <section className="mt-4 rounded-md border border-accent/40 p-4"><h3 className="font-semibold">Did you apply?</h3><p className="mt-2 text-sm text-text-secondary">Opening the employer page does not submit an application. Confirm when done.</p>{safeJobUrl(state.snapshot.applicationUrl) && <a href={safeJobUrl(state.snapshot.applicationUrl)!} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-sm font-semibold text-accent hover:underline">Open employer application ↗</a>}<div className="mt-4 flex flex-wrap items-end gap-3"><label className="text-sm">Date applied<input type="date" className={inputClass} value={appliedDate} max={localDate()} onChange={(e) => setAppliedDate(e.target.value)} /></label><button disabled={busy} className={primaryClass} onClick={() => void act(job.id, "confirm")}>Yes, I applied</button><button disabled={busy} className={buttonClass} onClick={() => void act(job.id, "dismiss")}>Not yet</button></div></section>}

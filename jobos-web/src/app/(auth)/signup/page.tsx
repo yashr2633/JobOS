@@ -12,7 +12,12 @@ import {
   isPlausibleEmail,
 } from "@/lib/account/otp";
 import { buildSupabaseOAuthCallbackUrl } from "@/lib/supabase/oauthRedirect";
+import { safeNextPath } from "@/lib/supabase/safeNextPath";
 import OtpStep from "../OtpStep";
+
+function signUpDestination() {
+  return typeof window === "undefined" ? "/" : safeNextPath(new URL(window.location.href).searchParams.get("next"));
+}
 
 /** Turn a provider error into something actionable. */
 function describeSignUpError(message: string): string {
@@ -79,7 +84,7 @@ export default function SignupPage() {
     if (verifyError) throw new Error(describeOtpError(verifyError.message));
 
     // Verified: a session now exists, so land the user in the product.
-    router.push("/");
+    router.push(signUpDestination());
     router.refresh();
   }
 
@@ -133,7 +138,7 @@ export default function SignupPage() {
 
       // Confirmation is disabled on this project, so the account is already
       // usable and there is no code to enter.
-      router.push("/");
+      router.push(signUpDestination());
       router.refresh();
     } catch (err: unknown) {
       setError(
@@ -153,7 +158,7 @@ export default function SignupPage() {
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: buildSupabaseOAuthCallbackUrl(window.location.origin),
+          redirectTo: buildSupabaseOAuthCallbackUrl(window.location.origin, signUpDestination()),
         },
       });
 

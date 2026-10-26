@@ -179,6 +179,9 @@ const HARD_EXCLUSIONS: ReadonlyArray<{
       /\bmasterclass\b/i,
       /\bworkshop\b/i,
       /\bbootcamp\b/i,
+      /\b(?:coding|programming) (?:contest|competition)\b/i,
+      /\bquiz\b[^\n]{0,30}\b(?:open for registration|registration (?:is )?open|contest|competition)\b/i,
+      /\bregistration (?:is )?open\b[^\n]{0,30}\bquiz\b/i,
       // Deliberately not a bare /\bcourse\b/: "of course, happy to schedule"
       // appears in genuine interview mail.
       /\b(?:online|free|certification|training|crash) courses?\b/i,
@@ -250,6 +253,11 @@ const LIFECYCLE_PATTERNS: ReadonlyArray<{
       /\bno longer under consideration\b/i,
       /\byou (?:have|were) not (?:been )?(?:selected|shortlisted)\b/i,
       /\b(?:position|role) has been filled\b/i,
+      /\b(?:this|the|your) (?:position|role) is no longer (?:available|open)\b/i,
+      // Candidate-specific closure notices must outrank earlier "you applied"
+      // wording in the same message. Generic vacancy alerts remain excluded.
+      /\bapplied for has been (?:closed|filled)\b/i,
+      /\b(?:requisition|position|role|vacancy)\b[^\n.!?]{0,260}\byou applied (?:to|for)\b[^\n.!?]{0,260}\b(?:has been|was|is) (?:closed|filled)\b/i,
     ],
   },
   {

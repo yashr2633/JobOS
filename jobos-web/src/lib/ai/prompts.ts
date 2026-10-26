@@ -97,6 +97,8 @@ Output schema:
 
 Rules:
 - Do not fabricate skills or qualifications not present in the input.
+- Describe missing skills as evidence absent from the resume, never as proof that the candidate lacks those skills. Suggest highlighting existing evidence only if it is true.
+- The match score measures resume-to-job evidence, not a probability of getting hired.
 - Do not tell the candidate to "lie" or "stretch the truth".
 - Recommendations should be specific (e.g. "Add a project demonstrating Kubernetes" not "Learn more skills").
 - Keep each recommendation under 120 words.

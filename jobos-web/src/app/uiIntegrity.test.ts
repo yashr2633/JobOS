@@ -191,7 +191,7 @@ test("dark mode is a designed theme, not an inversion", () => {
 // ---------------------------------------------------------------------------
 
 test("desktop and mobile navigation are generated from one list", () => {
-  const sidebar = read("app/components/Sidebar.tsx");
+  const sidebar = read("app/components/DesktopNav.tsx");
   const mobile = read("app/components/MobileNav.tsx");
 
   for (const source of [sidebar, mobile]) {
@@ -225,9 +225,9 @@ test("every primary destination is a real route", () => {
   }
 });
 
-test("the mobile bar is hidden on desktop and the rail on mobile", () => {
+test("the mobile bar is hidden on desktop and top navigation on mobile", () => {
   assert.match(read("app/components/MobileNav.tsx"), /md:hidden/);
-  assert.match(read("app/components/Sidebar.tsx"), /hidden .*md:flex|md:flex/);
+  assert.match(read("app/product.css"), /@media\(max-width:767px\)\{\.product-desktop-nav\{display:none\}/);
 });
 
 // ---------------------------------------------------------------------------
@@ -257,9 +257,10 @@ test("pages compose the shared AppShell rather than their own shell", () => {
 
 test("only AppShell composes the navigation primitives", () => {
   const shell = read("app/components/AppShell.tsx");
-  assert.match(shell, /<Sidebar \/>/);
+  assert.doesNotMatch(shell, /<Sidebar \/>/);
   assert.match(shell, /<MobileNav \/>/);
   assert.match(shell, /<Navbar \/>/);
+  assert.match(read("app/components/Navbar.tsx"), /<DesktopNav \/>/);
 });
 
 // ---------------------------------------------------------------------------
@@ -317,7 +318,7 @@ test("the shell offers a skip link and a labelled main region", () => {
 });
 
 test("navigation regions are labelled and mark the current page", () => {
-  for (const path of ["app/components/Sidebar.tsx", "app/components/MobileNav.tsx"]) {
+  for (const path of ["app/components/DesktopNav.tsx", "app/components/MobileNav.tsx"]) {
     const source = read(path);
     assert.match(source, /aria-label="Primary"/, `${path} labels its nav`);
     assert.match(source, /aria-current=\{.*"page"/, `${path} marks the current page`);
@@ -546,10 +547,10 @@ test("the document metadata carries the brand and the descriptive SEO defaults",
 });
 
 test("the app shell shows the brand on both desktop and mobile", () => {
-  // The rail carries it on desktop; the top bar carries it on mobile, where the
-  // rail is hidden. Missing either leaves a viewport with no product identity.
-  assert.match(read("app/components/Sidebar.tsx"), /JobTrackOS/);
-  assert.match(read("app/components/Navbar.tsx"), /JobTrackOS/);
+  const navbar = read("app/components/Navbar.tsx");
+  assert.match(navbar, /<Brand\s*\/>/);
+  assert.doesNotMatch(navbar, /className="[^"]*hidden[^"]*"\s*>\s*<Brand/);
+  assert.match(read("app/components/Brand.tsx"), /JobTrackOS/);
 });
 
 test("the auth screens carry the brand and the tagline", () => {

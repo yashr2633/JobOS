@@ -24,15 +24,15 @@ export default function StatCard({
   accentColor,
 }: StatCardProps) {
   return (
-    <div className="group rounded-md border border-border bg-surface p-4 transition-colors hover:border-border-strong">
+    <div className="group h-full rounded-md border border-border bg-surface p-4 transition-colors hover:border-border-strong">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium text-text-muted">{title}</p>
+          <p className="break-normal text-xs font-medium text-text-muted">{title}</p>
           <p className={`mt-2 text-2xl font-semibold tracking-tight ${accentColor}`}>
             {value}
           </p>
         </div>
-        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-surface-2 ${accentColor}`}>
+        <div className={`hidden h-8 w-8 shrink-0 items-center justify-center rounded-md bg-surface-2 sm:flex ${accentColor}`}>
           {icon}
         </div>
       </div>

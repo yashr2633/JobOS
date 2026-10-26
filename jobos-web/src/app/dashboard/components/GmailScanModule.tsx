@@ -39,7 +39,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { useGmailToken } from "@/lib/gmail/GmailTokenProvider";
 import { GmailApiError } from "@/lib/gmail/client";
-import { mergeReviewMessages } from "@/lib/gmail/reviewMessages";
+import { mergeReviewMessages, mergeExcludedMessageIds } from "@/lib/gmail/reviewMessages";
 
 /** Persisted facts about the most recent scan job. Null fields stay unreported. */
 export interface LatestScanView {
@@ -290,7 +290,8 @@ export default function GmailScanModule({
         await setGmailIntegrationState({
         userId: user.id,
         initialized: true,
-        reviewMessages: mergeReviewMessages(previousState?.reviewMessages ?? [], result.reviewMessages, applicationsToStore.map(message => message.gmailMessageId)),
+        reviewMessages: mergeReviewMessages(previousState?.reviewMessages ?? [], result.reviewMessages, [...applicationsToStore.map(message => message.gmailMessageId), ...result.excludedMessageIds]),
+        excludedMessageIds: mergeExcludedMessageIds(previousState?.excludedMessageIds ?? [], result.excludedMessageIds, applicationsToStore.map(message => message.gmailMessageId)),
         lastSuccessfulScanAt: result.messagesFailed || result.truncated ? previousState?.lastSuccessfulScanAt ?? null : new Date().toISOString(),
         lastScanWindow: runWindow,
       });

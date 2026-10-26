@@ -81,6 +81,8 @@ export interface ClassifiedMessage {
 
 /** Final scan results. */
 export interface BrowserScanResult {
+  /** Explicitly excluded messages, used to hide prior false detections without deleting them. */
+  excludedMessageIds: string[];
   /** Unresolved job evidence, kept reviewable without inventing a status. */
   reviewMessages: GmailReviewMessage[];
   /** Requests that could not be read; these are not legitimate zero results. */
@@ -195,6 +197,7 @@ export async function scanGmailInBrowser(
 
   const allMessageRefs: GmailMessageRef[] = [];
   const candidateMessages: ClassifiedMessage[] = [];
+  const excludedMessageIds: string[] = [];
   const reviewMessages: GmailReviewMessage[] = [];
   const evidenceReasonCounts: Record<string, number> = {};
   let candidates = 0;
@@ -264,6 +267,7 @@ export async function scanGmailInBrowser(
       messagesProcessed: 0,
       candidates: 0,
       candidateMessages: [],
+      excludedMessageIds: [],
       reviewMessages: [],
       ambiguousCount: 0,
       bodyEscalated: 0,
@@ -296,12 +300,15 @@ export async function scanGmailInBrowser(
         (evidenceReasonCounts[evidence.reason] ?? 0) + 1;
 
       if (!verdict.candidate) {
+        if (evidence.reason.startsWith("excluded_")) excludedMessageIds.push(email.gmailMessageId);
         return;
       }
 
       candidates++;
 
-      if (verdict.needsAI) {
+      const confirmationInStatusNotice = (verdict.category === "APPLICATION_CONFIRMATION" || verdict.category === "APPLICATION_RECEIVED")
+        && /\b(?:application|candidacy)\b[^\n]{0,70}\bstatus (?:update|change)\b/i.test(email.subject);
+      if (verdict.needsAI || confirmationInStatusNotice) {
         // Ambiguous - will escalate with body later
         ambiguousEmails.push({ email, reason: evidence.reason });
         return;
@@ -457,6 +464,7 @@ export async function scanGmailInBrowser(
 
   return {
     messagesListed: allMessageRefs.length,
+    excludedMessageIds,
     messagesFailed,
     metadataFailed,
     truncated,

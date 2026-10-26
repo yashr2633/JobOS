@@ -33,7 +33,7 @@ export function isThemePreference(value: unknown): value is ThemePreference {
  * itself once React hydrates — the "flash of wrong theme". It only reads
  * localStorage and sets one attribute; it stores nothing sensitive.
  */
-export const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem("${STORAGE_KEY}");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);}}catch(e){}})();`;
+export const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem("${STORAGE_KEY}");if(t!=="system"){document.documentElement.setAttribute("data-theme",t==="dark"?"dark":"light");}}catch(e){document.documentElement.setAttribute("data-theme","light");}})();`;
 
 /** Apply a preference to the document. `system` clears the override. */
 function applyTheme(preference: ThemePreference): void {
@@ -61,10 +61,10 @@ function systemTheme(): "light" | "dark" {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  // Start at "system" on both server and client so the first render matches and
+  // Start at "light" on both server and client so the first render matches and
   // hydration does not warn. The stored value is adopted in the effect below;
   // the inline script has already painted the right colors by then.
-  const [preference, setPreferenceState] = useState<ThemePreference>("system");
+  const [preference, setPreferenceState] = useState<ThemePreference>("light");
   const [resolved, setResolved] = useState<"light" | "dark">("light");
 
   useEffect(() => {
@@ -72,7 +72,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     try {
       stored = window.localStorage.getItem(STORAGE_KEY);
     } catch {
-      // Private mode or storage disabled: fall back to following the OS.
+      // Private mode or storage disabled: keep the default light theme.
     }
     if (isThemePreference(stored)) setPreferenceState(stored);
   }, []);

@@ -1,10 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { consolidateLocalApplications, extractExplicitRole, mergeApplications, localToApplication } from "./localApplications.ts";
+import { consolidateLocalApplications, extractExplicitRole, mergeApplications, localToApplication, statusAfterRescan } from "./localApplications.ts";
 import type { LocalGmailApplication } from "./browserStore.ts";
 import { computeWindowReport } from "../../app/dashboard/report.ts";
 const base: LocalGmailApplication = {id:"m1",userId:"u1",gmailMessageId:"m1",gmailThreadId:"t1",company:"Acme",role:"Engineer",jobUrl:null,
   appliedDate:"2026-10-01T12:00:00Z",status:"Applied",category:"APPLICATION_CONFIRMATION",confidence:0.9,evidenceReason:"lifecycle_subject_match",isLifecycle:true,jobPortal:null,source:"Email",createdAt:"2026-10-01",updatedAt:"2026-10-01"};
+test("rescans correct automatic statuses without overwriting manual or terminal choices",()=>{
+  assert.equal(statusAfterRescan(base,{status:"Rejected"}),"Rejected");
+  assert.equal(statusAfterRescan({...base,status:"Interview"},{status:"Rejected"}),"Interview");
+  assert.equal(statusAfterRescan({...base,status:"Rejected",category:"REJECTION"},{status:"Applied"}),"Rejected");
+  assert.equal(statusAfterRescan({...base,status:"Offer",category:"OFFER"},{status:"Rejected"}),"Offer");
+});
 test("thread lifecycle keeps earliest application date, latest source, and forward status",()=>{
   const interview={...base,id:"m2",gmailMessageId:"m2",status:"Interview" as const,appliedDate:"2026-10-02T12:00:00Z"};
   const lateConfirmation={...base,id:"m3",gmailMessageId:"m3",appliedDate:"2026-10-03T12:00:00Z"};

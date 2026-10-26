@@ -1,0 +1,6 @@
+import { notFound, redirect } from "next/navigation";
+import { employerSession, type EmployerJob } from "@/lib/employer/data";
+import { isUuid } from "@/lib/employer/validation";
+import { JobForm } from "../../../../components/EmployerForms";
+import SetupNotice from "../../../../components/SetupNotice";
+export default async function EditJob({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ saved?: string }> }) { const { id } = await params; if (!isUuid(id)) notFound(); const { supabase, company, setupError } = await employerSession(); if (setupError) return <SetupNotice />; if (!company) redirect("/employer/company"); const { data, error } = await supabase.from("employer_jobs").select("*").eq("id", id).eq("company_id", company.id).maybeSingle(); if (error) return <p role="alert" className="product-notice product-error">This job could not load. Please retry.</p>; if (!data) notFound(); return <><div className="product-heading"><div><p className="product-kicker">Jobs / Edit</p><h1>Edit job listing</h1><p>Changes to published roles appear to candidates when saved.</p></div></div>{(await searchParams).saved === "1" && <p role="status" className="product-notice product-success">Job saved.</p>}<JobForm job={data as EmployerJob} /></>; }

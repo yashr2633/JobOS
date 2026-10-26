@@ -15,6 +15,7 @@ import type { ApplicationStatus } from "@/app/applications/types";
 import type { EmailCategory } from "./heuristics";
 import type { EvidenceReason } from "./applicationEvidence";
 import type { GmailReviewMessage } from "./browserScan";
+import { statusAfterRescan } from "./localApplications";
 
 /** Local Gmail-derived application stored in IndexedDB. */
 export interface LocalGmailApplication {
@@ -87,6 +88,7 @@ const INTEGRATION_STORE_NAME = "gmail-integration-state";
  * Gmail integration state (non-sensitive metadata only).
  */
 export interface GmailIntegrationState {
+  excludedMessageIds?: string[];
   reviewMessages?: GmailReviewMessage[];
   userId: string;
   initialized: boolean;
@@ -215,7 +217,7 @@ export async function storeGmailApplications(
           role: existing.role ?? input.role,
           jobUrl: existing.jobUrl ?? input.jobUrl,
           appliedDate: input.appliedDate,
-          status: existing.status,
+          status: statusAfterRescan(existing, input),
           category: input.category,
           confidence: input.confidence,
           evidenceReason: input.evidenceReason,
