@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { includeProfileMatch, matchesDateWindow, matchesIndiaLocation, matchesJobQuery } from "./browsing.ts";
+import { includeProfileMatch, matchesDateWindow, matchesIndiaLocation, matchesJobQuery, verificationTime } from "./browsing.ts";
 import { normalizeSmartRecruiters, smartrecruiters } from "./smartrecruiters.ts";
 import { fetchResumeOptions } from "../resumes/options.ts";
 import { getCatalog, JOB_PROVIDERS } from "./providers.ts";
@@ -8,6 +8,17 @@ import { getCatalog, JOB_PROVIDERS } from "./providers.ts";
 const now = "2026-10-26T12:00:00Z";
 const raw = (id = "123") => ({ id, name: "Quality Engineer", visibility: "PUBLIC", location: { city: "Tiruppur", country: "in" },
   releasedDate: "2026-10-26T08:00:00Z", typeOfEmployment: { label: "Full-time" }, function: { label: "Quality Assurance" } });
+
+test("verification timestamps have identical text across server/device timezones and day boundaries", () => {
+  const before = process.env.TZ;
+  try {
+    for (const timezone of ["UTC", "Asia/Kolkata", "America/New_York"]) {
+      process.env.TZ = timezone;
+      assert.equal(verificationTime("2026-10-26T16:10:37Z"), "2026-10-26 21:40 IST");
+      assert.equal(verificationTime("2026-10-26T22:30:00Z"), "2026-10-27 04:00 IST");
+    }
+  } finally { if (before === undefined) delete process.env.TZ; else process.env.TZ = before; }
+});
 
 test("general browsing and manual searches are independent of profile match cutoffs", () => {
   const poorMatch = { eligible: false };

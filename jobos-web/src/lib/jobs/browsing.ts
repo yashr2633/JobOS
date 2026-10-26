@@ -4,6 +4,13 @@ import { normalizeIndiaLocation } from "./sources-india.ts";
 import { extractSkills } from "./matching.ts";
 import { roleEvidenceText } from "./jobEvidence.ts";
 
+/** Identical server/browser text, regardless of server or device timezone. */
+export function verificationTime(value: string) {
+  // India uses UTC+05:30 year-round. ISO formatting avoids locale/ICU text
+  // differences as well as the Vercel UTC versus candidate timezone mismatch.
+  return `${new Date(Date.parse(value) + 330 * 60_000).toISOString().slice(0, 16).replace("T", " ")} IST`;
+}
+
 export function matchesJobQuery(job: Job, query: string) {
   if (!query.trim()) return true;
   const terms = (query.toLowerCase().match(/[a-z0-9+#.]+/g) ?? [])

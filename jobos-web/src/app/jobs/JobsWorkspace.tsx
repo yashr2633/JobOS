@@ -12,7 +12,7 @@ import { DEFAULT_RANKING, rankJob, compareRanked, isActiveRecommendation, type R
 import { selectedResume } from "@/lib/jobs/profile";
 import JobCard from "./JobCard";
 import { INDIAN_CITIES } from "@/lib/jobs/sources-india";
-import { includeProfileMatch, matchesDateWindow, matchesIndiaLocation, matchesJobQuery } from "@/lib/jobs/browsing";
+import { includeProfileMatch, matchesDateWindow, matchesIndiaLocation, matchesJobQuery, verificationTime } from "@/lib/jobs/browsing";
 
 const localDate = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const dateLabel = (date: string | null) => date ? new Date(date).toLocaleDateString("en-GB", { timeZone: "UTC" }) : "Not provided";
@@ -175,8 +175,8 @@ export default function JobsWorkspace({ profile: initialProfile, states: initial
       <div className="grid items-start gap-4 lg:grid-cols-2">{ranked.slice(0, limit).map((item) => <JobCard key={item.job.id} item={item} state={stateMap.get(item.job.id)} now={now} busy={busy} hasResume={!!resume} onView={() => { setSelected(item.job.id); setDetailError(null); setError(null); setNotice(null); }} onAction={(action) => void act(item.job.id, action)} />)}</div>
       {ranked.length > limit && <button className={buttonClass + " mt-5"} onClick={() => setLimit(limit + 30)}>Show more jobs</button>}
     </>
-    <p className="mt-5 text-xs leading-5 text-text-muted">{catalog.jobs.length} India listings in this feed · Sources: {[...new Set(catalog.jobs.map(job => job.source))].join(", ")} · Last check {new Date(catalog.checkedAt).toLocaleString("en-IN")}. Coverage is limited to connected employers. Source release dates can include republications; original posting dates are shown only when supplied.</p>
-    {!!catalog.sources?.length && <details className="mt-2 text-xs text-text-muted"><summary className="cursor-pointer py-2">Source availability</summary><ul className="space-y-2">{catalog.sources.map(source => <li key={`${source.provider}:${source.board}`}>{source.board} · {source.provider} · {source.status === "ok" ? "Source responded" : "Unavailable; excluded from results"} · Checked {new Date(source.checkedAt).toLocaleString("en-IN")}</li>)}</ul></details>}
+    <p className="mt-5 text-xs leading-5 text-text-muted">{catalog.jobs.length} India listings in this feed · Sources: {[...new Set(catalog.jobs.map(job => job.source))].join(", ")} · Last check {verificationTime(catalog.checkedAt)}. Coverage is limited to connected employers. Source release dates can include republications; original posting dates are shown only when supplied.</p>
+    {!!catalog.sources?.length && <details className="mt-2 text-xs text-text-muted"><summary className="cursor-pointer py-2">Source availability</summary><ul className="space-y-2">{catalog.sources.map(source => <li key={`${source.provider}:${source.board}`}>{source.board} · {source.provider} · {source.status === "ok" ? "Source responded" : "Unavailable; excluded from results"} · Checked {verificationTime(source.checkedAt)}</li>)}</ul></details>}
 
     <dialog ref={dialog} aria-label="Job details" onCancel={(e) => { if (busy) e.preventDefault(); else setSelected(null); }} onClose={() => setSelected(null)} className="m-auto max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-3xl overflow-y-auto rounded-lg border border-border bg-surface p-0 text-text shadow-xl backdrop:bg-black/60">
       {job && fit ? <div className="p-5 sm:p-7">

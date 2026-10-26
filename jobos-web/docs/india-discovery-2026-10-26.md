@@ -70,4 +70,6 @@ Signed-in browser verification loaded 781 results in the default 30-day window, 
 
 ## Rollback and rollout
 
+The initial production smoke test of `1b06f8a` loaded 781 recent results, all five sources responded, and a real Accor description/fit loaded. It also exposed a React text hydration error caused by timezone-dependent verification labels (Vercel UTC versus the candidate's timezone). The follow-up fix formats these labels deterministically as explicit IST, with regression coverage for UTC, India, US and date rollover. Final deployment and post-fix console verification are reported separately; initial deployment success alone is not considered the final pass.
+
 The deployed baseline remains recoverable at `2d137014cf09dcb42b37e73d616dd352d6bb93ea`. No irreversible database step is part of this change. If approved for production, use the existing Git-to-Vercel production workflow; inspect the real production feed and detail route afterward. Do not call this deployed or claim production performance until that happens.
