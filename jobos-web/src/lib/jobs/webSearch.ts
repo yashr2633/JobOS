@@ -6,11 +6,11 @@ export class WebSearchError extends Error {
   readonly retryAfterSeconds?: number;
   constructor(message: string, status = 503, retryAfterSeconds?: number) { super(message); this.status = status; this.retryAfterSeconds = retryAfterSeconds; }
 }
-let backoffUntil = 0;
+let backoffUntil = 0, providerRetryAt = 0;
 export async function searchPublicJobs(query: { keywords: string; location: string }): Promise<WebSearchResult> {
   const key = process.env.GEMINI_API_KEY?.trim();
   if (!key) throw new WebSearchError("Web search is currently unavailable. Connected employer listings are still available.");
-  if (Date.now() < backoffUntil) { const seconds = Math.ceil((backoffUntil - Date.now()) / 1000); throw new WebSearchError(searchQuotaMessage(seconds), 429, seconds); }
+  if (Date.now() < backoffUntil) { const seconds = Math.max(1, Math.ceil((providerRetryAt - Date.now()) / 1000)); throw new WebSearchError(searchQuotaMessage(seconds), 429, seconds); }
   // Public search terms only. Never read or send user profiles, saved resumes,
   // email, application history or account identifiers. No offline LLM fallback.
   const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", {
@@ -27,7 +27,10 @@ Return at most 6 numbered leads. For EACH item give the role or source-page name
     if (response.status === 429) {
       let error: unknown;
       try { const body = await response.text(); error = body.length < 20000 ? JSON.parse(body) : null; } catch { error = null; }
-      const seconds = searchRetrySeconds(error); backoffUntil = Date.now() + seconds * 1000;
+      const seconds = searchRetrySeconds(error); providerRetryAt = Date.now() + seconds * 1000;
+      // A billing/quota change can restore access before the reported daily
+      // reset. Permit a user-initiated probe after a minute, with no retry loop.
+      backoffUntil = Date.now() + Math.min(seconds, 60) * 1000;
       throw new WebSearchError(searchQuotaMessage(seconds), 429, seconds);
     }
     await response.body?.cancel();

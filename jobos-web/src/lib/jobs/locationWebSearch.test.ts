@@ -92,8 +92,14 @@ test("grounded job search sends only public terms and fails rather than fabricat
     assert.deepEqual(bodies[0].tools, [{ google_search: {} }]);
     globalThis.fetch = async () => Response.json({ candidates: [{ content: { parts: [{ text: "Invented jobs without grounding" }] } }] });
     await assert.rejects(searchPublicJobs({ keywords: "teacher", location: "Dhanbad" }), /source-linked/);
-    globalThis.fetch = async () => new Response(null, { status: 429 });
+    globalThis.fetch = async () => Response.json({ error: { details: [{ retryDelay: "56614s" }] } }, { status: 429 });
     await assert.rejects(searchPublicJobs({ keywords: "teacher", location: "Dhanbad" }), /quota/);
+    const originalNow = Date.now;
+    try {
+      Date.now = () => originalNow() + 61000;
+      globalThis.fetch = async () => Response.json(grounded());
+      assert.ok((await searchPublicJobs({ keywords: "teacher", location: "Dhanbad" })).text, "a confirmed billing/quota recovery can be probed without waiting sixteen hours or redeploying");
+    } finally { Date.now = originalNow; }
     delete process.env.GEMINI_API_KEY;
     await assert.rejects(searchPublicJobs({ keywords: "teacher", location: "Dhanbad" }), /unavailable/);
   } finally { globalThis.fetch = oldFetch; if (oldKey === undefined) delete process.env.GEMINI_API_KEY; else process.env.GEMINI_API_KEY = oldKey; }

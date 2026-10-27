@@ -40,8 +40,16 @@ confirmed the configured gemini-2.5-flash free-tier request quota of 20 and a re
 delay of about 16 hours. No credentials or provider error body were exposed. The
 documented Flash-Lite fallback returned HTTP 404 in this account and was not
 enabled. Quota delays are bounded, passed as Retry-After and shown clearly; a
-per-process cooldown prevents repeated calls during the provider's delay.
-No billing setting, provider account, key or paid plan was changed.
+per-process one-minute cooldown prevents repeated calls, while permitting an
+explicit retry after an owner corrects billing/quota without waiting all day.
+The owner later opened the JobOS Project account. Its rate-limit page showed
+Tier 1 limits, but its billing screen required prepay and showed no eligible
+credit. The local configured key matched that project's visible key metadata;
+the full key was never displayed. Checkout showed a security minimum of INR
+1,000 and a default amount of INR 2,500. No amount was entered and Continue/payment
+was not submitted. The user explicitly declined payment and chose to remain on
+free quota. The unpaid checkout tab was dismissed. Do not enable funding,
+auto-reload or a paid plan without a new explicit user decision.
 
 The visible conversation automatically refreshes its public feed results every
 five minutes; it does not automatically repeat paid web searches. Unattended
@@ -75,6 +83,15 @@ unchanged. No unrelated untracked assets enter the release.
 - Natural-language `Only operations roles` retained Kolkata, fresher and BBA.
   Existing provider fallback handled intent interpretation; subsequent public
   source search hit the genuine quota above and displayed a readable failure.
+- Production bcfb44b: signed-in homepage and broad Kolkata search passed; real
+  employer cards, same-conversation Show more, Accor full JD, existing-resume
+  fit/gaps and original apply URL were observed. An initial external Google
+  search also succeeded; subsequent Deloitte search hit the real daily quota.
+  All three search APIs returned JSON 401/403 for anonymous/foreign requests.
+  No browser runtime errors were captured. Source coverage remains incomplete.
+- Quota-recovery follow-up: thirteen affected tests, changed-file lint and the
+  production build/typecheck passed. An explicit retry can probe restored access
+  after one minute, without an automatic polling loop or changed daily allowance.
 - Local Gmail testing is unavailable without its server-only service key; no new
   Gmail live PASS is claimed by this release.
 
