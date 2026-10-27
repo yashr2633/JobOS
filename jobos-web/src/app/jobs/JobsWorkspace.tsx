@@ -262,7 +262,7 @@ export default function JobsWorkspace({ profile: initialProfile, states: initial
       {(experience || mode || category || employment) && <p className="mt-2 text-xs leading-5 text-text-muted">Filters use employer-supplied details. Missing experience, work mode or category is not assumed; open a job to check its full requirements.</p>}
       {[query, location !== "India", company, category, employment, mode, experience, posted !== defaultPosted].some(Boolean) && <button className="mt-1 min-h-[36px] text-xs text-accent hover:underline" onClick={() => { setQuery(""); setLocation("India"); setCompany(""); setCategory(""); setEmployment(""); setMode(""); setExperience(""); setPosted(defaultPosted); setLimit(30); startRefresh(() => router.replace("/jobs", { scroll: false })); }}>Reset filters</button>}
     </div>
-    {initialAssistant && sourceQuery && <WebJobSearch automatic keywords={[sourceQuery, initialMode, initialExperience === "entry" ? "entry level" : ""].filter(Boolean).join(" ").slice(0, 120)} location={initialLocation} requestKey={refreshKey} />}
+    {initialAssistant && sourceQuery && <WebJobSearch automatic keywords={[initialCompany ? `jobs at employer ${initialCompany}` : "", initialQuery, initialMode, initialExperience === "entry" ? "entry level" : ""].filter(Boolean).join(" ").slice(0, 120)} location={initialLocation} requestKey={refreshKey} />}
     <>
       {remoteLoading && <p role="status" className="mb-3 text-xs text-text-muted">Checking additional India-eligible remote jobs… Employer results remain available.</p>}
       {remoteError && <p role="status" className="mb-3 text-xs text-warning">{remoteError}</p>}
