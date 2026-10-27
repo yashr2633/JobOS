@@ -3,8 +3,29 @@ import { findCompany } from "./companies.ts";
 import { buildSearchVocabulary } from "./searchSuggestions.ts";
 import { resolveLocation, resolveState } from "./locations.ts";
 import { preferenceSearch } from "./preferenceSearch.ts";
+import type { ResumeEvidence } from "./types.ts";
 
-export type CareerReply = { kind: "search"; intent: CareerIntent } | { kind: "clarify"; question: string; suggestions: string[] };
+export type CareerReply = { kind: "search"; intent: CareerIntent } | { kind: "clarify"; question: string; suggestions: string[]; context?: CareerIntent };
+/** Use already extracted resume evidence locally, never as public search text. */
+export function resumeCareerReply(message: string, resume?: ResumeEvidence, previous?: string, profileYears?: number | null): CareerReply | null {
+  if (!publicCareerMessage(message) || !/\b(resume|cv)\b/i.test(message) || !/\b(jobs?|roles?|opportunities|matches)\b/i.test(message)) return null;
+  if (!resume || resume.usable === false || !resume.suggestedRoles?.length) return { kind: "clarify", question: "Add or select a readable resume below for resume-based matching, or choose a role to search without one.", suggestions: ["Data Analyst jobs", "Sales Executive jobs", "Operations Associate jobs"] };
+  const remaining = message.replace(/\b(the|can|you|find|search|show|suggest|recommend|best|suitable|relevant|matches|matching|jobs?|roles?|opportunities|for|me|my|this|attached|uploaded|resume|cv|based|on|according|to|profile|skills|and|experience|please)\b/gi, " ").replace(/\s+/g, " ").trim();
+  const base = preferenceSearch("jobs " + remaining, previous);
+  if (!base) return null; // Unknown locations still need clarification.
+  const role = base.role && base.role !== "jobs" ? base.role : resume.suggestedRoles.includes("Data Analyst") ? "Data Analyst" : resume.suggestedRoles[0];
+  const years = resume.yearsExperience ?? profileYears ?? null;
+  if (years === null && !base.experience) return { kind: "clarify", context: { ...base, role }, question: `Your resume suggests ${role} roles. Your experience level is not available yet. Which search range should I use?`, suggestions: ["Fresher jobs", "Up to 3 years experience", "Up to 5 years experience"] };
+  const experience = base.experience || (years === null ? "" : years <= 1 ? "entry" : years <= 3 ? "3" : years <= 5 ? "5" : "10");
+  return { kind: "search", intent: { ...base, role, experience } };
+}
+/** Provider failure is not a failed job search. Keep the conversation actionable. */
+export function recoverCareerReply(message: string, previous?: string): CareerReply | null {
+  if (!publicCareerMessage(message)) return null;
+  const quick = quickCareerReply(message, previous);
+  if (quick) return quick;
+  return { kind: "clarify", question: "I could not interpret that request reliably. Enter the role or company and an Indian city, or choose a role below. Your earlier search preferences are kept.", suggestions: ["Data Analyst jobs", "Sales Executive jobs", "Operations Associate jobs"] };
+}
 const key = (value: string) => value.toLocaleLowerCase().replace(/[^\p{L}\p{N}+#]+/gu, " ").trim().replace(/\s+/g, " ");
 const vocabulary = buildSearchVocabulary([]);
 /** A clear graduate/fresher request can start broad; choosing a role is optional. */

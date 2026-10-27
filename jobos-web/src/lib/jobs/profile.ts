@@ -43,6 +43,7 @@ export function resumeEvidence(resume: Resume): ResumeEvidence {
     id: resume.id, label: resume.label, fileName: resume.fileName ?? resume.label,
     createdAt: resume.createdAt, usable: text.trim().length >= 50 || !!resume.parsed,
     skills, roles: history, suggestedRoles: suggestRoles(skills, context),
+    education: resume.parsed?.education.map(e => [e.degree, e.field].filter(Boolean).join(" ")).filter(Boolean),
     yearsExperience: typeof years === "number" && Number.isFinite(years) && years >= 0 && years <= 60 ? years : null,
     locations: location && !/@|https?:|\d{5,}/i.test(location) ? [location] : [],
     keywords: ["Operations", "Analytics", "Reporting", "Finance", "Customer support", "Supply chain", "Open source", "Fintech"].filter((k) => mentions(context, k)),

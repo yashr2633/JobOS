@@ -5,6 +5,7 @@ import { validateCareerIntent } from "@/lib/jobs/careerIntent";
 import { assistantJobs, assistantPage, assistantRegionalJobs } from "@/lib/jobs/assistantSearch";
 import { locationMatches } from "@/lib/jobs/locations";
 import { withinJobDeadline } from "@/lib/jobs/response";
+import { availableAssistantCatalogs } from "@/lib/jobs/assistantCatalog";
 
 export const runtime = "nodejs";
 export const maxDuration = 40;
@@ -29,13 +30,13 @@ export async function POST(request: Request) {
         withinJobDeadline(() => getCachedCatalog(), 25000),
         withinJobDeadline(() => getCachedRemoteCatalog([intent.role, intent.company].filter(Boolean).join(" ")), 18000),
       ]);
-      const catalogs = results.flatMap(result => result.status === "fulfilled" ? [result.value] : []);
-      if (!catalogs.length) return NextResponse.json({ error: "The connected job feeds could not load. Public-source search remains available in this conversation." }, { status: 503, headers });
+      const catalog = availableAssistantCatalogs(results);
+      if (!catalog) return NextResponse.json({ error: "The connected job feeds could not load. Retry listings; no job count or availability could be confirmed." }, { status: 503, headers });
       const checkedAt = new Date().toISOString();
-      const inventory = catalogs.flatMap(catalog => catalog.jobs), matching = assistantJobs(inventory, intent, Date.now());
+      const inventory = catalog.jobs, matching = assistantJobs(inventory, intent, Date.now());
       const related = matching.filter(job => locationMatches(job.location, intent.location)).length < 3 ? assistantRegionalJobs(inventory, intent, Date.now()) : null;
       return NextResponse.json({ ...assistantPage(matching, offset), related, checkedAt,
-        warnings: [...new Set([...catalogs.flatMap(catalog => catalog.warnings), ...(results.some(result => result.status === "rejected") ? ["Some feeds could not load. Results may be incomplete."] : [])])] }, { headers });
+        warnings: catalog.warnings }, { headers });
     }, 35000);
   } catch { return NextResponse.json({ error: "Job feeds took too long to respond. Retry here; public-source search is separate." }, { status: 503, headers }); }
 }

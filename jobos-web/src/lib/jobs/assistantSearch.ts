@@ -25,6 +25,7 @@ export function assistantJobs(jobs: Job[], intent: CareerIntent, now = Date.now(
     if (!isActiveRecommendation(job, now) || !matchesIndiaLocation(job, intent.location) || !matchesCompany(job.company, intent.company) || !matchesJobQuery(job, intent.role)) return false;
     if (!experienceMatches(job.minYearsExperience, intent.experience) || (intent.mode && job.workMode !== intent.mode) || !matchesDateWindow(job, intent.days, now)) return false;
     // An unstated experience field is not evidence that a senior title suits a fresher.
+    if (intent.experience === "entry" && /\bexperienced only\b/i.test(job.title)) return false;
     if (intent.experience === "entry" && job.minYearsExperience === null && /\b(senior|sr\.?|lead|principal|director|head|vice president|manager)\b/i.test(job.title)) return false;
     if ((!intent.role || intent.role === "jobs") && !intent.company && !graduateDirectionMatches(job, intent.qualification ?? "")) return false;
     return true;

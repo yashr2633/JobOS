@@ -61,7 +61,7 @@ export function preferenceSearch(message: string, previous?: string): CareerInte
   const known = vocabulary.find(item => normalize(item.value) === rest);
   const explicitSearch = /\b(jobs?|roles?|positions?|vacancies|openings?|find|search)\b|जॉब|नौकरी/u.test(text);
   if (rest && (!known && !explicitSearch && !place && !prior || rest.length > 80)) return null;
-  const role = rest ? known?.value ?? rest : company || entry ? "" : prior?.role ?? (explicitSearch || degree ? "jobs" : "");
+  const role = rest ? known?.value ?? rest : company ? "" : entry ? prior?.role ?? "" : prior?.role ?? (explicitSearch || degree ? "jobs" : "");
   const intent: CareerIntent = { ...EMPTY_INTENT, role, company: company?.name ?? prior?.company ?? "", location, experience: entry ? "entry" : years ?? prior?.experience ?? "", mode, days, ...(qualification ? { qualification } : {}) };
   return intent.role || intent.company || intent.experience === "entry" ? intent : null;
 }

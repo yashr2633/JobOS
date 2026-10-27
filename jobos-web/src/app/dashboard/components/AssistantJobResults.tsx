@@ -11,6 +11,8 @@ import { readJobJson } from "@/lib/jobs/response";
 import { locationMatches, resolveLocation } from "@/lib/jobs/locations";
 import { verificationTime } from "@/lib/jobs/browsing";
 import ResumeFitScore from "@/app/jobs/ResumeFitScore";
+import { educationCheck, postingLabel } from "@/lib/jobs/resultPresentation";
+import { findCompany } from "@/lib/jobs/companies";
 
 const button = "inline-flex min-h-[44px] items-center justify-center rounded-md border border-border-strong px-3 py-2 text-sm font-medium text-accent hover:bg-accent/5 disabled:opacity-50";
 type Page = { jobs: Job[]; nextOffset: number | null; total: number; warnings: string[]; related?: { location: string; jobs: Job[] } | null; error?: string };
@@ -24,6 +26,7 @@ export default function AssistantJobResults({ intent, profile, resume, refreshKe
   const [jobs, setJobs] = useState<Job[]>([]), [visible, setVisible] = useState(3), [nextOffset, setNextOffset] = useState<number | null>(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null), [warnings, setWarnings] = useState<string[]>([]);
   const [related, setRelated] = useState<Page["related"]>(null);
+  const [total, setTotal] = useState(0);
   const [selected, setSelected] = useState<Job | null>(null), [detail, setDetail] = useState<Job | null>(null), [detailError, setDetailError] = useState<string | null>(null), [detailBusy, setDetailBusy] = useState(false);
   const pending = useRef<AbortController | null>(null), dialog = useRef<HTMLDialogElement>(null), detailTrigger = useRef<HTMLButtonElement | null>(null);
   const load = useCallback(async (offset = 0) => {
@@ -34,13 +37,13 @@ export default function AssistantJobResults({ intent, profile, resume, refreshKe
       const response = await fetch("/api/jobs/assistant-results", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ intent, offset }), signal: controller.signal });
       const data = await readJobJson<Page>(response, "Job feeds could not respond. Retry here; public-source search is separate.");
       if (!response.ok || !validPage(data)) throw new Error(data.error ?? "Job feeds returned an incomplete response. Please retry.");
-      if (!controller.signal.aborted) { setJobs(existing => offset ? deduplicateJobs([...existing, ...data.jobs]) : data.jobs); setNextOffset(data.nextOffset); setWarnings(data.warnings); setRelated(data.related ?? null); if (offset) setVisible(count => count + 6); }
+      if (!controller.signal.aborted) { setJobs(existing => offset ? deduplicateJobs([...existing, ...data.jobs]) : data.jobs); setNextOffset(data.nextOffset); setTotal(data.total); setWarnings(data.warnings); setRelated(data.related ?? null); if (offset) setVisible(count => count + 6); }
     } catch (failure) {
       if (!controller.signal.aborted || controller.signal.reason === "timeout") setError(failure instanceof Error && !controller.signal.aborted ? failure.message : "Job feeds took too long. Try again; public-source results can still appear below.");
     } finally { clearTimeout(timer); if (pending.current === controller) { pending.current = null; setBusy(false); } }
   }, [intent]);
   useEffect(() => {
-    const timer = setTimeout(() => { setJobs([]); setVisible(3); setNextOffset(null); setWarnings([]); setRelated(null); void load(); }, 0);
+    const timer = setTimeout(() => { setJobs([]); setVisible(9); setNextOffset(null); setTotal(0); setWarnings([]); setRelated(null); void load(); }, 0);
     return () => { clearTimeout(timer); pending.current?.abort(); };
   }, [load, refreshKey]);
   useEffect(() => {
@@ -76,15 +79,31 @@ export default function AssistantJobResults({ intent, profile, resume, refreshKe
         {match ? <div className="mt-3 rounded-md bg-accent/10 px-3 py-2 text-sm"><strong className="text-accent">{match.score}% resume match</strong><span className="ml-2 text-xs text-text-secondary">{match.evidence} evidence · open strengths &amp; gaps</span></div> : resume && <p className="mt-2 text-xs font-medium text-accent">Open full requirements to assess resume match →</p>}
       </article>;
   }
+  function resultTable(items: Job[]) {
+    return <div className="assistant-results-table"><table><caption className="sr-only">Job opportunities, education requirements, resume fit and direct application links</caption><thead><tr>{["Role & company", "Location", "Education check", "Resume match", "Posted / source date", "Apply"].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead><tbody>{items.map(job => {
+      const match = resume && resume.usable !== false && !job.descriptionPending ? scoreJob(job, profile, resume) : null;
+      const education = educationCheck(job, resume), posted = postingLabel(job);
+      return <tr key={job.id}>
+        <td data-label="Role & company"><strong className="block text-sm leading-6">{job.title}</strong><span className="mt-1 block text-sm text-text-secondary">{job.company}</span><span className="mt-2 block text-xs text-text-secondary">{job.minYearsExperience === null ? "Experience not stated" : job.minYearsExperience === 0 ? "Entry level" : `${job.minYearsExperience}+ years requested`}{job.employmentType ? ` · ${job.employmentType}` : ""}</span></td>
+        <td data-label="Location"><span className="text-sm">{job.location}</span><span className="mt-1 block text-xs text-text-secondary">{job.remoteIndiaEligible && job.workMode === "Remote" ? "Remote · India eligible" : job.workMode ?? "Work mode not supplied"}</span></td>
+        <td data-label="Education check"><span className="text-xs font-semibold">{education.label}</span><span className="mt-1 block text-xs leading-5 text-text-secondary">{education.note}</span>{education.resume && <span className="mt-2 block text-xs text-accent">Resume: {education.resume}</span>}</td>
+        <td data-label="Resume match">{match ? <><span className="inline-flex items-baseline gap-1 rounded-md bg-accent/10 px-2 py-1 font-semibold text-accent"><span className="text-2xl tabular-nums">{match.score}</span><span className="text-xs">/100</span></span><span className="mt-1 block text-xs text-text-secondary">{match.evidence} evidence</span></> : <span className="text-xs text-text-secondary">{resume ? "Full JD needed" : "Add resume to match"}</span>}<button type="button" className="mt-2 block min-h-[44px] text-left text-xs font-medium text-accent underline underline-offset-2" onClick={event => { detailTrigger.current = event.currentTarget; setDetail(null); setDetailError(null); setDetailBusy(true); setSelected(job); }}>Strengths & gaps</button></td>
+        <td data-label="Posted / source date"><span className="text-xs font-medium">{posted.date}</span><span className="mt-1 block text-xs leading-5 text-text-secondary">{posted.label}</span></td>
+        <td data-label="Apply"><a href={job.applicationUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[44px] items-center justify-center rounded-md bg-accent px-3 py-2 text-sm font-semibold text-accent-fg hover:bg-accent-hover">Apply ↗</a><a href={job.sourceUrl} target="_blank" rel="noopener noreferrer" className="mt-2 block text-xs text-accent underline">{job.source} · source ↗</a><button type="button" className="mt-1 min-h-[44px] text-left text-xs font-medium text-accent" onClick={event => { detailTrigger.current = event.currentTarget; setDetail(null); setDetailError(null); setDetailBusy(true); setSelected(job); }}>View full job</button><span className="mt-1 block text-xs leading-5 text-text-muted">Checked {verificationTime(job.fetchedAt)}</span></td>
+      </tr>;
+    })}</tbody></table></div>;
+  }
   const state = resolveLocation(intent.location)?.state;
+  const employer = intent.company ? findCompany(intent.company) : null;
   return <section aria-label="Matching employer listings" className="min-w-0">
-    <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 className="text-base font-semibold">{intent.experience === "entry" ? "Entry-level opportunities" : "Job opportunities"} · {intent.location}</h2><Link href={careerSearchUrl(intent, resume?.id)} className="min-h-[36px] py-2 text-xs font-medium text-accent">All filters ↗</Link></div>
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-base font-semibold">Jobs matched to your search · {intent.location}</h2>{!!jobs.length && <p className="mt-1 text-xs text-text-secondary">Showing {Math.min(visible, jobs.length)} of {total} matching source listings{busy ? " · refreshing…" : ""}</p>}</div><Link href={careerSearchUrl(intent, resume?.id)} className="min-h-[36px] py-2 text-xs font-medium text-accent">All filters ↗</Link></div>
     {busy && !jobs.length && <p role="status" className="rounded-md bg-surface-2 p-4 text-sm text-text-secondary">Checking connected employer listings and additional feeds…</p>}
     {warnings.length > 0 && <details className="mb-3 text-xs leading-5 text-text-secondary"><summary className="cursor-pointer py-2">Source freshness and coverage notes</summary>{warnings.map(text => <p key={text} className="mt-2">{text}</p>)}</details>}
     {!busy && !error && !!jobs.length && !jobs.some(job => locationMatches(job.location, intent.location)) && intent.location !== "India" && <p className="mb-3 rounded-md border border-border bg-surface-2 p-3 text-sm leading-6 text-text-secondary">No exact-location listings were returned by these feeds. These remote roles explicitly accept candidates in India.</p>}
-    <div className="grid gap-3">{jobs.slice(0, visible).map(card)}</div>
+    {!!jobs.length && resultTable(jobs.slice(0, visible))}
+    {!!jobs.length && <p className="mt-3 text-xs leading-5 text-text-secondary">Match /100 compares resume and profile evidence with the job. It is not a hiring probability or an employer ATS score. Opening Apply does not submit an application.</p>}
     {error && <div role="alert" className="mt-3 rounded-md border border-warning/30 bg-warning-bg p-4 text-sm text-warning"><p>{error}</p><button type="button" className={button + " mt-3 bg-surface"} disabled={busy} onClick={() => void load(jobs.length ? nextOffset ?? 0 : 0)}>Retry employer listings</button></div>}
-    {!busy && !error && !jobs.length && <p className="rounded-md border border-border bg-surface-2 p-4 text-sm leading-6 text-text-secondary">No matching jobs were returned by the connected feeds. The assistant is also checking public sources below. This does not mean there are no jobs in this location.</p>}
+    {!busy && !error && !jobs.length && <div className="rounded-md border border-border-strong bg-surface-2 p-4 text-sm leading-6"><p>No matching listings were returned by the connected feeds for these filters. This is not proof that no jobs exist.</p>{employer && !employer.connected && <p className="mt-2 text-text-secondary">{employer.name} is not currently connected to the job feed.{employer.careerUrl && <> <a className="font-medium text-accent underline" href={employer.careerUrl} target="_blank" rel="noopener noreferrer">Open its official careers page ↗</a></>}</p>}<p className="mt-2 text-xs text-text-secondary">Additional public-source research has its own availability and quota. Use All filters to change the date window or review jobs with unknown original posting dates.</p></div>}
     {(visible < jobs.length || nextOffset !== null) && <button type="button" className={button + " mt-4 w-full"} disabled={busy} onClick={() => visible < jobs.length ? setVisible(count => count + 6) : void load(nextOffset!)}>{busy ? "Loading more jobs…" : "Show more jobs ↓"}</button>}
     {!!related?.jobs.length && <section aria-label="Regional alternatives" className="mt-5 border-t border-border pt-4"><h3 className="text-sm font-semibold">Other locations in {related.location}</h3><p className="mb-3 mt-1 text-xs leading-5 text-text-secondary">Same role and experience filters. These jobs are outside your requested city; check travel or relocation requirements.</p><div className="grid gap-3">{related.jobs.map(card)}</div></section>}
     {!busy && !error && onLocationChange && intent.location !== "India" && <div className="mt-4 flex flex-wrap gap-2">{state && <button type="button" className={button} onClick={() => onLocationChange(state)}>Search all {state} →</button>}<button type="button" className={button} onClick={() => onLocationChange("India")}>Search across India →</button></div>}

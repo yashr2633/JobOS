@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { AiGatewayError, generateStructured } from "@/lib/ai/gateway";
 import { publicCareerMessage } from "@/lib/jobs/careerIntent";
-import { quickCareerReply, validateCareerReply } from "@/lib/jobs/careerReply";
+import { quickCareerReply, recoverCareerReply, validateCareerReply } from "@/lib/jobs/careerReply";
 import { reserveCareerTurn, type CareerTurnWindow } from "@/lib/jobs/careerLimit";
 import { JobRequestTimeout, withinJobDeadline } from "@/lib/jobs/response";
 export const runtime = "nodejs";
@@ -33,6 +33,10 @@ export async function POST(request: Request) {
         validate: raw => { const value = validateCareerReply(raw); return value ? { ok: true as const, value } : { ok: false as const, error: "Unsupported career reply" }; },
       });
       return replyResponse(result.value, "AI");
+      } catch {
+        const recovery = recoverCareerReply(message, typeof previous === "string" ? previous : undefined);
+        if (recovery) return replyResponse(recovery, "clarification");
+        return NextResponse.json({ error: "Enter a role or company and an Indian city." }, { status: 400, headers });
       } finally { reservation.window.pending = false; }
     }, 17_000);
   } catch (error) {

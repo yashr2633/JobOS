@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { CareerProfile, ResumeEvidence } from "@/lib/jobs/types";
 import { EMPTY_INTENT, publicCareerMessage, type CareerIntent } from "@/lib/jobs/careerIntent";
 import { selectedResume } from "@/lib/jobs/profile";
-import { quickCareerReply, validateCareerReply, type CareerReply } from "@/lib/jobs/careerReply";
+import { quickCareerReply, recoverCareerReply, resumeCareerReply, validateCareerReply, type CareerReply } from "@/lib/jobs/careerReply";
 import { assistantContext, careerPublicKeywords, careerRoleSuggestions } from "@/lib/jobs/assistantSearch";
 import { readJobJson } from "@/lib/jobs/response";
 import { publicJobQuery } from "@/lib/jobs/searchSuggestions";
@@ -27,29 +27,34 @@ export default function CareerAssistant({ profile, resumes, name, gmailConnected
   function accept(reply: CareerReply, text: string) {
     if (submitted && submitted !== text) setHistory(items => [...items, submitted].slice(-3));
     setSubmitted(text); setMessage(""); setError(null);
-    if (reply.kind === "clarify") { setClarification(reply); setIntent(null); setPrevious([previous, text].filter(Boolean).join(" ").slice(-400)); }
+    if (reply.kind === "clarify") { setClarification(reply); setIntent(null); setPrevious(reply.context ? assistantContext(reply.context) : [previous, text].filter(Boolean).join(" ").slice(-400)); }
     else { setIntent(reply.intent); setClarification(null); setPrevious(assistantContext(reply.intent)); setRefreshKey(value => value + 1); }
   }
   async function interpret(text = message) {
     if (busy || uploading || !text.trim()) return;
     const value = text.trim(); setError(null);
     if (!publicCareerMessage(value)) { setError("Use role, company and location preferences only. Leave out contact details, links and resume text."); return; }
-    const quick = quickCareerReply(value, previous || false);
+    const quick = resumeCareerReply(value, resume, previous || undefined, profile.yearsExperience) ?? quickCareerReply(value, previous || false);
     if (quick) { accept(quick, value); return; }
     request.current?.abort(); const controller = new AbortController(); request.current = controller;
-    let timeout = false;
+    let timeout = false, sessionExpired = false;
     const timer = setTimeout(() => { timeout = true; controller.abort(); }, 22000);
     setBusy(true);
     try {
       const response = await fetch("/api/jobs/intent", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: value, previous: previous || undefined }), signal: controller.signal });
+      sessionExpired = response.status === 401;
       const data = await readJobJson<Record<string, unknown>>(response, "The assistant could not respond. Retry or search these exact words.");
       const reply = validateCareerReply(data);
       if (reply?.kind === "clarify") { if (!controller.signal.aborted) accept(reply, value); return; }
       if (!response.ok || !reply) throw new Error(typeof data.error === "string" ? data.error : "Add a little more detail, or search these exact words.");
       if (!controller.signal.aborted) accept(reply, value);
     } catch (failure) {
-      if (timeout) setError("The assistant took too long. Retry or search these exact words.");
-      else if (!controller.signal.aborted) setError(failure instanceof TypeError ? "The assistant could not be reached. Check your connection and retry." : failure instanceof Error ? failure.message : "Please retry your search.");
+      if (timeout || !controller.signal.aborted) {
+        if (sessionExpired) { setError("Your session has expired. Please sign in again."); return; }
+        const recovery = recoverCareerReply(value, previous || undefined);
+        if (recovery) accept(recovery, value);
+        else setError(failure instanceof Error ? failure.message : "Please retry your search.");
+      }
     } finally { clearTimeout(timer); if (request.current === controller) { setBusy(false); request.current = null; } }
   }
   function exact() {
@@ -72,7 +77,7 @@ export default function CareerAssistant({ profile, resumes, name, gmailConnected
   const searchKey = intent ? JSON.stringify(intent) : "";
   return <section aria-label="Your career workspace" className="mb-7">
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><p className="product-kicker">{name ? "Welcome back, " + name : "Your career workspace"}</p><h1 className="mt-2 font-semibold tracking-tight text-text">Find your next opportunity.</h1><p className="mt-2 text-sm text-text-secondary">Search, refine and prepare — in one conversation.</p></div><Link className={secondary} href="/jobs">Browse jobs ↗</Link></div>
-    <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,2.6fr)_minmax(240px,1fr)]">
+    <div className={"grid items-start gap-5" + (intent ? "" : " lg:grid-cols-[minmax(0,2.6fr)_minmax(240px,1fr)]")}>
       <div className="min-w-0 overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
         <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4"><div className="flex items-center gap-3"><CaseMark /><h2 className="text-base font-semibold">Career Assistant</h2></div><button type="button" className="min-h-[44px] text-sm font-medium text-accent" onClick={reset}>New search</button></div>
         <div className="p-4 sm:p-6">
@@ -82,8 +87,8 @@ export default function CareerAssistant({ profile, resumes, name, gmailConnected
           {!submitted && <div className="mb-5"><h3 className="text-xl font-semibold">What would you like to explore?</h3><p className="mt-2 text-sm leading-6 text-text-secondary">Tell me a role, city or company. You can start broad and narrow it down as we go.</p><div className="mt-4 flex flex-wrap gap-2">{["Fresher jobs", "Data Analyst jobs", "Deloitte jobs"].map(text => <button key={text} type="button" disabled={busy || uploading} className={secondary} onClick={() => void interpret(text === "Deloitte jobs" ? "Deloitte" : text)}>{text} →</button>)}</div></div>}
           {clarification && <section aria-label="Clarify your search" className="mb-5" aria-live="polite"><div className="flex items-start gap-3"><CaseMark /><div className="min-w-0"><p className="text-xs font-semibold text-text-secondary">JobTrackOS</p><h3 className="mt-2 text-base font-semibold leading-7">{clarification.question}</h3><div className="mt-3 flex flex-wrap gap-2">{clarification.suggestions.map(text => <button key={text} type="button" className={secondary} disabled={busy} onClick={() => void interpret(text)}>{text} →</button>)}</div><button type="button" className="mt-2 min-h-[44px] text-sm font-medium text-accent" onClick={exact}>Search these exact words ↗</button></div></div></section>}
           {intent && <><div className="mb-5 flex items-start gap-3"><CaseMark /><div className="min-w-0"><p className="text-xs font-semibold text-text-secondary">{busy || error ? "Previous search results" : "JobTrackOS"}</p><p className="mt-2 text-sm leading-7">{busy || error ? "The results below are from your last completed search in " + intent.location + ". Your new request has not replaced them." : "Searching " + (intent.role || (intent.qualification ? intent.qualification + " opportunities" : "jobs")) + (intent.company ? " at " + intent.company : "") + " in " + intent.location + (intent.experience === "entry" ? " for freshers / entry level." : ".") + " Check each employer's eligibility requirements. Regional alternatives and India-eligible remote roles are labelled separately."}</p></div></div>
-            {!intent.company && <div className="mb-5"><p className="text-sm font-semibold">Explore a direction <span className="ml-2 text-xs font-normal text-text-secondary">Optional — your search is already running</span></p><div className="mt-3 flex flex-wrap gap-2">{careerRoleSuggestions(intent).map(role => <button key={role} type="button" disabled={busy} className={secondary} onClick={() => refine(role)}>{role} →</button>)}</div></div>}
             <div className="border-t border-border pt-4"><AssistantJobResults key={searchKey} intent={intent} profile={profile} resume={resume} refreshKey={refreshKey} onLocationChange={changeLocation} /></div>
+            {!intent.company && <details className="mt-4 text-sm"><summary className="min-h-[44px] py-3 font-medium text-accent">Refine by a suggested role</summary><div className="mt-2 flex flex-wrap gap-2">{careerRoleSuggestions(intent).map(role => <button key={role} type="button" disabled={busy} className={secondary} onClick={() => refine(role)}>{role} →</button>)}</div></details>}
             <div className="mt-5"><WebJobSearch key={searchKey} keywords={careerPublicKeywords(intent)} location={intent.location} automatic embedded /></div>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><p className="text-xs leading-5 text-text-secondary">Refine by role, company, location or work mode below.</p><button type="button" className="min-h-[44px] text-sm font-medium text-accent" onClick={() => setRefreshKey(value => value + 1)}>Refresh sources ↻</button></div>
           </>}
@@ -99,7 +104,7 @@ export default function CareerAssistant({ profile, resumes, name, gmailConnected
           <details className="mt-3 text-xs leading-5 text-text-secondary"><summary className="cursor-pointer py-2">How search works &amp; privacy</summary><p className="mt-2">Search combines connected public job feeds with Google-grounded hiring leads. Coverage varies; availability must be checked at the original source. Only public search preferences are sent to AI search services. Your saved resume and application history are not sent to public search. Fit scores compare available resume/profile evidence with source requirements.</p></details>
         </div>
       </div>
-      <aside className="rounded-xl border border-border bg-surface p-5"><h2 className="text-base font-semibold">Beyond one job board</h2><p className="mt-2 text-sm leading-7 text-text-secondary">Search connected employer feeds and additional public hiring pages in the same conversation.</p><p className="mt-3 text-xs leading-6 text-text-muted">Coverage varies. Check the original listing before applying.</p><div className="my-5 border-t border-border" /><h2 className="text-base font-semibold">Application tracker</h2><p className="mt-2 text-sm leading-7 text-text-secondary">Keep your applications and next steps in one place.</p><Link href="/applications" className="mt-3 inline-flex min-h-[44px] items-center text-sm font-semibold text-accent">Open tracker ↗</Link><a href="#gmail-tracking" className="block min-h-[44px] py-3 text-sm text-accent underline">{gmailConnected ? "Scan Gmail ↓" : "Connect Gmail ↓"}</a></aside>
+      {!intent && <aside className="rounded-xl border border-border bg-surface p-5"><h2 className="text-base font-semibold">Beyond one job board</h2><p className="mt-2 text-sm leading-7 text-text-secondary">Search connected employer feeds and additional public hiring pages in the same conversation.</p><p className="mt-3 text-xs leading-6 text-text-muted">Coverage varies. Check the original listing before applying.</p><div className="my-5 border-t border-border" /><h2 className="text-base font-semibold">Application tracker</h2><p className="mt-2 text-sm leading-7 text-text-secondary">Keep your applications and next steps in one place.</p><Link href="/applications" className="mt-3 inline-flex min-h-[44px] items-center text-sm font-semibold text-accent">Open tracker ↗</Link><a href="#gmail-tracking" className="block min-h-[44px] py-3 text-sm text-accent underline">{gmailConnected ? "Scan Gmail ↓" : "Connect Gmail ↓"}</a></aside>}
     </div>
   </section>;
 }

@@ -76,10 +76,11 @@ export default function WebJobSearch({ keywords, location, automatic = false, re
     {busy && <p role="status" className="mt-4 text-sm text-text-secondary">Looking across public job platforms and employer pages…</p>}
     {error && <div role="status" className="mt-4 rounded-md border border-border bg-surface-2 p-4 text-sm text-text-secondary"><p className="mb-1 font-semibold text-text">Additional sources are temporarily unavailable</p><p>{error}</p><p className="mt-2 text-xs leading-5">You can still browse connected employer results and change your role or location.</p><button type="button" disabled={busy} onClick={() => void search()} className={buttonClass + " mt-3 bg-surface"}>Retry additional sources</button></div>}
     {result && <div className="mt-5 border-t border-border pt-5">
-      <h3 className="text-base font-semibold">Opportunities from public sources</h3><p className="mb-4 mt-1 text-xs leading-5 text-text-muted">Check dates, availability and application instructions at the source. Some links may open a search page rather than a specific vacancy. These leads are separate from the employer-feed count.</p>
+      <details><summary className="min-h-[44px] cursor-pointer py-3 text-sm font-semibold text-accent">View additional source research · {result.sources.length} cited sources</summary><p className="mb-4 mt-1 text-xs leading-5 text-text-secondary">These are research leads, not verified job records. Check dates, availability and application instructions at the source. Some links open search pages. They are not included in the table&apos;s job count or resume scores.</p>
       <article aria-label="Google-grounded search response" className="min-w-0 text-sm leading-7 text-text-secondary"><GroundedText result={result} /></article>
       <nav aria-label="Sources provided with the search response" className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs">{result.sources.map((source, index) => <a key={`${source.url}:${index}`} href={source.url} target="_blank" rel="noopener noreferrer" className="break-words text-accent underline">{source.title}</a>)}</nav>
       <SearchSuggestions html={result.suggestionsHtml} />
+      </details>
     </div>}
   </section>;
 }

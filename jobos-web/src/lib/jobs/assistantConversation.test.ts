@@ -118,6 +118,13 @@ test("customer-support role requests do not return unrelated engineering roles f
   assert.deepEqual(assistantJobs(input, intent, now).map(value => value.id), ["support"]);
 });
 
+test("a source title saying experienced only is not a fresher recommendation even when years are missing", () => {
+  const listing = job("experienced-only", { title: "(Experienced Only) Sales Executive", minYearsExperience: null });
+  const intent = { ...EMPTY_INTENT, role: "Sales Executive", experience: "entry" };
+  assert.equal(assistantJobs([listing], intent, now).length, 0);
+  assert.equal(assistantJobs([listing], { ...intent, experience: "" }, now).length, 1);
+});
+
 test("explicit discipline-specific experience is not labelled unknown or recommended as fresher", () => {
   const intent = { ...EMPTY_INTENT, role: "customer support", location: "India", experience: "entry" };
   for (const requirement of ["2+ years of customer support experience", "3 years of relevant sales experience", "5 - 7 years of software development experience", "2 + years of professional industry experience"]) {

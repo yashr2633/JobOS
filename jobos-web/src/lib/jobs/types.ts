@@ -64,6 +64,7 @@ export interface ResumeEvidence {
   suggestedRoles?: string[];
   locations?: string[];
   keywords?: string[];
+  education?: string[];
 }
 
 export interface JobFit {
