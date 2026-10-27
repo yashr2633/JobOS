@@ -75,6 +75,10 @@ test("same-city spelling variants resolve once, and normal role/city searches ne
     ["customer support jobs remote in India", "customer support", "India", ""],
     ["Give me 10 jobs in Bokaro", "jobs", "Bokaro, Jharkhand", ""],
     ["Find jobs across India", "jobs", "India", ""],
+    ["ServiceNow developer jobs in India", "servicenow developer", "India", ""],
+    ["AWS engineer jobs in Bengaluru", "aws engineer", "Bengaluru, Karnataka", ""],
+    ["developer jobs at ServiceNow in India", "developer", "India", "ServiceNow"],
+    ["Amazon software engineer jobs in India", "Software Engineer", "India", "Amazon"],
   ]) {
     const reply = quickCareerReply(request);
     assert.equal(reply?.kind, "search", request);

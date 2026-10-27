@@ -22,7 +22,14 @@ export function preferenceSearch(message: string, previous?: string): CareerInte
   // fresher suggestion must still work when the model is unavailable.
   if (previous && !prior) return preferenceSearch(message);
   let rest = text;
-  const company = companies.find(item => phrase(text, item.words));
+  const company = companies.find(item => {
+    if (!phrase(text, item.words)) return false;
+    // Product skills are not employer restrictions: "ServiceNow developer"
+    // differs from "developer jobs at ServiceNow".
+    const product = ["ServiceNow", "Salesforce", "SAP", "Oracle", "Adobe"].includes(item.name) || item.name === "Amazon" && item.words !== "amazon" && item.words !== "amazon india";
+    const productRole = product && /\b(developer|engineer|administrator|admin|consultant|architect|specialist|analyst)\b/.test(text);
+    return !productRole || ["at", "employer", "company"].some(marker => phrase(text, marker + " " + item.words));
+  });
   if (company) rest = ` ${rest} `.replace(` ${company.words} `, " ").trim();
 
   // Match the longest supported city/state phrase, including a state qualifier.

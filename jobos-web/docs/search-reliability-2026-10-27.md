@@ -11,6 +11,8 @@ Explicit role, city/state, company, degree, experience, mode and supported date
 preferences now use a bounded local parser before the existing AI gateway.
 Confirmed earlier preferences survive follow-ups; explicit nationwide requests
 replace the location. Clarification choices work without requiring an AI call.
+Product/skill roles such as ServiceNow developer or AWS engineer do not become
+employer restrictions; an explicit “at ServiceNow” still restricts the employer.
 Unclear places, unsupported interpretation and multi-city ambiguity are not
 silently relabelled as another location. This is a common-preference parser,
 not a claim to understand every possible conversation offline.
