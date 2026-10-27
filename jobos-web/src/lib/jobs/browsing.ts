@@ -21,7 +21,7 @@ export function matchesJobQuery(job: Job, query: string) {
   const identity = [job.title, job.company, job.location, job.workMode, job.category].filter(Boolean).join(" ");
   // Role/company searches use listing identity. Only an explicit recognized
   // skill query expands into the role requirements, not company boilerplate.
-  const technicalSkillQuery = !isRoleQuery(query) && extractSkills(query).some(skill => !/^(sales|marketing|communication|leadership|project management)$/i.test(skill));
+  const technicalSkillQuery = !isRoleQuery(query) && extractSkills(query).some(skill => !/^(sales|marketing|communication|leadership|project management|product management|customer support)$/i.test(skill));
   const evidence = technicalSkillQuery ? `${identity}\n${roleEvidenceText(job.description)}` : identity;
   return terms.every(term => new RegExp(`(^|[^a-z0-9])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9]|$)`, "i").test(evidence));
 }

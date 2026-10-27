@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { generateStructured } from "@/lib/ai/gateway";
+import { AiGatewayError, generateStructured } from "@/lib/ai/gateway";
 import { publicCareerMessage } from "@/lib/jobs/careerIntent";
 import { quickCareerReply, validateCareerReply } from "@/lib/jobs/careerReply";
 import { reserveCareerTurn, type CareerTurnWindow } from "@/lib/jobs/careerLimit";
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       let message: unknown, previous: unknown;
       try { const body = await request.text(); if (body.length > 3200) throw new Error(); const input = JSON.parse(body); message = input.message; previous = input.previous; } catch { return NextResponse.json({ error: "Enter a short job-search request." }, { status: 400, headers }); }
       if (!publicCareerMessage(message) || (previous !== undefined && !publicCareerMessage(previous))) return NextResponse.json({ error: "Use role, location and company preferences only. Leave out contact details, URLs and resume text." }, { status: 400, headers });
-      const quick = quickCareerReply(message, typeof previous === "string");
+      const quick = quickCareerReply(message, typeof previous === "string" ? previous : false);
       if (quick) return replyResponse(quick, "preferences");
       const reservation = reserveCareerTurn(attempts, user.id, Date.now());
       if (!reservation.ok) return NextResponse.json({ error: reservation.error }, { status: 429, headers });
@@ -36,7 +36,8 @@ export async function POST(request: Request) {
       } finally { reservation.window.pending = false; }
     }, 17_000);
   } catch (error) {
-    console.warn("[jobs/intent] request unavailable", error instanceof JobRequestTimeout ? "deadline" : "upstream");
-    return NextResponse.json({ error: "The assistant could not respond just now. Try again, use the guided choices, or search your exact words." }, { status: 503, headers });
+    const category = error instanceof JobRequestTimeout ? "deadline" : error instanceof AiGatewayError ? error.category : "upstream";
+    console.warn("[jobs/intent] request unavailable", category);
+    return NextResponse.json({ error: category === "rate_limit" ? "AI wording help has reached its provider limit. Normal role and city searches still work, for example: Sales Executive jobs in Bokaro. You can also search your exact words." : "AI wording help is temporarily unavailable. Enter a role and city, for example: Sales Executive jobs in Bokaro, or search your exact words." }, { status: 503, headers });
   }
 }

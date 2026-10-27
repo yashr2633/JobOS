@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedCatalog, getCachedRemoteCatalog } from "@/lib/jobs/cachedCatalog";
 import { validateCareerIntent } from "@/lib/jobs/careerIntent";
-import { assistantJobs, assistantPage } from "@/lib/jobs/assistantSearch";
+import { assistantJobs, assistantPage, assistantRegionalJobs } from "@/lib/jobs/assistantSearch";
+import { locationMatches } from "@/lib/jobs/locations";
 import { withinJobDeadline } from "@/lib/jobs/response";
 
 export const runtime = "nodejs";
@@ -31,7 +32,9 @@ export async function POST(request: Request) {
       const catalogs = results.flatMap(result => result.status === "fulfilled" ? [result.value] : []);
       if (!catalogs.length) return NextResponse.json({ error: "The connected job feeds could not load. Public-source search remains available in this conversation." }, { status: 503, headers });
       const checkedAt = new Date().toISOString();
-      return NextResponse.json({ ...assistantPage(assistantJobs(catalogs.flatMap(catalog => catalog.jobs), intent, Date.now()), offset), checkedAt,
+      const inventory = catalogs.flatMap(catalog => catalog.jobs), matching = assistantJobs(inventory, intent, Date.now());
+      const related = matching.filter(job => locationMatches(job.location, intent.location)).length < 3 ? assistantRegionalJobs(inventory, intent, Date.now()) : null;
+      return NextResponse.json({ ...assistantPage(matching, offset), related, checkedAt,
         warnings: [...new Set([...catalogs.flatMap(catalog => catalog.warnings), ...(results.some(result => result.status === "rejected") ? ["Some feeds could not load. Results may be incomplete."] : [])])] }, { headers });
     }, 35000);
   } catch { return NextResponse.json({ error: "Job feeds took too long to respond. Retry here; public-source search is separate." }, { status: 503, headers }); }

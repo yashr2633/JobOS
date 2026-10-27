@@ -34,7 +34,7 @@ export default function CareerAssistant({ profile, resumes, name, gmailConnected
     if (busy || uploading || !text.trim()) return;
     const value = text.trim(); setError(null);
     if (!publicCareerMessage(value)) { setError("Use role, company and location preferences only. Leave out contact details, links and resume text."); return; }
-    const quick = quickCareerReply(value, !!previous);
+    const quick = quickCareerReply(value, previous || false);
     if (quick) { accept(quick, value); return; }
     request.current?.abort(); const controller = new AbortController(); request.current = controller;
     let timeout = false;
@@ -61,6 +61,10 @@ export default function CareerAssistant({ profile, resumes, name, gmailConnected
     if (!intent || busy) return;
     accept({ kind: "search", intent: { ...intent, role } }, role + " · " + intent.location + (intent.experience === "entry" ? " · fresher" : ""));
   }
+  function changeLocation(location: string) {
+    if (!intent || busy) return;
+    accept({ kind: "search", intent: { ...intent, location } }, "Search " + (intent.role || intent.qualification || "jobs") + " across " + location);
+  }
   function reset() {
     request.current?.abort(); request.current = null; setBusy(false); setIntent(null); setSubmitted(""); setMessage(""); setHistory([]); setPrevious(""); setError(null); setClarification(null); input.current?.focus();
   }
@@ -77,10 +81,10 @@ export default function CareerAssistant({ profile, resumes, name, gmailConnected
           {submitted && <div className="mb-5 flex justify-end"><div className="max-w-[90%]"><p className="mb-1 text-right text-xs text-text-muted">You</p><p className="whitespace-pre-wrap break-words rounded-lg bg-accent/10 px-4 py-3 text-sm leading-6 text-text">{submitted}</p></div></div>}
           {!submitted && <div className="mb-5"><h3 className="text-xl font-semibold">What would you like to explore?</h3><p className="mt-2 text-sm leading-6 text-text-secondary">Tell me a role, city or company. You can start broad and narrow it down as we go.</p><div className="mt-4 flex flex-wrap gap-2">{["Fresher jobs", "Data Analyst jobs", "Deloitte jobs"].map(text => <button key={text} type="button" disabled={busy || uploading} className={secondary} onClick={() => void interpret(text === "Deloitte jobs" ? "Deloitte" : text)}>{text} →</button>)}</div></div>}
           {clarification && <section aria-label="Clarify your search" className="mb-5" aria-live="polite"><div className="flex items-start gap-3"><CaseMark /><div className="min-w-0"><p className="text-xs font-semibold text-text-secondary">JobTrackOS</p><h3 className="mt-2 text-base font-semibold leading-7">{clarification.question}</h3><div className="mt-3 flex flex-wrap gap-2">{clarification.suggestions.map(text => <button key={text} type="button" className={secondary} disabled={busy} onClick={() => void interpret(text)}>{text} →</button>)}</div><button type="button" className="mt-2 min-h-[44px] text-sm font-medium text-accent" onClick={exact}>Search these exact words ↗</button></div></div></section>}
-          {intent && <><div className="mb-5 flex items-start gap-3"><CaseMark /><div className="min-w-0"><p className="text-xs font-semibold text-text-secondary">JobTrackOS</p><p className="mt-2 text-sm leading-7">{intent.qualification && !intent.role ? "I'll explore entry-level opportunities for your " + intent.qualification + " search in " + intent.location + ". Eligibility depends on each employer's requirements." : "I'll look for " + (intent.role || "jobs") + (intent.company ? " at " + intent.company : "") + " in " + intent.location + ", using connected feeds and additional public hiring sources."}</p></div></div>
+          {intent && <><div className="mb-5 flex items-start gap-3"><CaseMark /><div className="min-w-0"><p className="text-xs font-semibold text-text-secondary">{busy || error ? "Previous search results" : "JobTrackOS"}</p><p className="mt-2 text-sm leading-7">{busy || error ? "The results below are from your last completed search in " + intent.location + ". Your new request has not replaced them." : "Searching " + (intent.role || (intent.qualification ? intent.qualification + " opportunities" : "jobs")) + (intent.company ? " at " + intent.company : "") + " in " + intent.location + (intent.experience === "entry" ? " for freshers / entry level." : ".") + " Check each employer's eligibility requirements. Regional alternatives and India-eligible remote roles are labelled separately."}</p></div></div>
             {!intent.company && <div className="mb-5"><p className="text-sm font-semibold">Explore a direction <span className="ml-2 text-xs font-normal text-text-secondary">Optional — your search is already running</span></p><div className="mt-3 flex flex-wrap gap-2">{careerRoleSuggestions(intent).map(role => <button key={role} type="button" disabled={busy} className={secondary} onClick={() => refine(role)}>{role} →</button>)}</div></div>}
-            <div className="border-t border-border pt-4"><AssistantJobResults key={searchKey} intent={intent} profile={profile} resume={resume} refreshKey={refreshKey} /></div>
-            <div className="mt-5"><WebJobSearch key={searchKey} keywords={careerPublicKeywords(intent)} location={intent.location} automatic requestKey={refreshKey} embedded /></div>
+            <div className="border-t border-border pt-4"><AssistantJobResults key={searchKey} intent={intent} profile={profile} resume={resume} refreshKey={refreshKey} onLocationChange={changeLocation} /></div>
+            <div className="mt-5"><WebJobSearch key={searchKey} keywords={careerPublicKeywords(intent)} location={intent.location} automatic embedded /></div>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><p className="text-xs leading-5 text-text-secondary">Refine by role, company, location or work mode below.</p><button type="button" className="min-h-[44px] text-sm font-medium text-accent" onClick={() => setRefreshKey(value => value + 1)}>Refresh sources ↻</button></div>
           </>}
           {submitted && resumePanel}

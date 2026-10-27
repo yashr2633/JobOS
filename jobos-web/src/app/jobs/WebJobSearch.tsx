@@ -5,6 +5,10 @@ import { publicSearchLink, safeSearchSuggestions, validWebSearchResult, type Web
 import { readJobJson } from "@/lib/jobs/response";
 import { buttonClass } from "./CareerProfileForm";
 
+// Request metadata only, never a cached grounded response. Once Google reports
+// quota exhaustion, changing a role/city must not automatically spend retries.
+let providerPause: { until: number; message: string } | null = null;
+
 function inline(text: string): ReactNode[] {
   return text.split(/(\[[^\]]+\]\(https:\/\/[^\s)]+\)|\*\*[^*]+\*\*)/g).map((part, index) => {
     const link = part.match(/^\[([^\]]+)\]\((https:\/\/[^\s)]+)\)$/);
@@ -40,24 +44,29 @@ function GroundedText({ result }: { result: WebSearchResult }) {
 export default function WebJobSearch({ keywords, location, automatic = false, requestKey = 0, embedded = false }: { keywords: string; location: string; automatic?: boolean; requestKey?: number; embedded?: boolean }) {
   const [result, setResult] = useState<WebSearchResult | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null);
   const pending = useRef<AbortController | null>(null);
-  const search = useCallback(async () => {
+  const search = useCallback(async (automaticAttempt = false) => {
     if (pending.current && !pending.current.signal.aborted) return;
+    if (automaticAttempt && providerPause && Date.now() < providerPause.until) { setResult(null); setError(providerPause.message); return; }
     const controller = new AbortController(); pending.current = controller;
     const timer = setTimeout(() => controller.abort("timeout"), 55000);
     setBusy(true); setError(null); setResult(null);
     try {
       const response = await fetch("/api/jobs/web-search", { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ keywords, location: location.trim() || "India" }), signal: controller.signal });
       const data = await readJobJson<WebSearchResult & { error?: string }>(response, "Additional hiring sources are temporarily unavailable. Employer listings below remain available.");
+      if (response.status === 429) {
+        const seconds = Number(response.headers.get("Retry-After")), delay = Number.isFinite(seconds) && seconds > 0 ? Math.min(seconds, 86400) : 60;
+        providerPause = { until: Date.now() + delay * 1000, message: data.error ?? "Additional public search is temporarily paused. Connected employer listings still work." };
+      }
       if (!response.ok) throw new Error(data.error ?? "Web search is unavailable. Please retry.");
       if (!validWebSearchResult(data)) throw new Error("A complete source-linked search response was not available. Please retry; employer listings remain below.");
-      if (!controller.signal.aborted) setResult(data);
+      if (!controller.signal.aborted) { providerPause = null; setResult(data); }
     } catch (error) { if (controller.signal.reason === "timeout") setError("Public-source search took too long. Retry here; employer listings remain available."); else if (!controller.signal.aborted) setError(error instanceof Error ? error.message : "Could not complete web search."); }
     finally { clearTimeout(timer); if (pending.current === controller) { pending.current = null; setBusy(false); } }
   }, [keywords, location]);
   useEffect(() => {
     if (!automatic || !keywords.trim()) return;
     // A queued start avoids duplicate calls during React's development replay.
-    const timer = setTimeout(() => void search(), 0);
+    const timer = setTimeout(() => void search(true), 0);
     return () => { clearTimeout(timer); pending.current?.abort(); pending.current = null; };
   }, [automatic, keywords, search, requestKey]);
   useEffect(() => () => pending.current?.abort(), []);
@@ -65,7 +74,7 @@ export default function WebJobSearch({ keywords, location, automatic = false, re
     <div className="flex flex-wrap items-center justify-between gap-4"><div className="min-w-0 flex-1"><h2 className="text-sm font-semibold">{automatic ? "Career Assistant · Additional sources" : "Find opportunities beyond these employers"}</h2><p className="mt-1 text-xs leading-5 text-text-secondary">{automatic ? "Your search also checks public hiring pages beyond the connected feeds." : `Search public hiring pages for ${keywords || "jobs"} in ${location || "India"}.`} Open the original source to check details and apply.</p></div>{!automatic && <button type="button" disabled={busy} onClick={() => void search()} className={buttonClass + " shrink-0 border-accent/30 text-accent"}>{busy ? "Searching sources…" : "Search the web ↗"}</button>}</div>
     <p className="mt-2 text-[11px] leading-5 text-text-muted">Powered by Google Search. Only these keywords and location are sent; your resume and profile are not sent.</p>
     {busy && <p role="status" className="mt-4 text-sm text-text-secondary">Looking across public job platforms and employer pages…</p>}
-    {error && <div role="alert" className="mt-4 rounded-md border border-warning/30 bg-warning-bg p-4 text-sm text-warning"><p>{error}</p><button type="button" disabled={busy} onClick={() => void search()} className={buttonClass + " mt-3 bg-surface"}>Try again</button></div>}
+    {error && <div role="status" className="mt-4 rounded-md border border-border bg-surface-2 p-4 text-sm text-text-secondary"><p className="mb-1 font-semibold text-text">Additional sources are temporarily unavailable</p><p>{error}</p><p className="mt-2 text-xs leading-5">You can still browse connected employer results and change your role or location.</p><button type="button" disabled={busy} onClick={() => void search()} className={buttonClass + " mt-3 bg-surface"}>Retry additional sources</button></div>}
     {result && <div className="mt-5 border-t border-border pt-5">
       <h3 className="text-base font-semibold">Opportunities from public sources</h3><p className="mb-4 mt-1 text-xs leading-5 text-text-muted">Check dates, availability and application instructions at the source. Some links may open a search page rather than a specific vacancy. These leads are separate from the employer-feed count.</p>
       <article aria-label="Google-grounded search response" className="min-w-0 text-sm leading-7 text-text-secondary"><GroundedText result={result} /></article>

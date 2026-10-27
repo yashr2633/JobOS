@@ -19,7 +19,7 @@ async function loadEmployer(provider: string, board: string): Promise<EmployerSn
 }
 // One bounded snapshot per employer. A large aggregate cannot exceed Next's
 // cache-entry limit, and one failed refresh cannot evict every healthy employer.
-const readEmployer = unstable_cache(loadEmployer, ["india-employer-by-source-v1"], { revalidate: 300 });
+const readEmployer = unstable_cache(loadEmployer, ["india-employer-by-source-v2-experience"], { revalidate: 300 });
 
 export async function getCachedCatalog(): Promise<Catalog> {
   const sources = [...configuredBoards().map(board => ({ provider: "greenhouse", board })), ...additionalSources().filter(source => source.enabled), ...smartRecruitersSources()]
@@ -48,7 +48,7 @@ async function loadRemoteIndia(query: string) {
   try { return await pending; } finally { remotePending.delete(query); }
 }
 // Version the normalized snapshot when eligibility/location policy changes.
-const readRemoteIndia = unstable_cache(loadRemoteIndia, ["himalayas-india-v2"], { revalidate: HIMALAYAS_CACHE_SECONDS });
+const readRemoteIndia = unstable_cache(loadRemoteIndia, ["himalayas-india-v3-experience"], { revalidate: HIMALAYAS_CACHE_SECONDS });
 export async function getCachedRemoteCatalog(query = ""): Promise<Catalog> {
   const safeQuery = publicJobQuery(query);
   let feed = await readRemoteIndia(safeQuery);

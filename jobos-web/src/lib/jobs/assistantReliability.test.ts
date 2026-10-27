@@ -72,7 +72,9 @@ test("fresher follow-ups resolve selected roles quickly, without requiring or in
   assert.equal(quickCareerReply("Sales Executive", true), null, "a follow-up must retain earlier location/experience through contextual interpretation");
   const company = quickCareerReply("AWS");
   assert.equal(company?.kind === "search" && company.intent.company, "Amazon");
-  assert.equal(quickCareerReply("Find Deloitte analyst jobs in Hyderabad"), null);
+  const explicit = quickCareerReply("Find Deloitte analyst jobs in Hyderabad");
+  assert.equal(explicit?.kind === "search" && explicit.intent.company, "Deloitte");
+  assert.equal(explicit?.kind === "search" && explicit.intent.location, "Hyderabad, Telangana");
   assert.equal(quickCareerReply("contact me at private@example.com"), null);
 });
 test("follow-up schema rejects unsafe links, bad filters, empty searches and invalid questions", () => {

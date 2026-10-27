@@ -2,6 +2,7 @@ import { EMPTY_INTENT, publicCareerMessage, validateCareerIntent, type CareerInt
 import { findCompany } from "./companies.ts";
 import { buildSearchVocabulary } from "./searchSuggestions.ts";
 import { resolveLocation, resolveState } from "./locations.ts";
+import { preferenceSearch } from "./preferenceSearch.ts";
 
 export type CareerReply = { kind: "search"; intent: CareerIntent } | { kind: "clarify"; question: string; suggestions: string[] };
 const key = (value: string) => value.toLocaleLowerCase().replace(/[^\p{L}\p{N}+#]+/gu, " ").trim().replace(/\s+/g, " ");
@@ -19,8 +20,11 @@ export function graduateSearch(message: string): CareerIntent | null {
   return { ...EMPTY_INTENT, location, experience: "entry", ...(qualification ? { qualification } : {}) };
 }
 /** Fast, transparent preference handling. No vacancies or candidate facts are inferred. */
-export function quickCareerReply(message: string, hasPrevious = false): CareerReply | null {
+export function quickCareerReply(message: string, previous: boolean | string = false): CareerReply | null {
   if (!publicCareerMessage(message)) return null;
+  const hasPrevious = !!previous;
+  const preferences = typeof previous === "string" || !previous ? preferenceSearch(message, typeof previous === "string" ? previous : undefined) : null;
+  if (preferences) return { kind: "search", intent: preferences };
   const normalized = key(message), company = findCompany(message);
   const entry = /\b(fresher|freshers|entry level)\b/.test(normalized);
   const roleWords = normalized.replace(/\b(fresher|freshers|entry level|jobs?)\b/g, " ").replace(/\s+/g, " ").trim();

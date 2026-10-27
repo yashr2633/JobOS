@@ -41,7 +41,9 @@ export function detectWorkMode(location: string): WorkMode | null {
 
 export function enrichJob(job: Job): Job {
   const evidence = roleEvidenceText(job.description);
-  const experience = evidence.match(/\b(\d{1,2})(?:\s*[-–]\s*\d{1,2})?\+?\s+years?\s+(?:of\s+)?(?:relevant\s+|professional\s+|industry\s+)?experience\b/i);
+  // A bounded discipline phrase is common: "2+ years of customer support
+  // experience". Do not silently turn that explicit requirement into unknown.
+  const experience = evidence.match(/\b(\d{1,2})(?:[ \t]*[-–][ \t]*\d{1,2})?[ \t]*\+?[ \t]+years?[ \t]+(?!(?:of[ \t]+)?(?:combined|collective|our|company|team)\b)(?:of[ \t]+)?(?:[a-z][a-z/-]*[ \t]+){0,4}experience\b/i);
   return {
     ...job,
     location: job.location.replace(/\bBangalore\b/gi, "Bengaluru").replace(/\bBombay\b/gi, "Mumbai").replace(/\bGurgaon\b/gi, "Gurugram").replace(/\bpan[- ]india\b/gi, "Pan India"),

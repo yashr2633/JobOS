@@ -13,7 +13,7 @@ const stateCodes: Record<string, string[]> = {
   "Andaman and Nicobar": ["AN"], Chandigarh: ["CH"], "Dadra and Nagar Haveli and Daman and Diu": ["DN", "DD"],
   Ladakh: ["LA"], Lakshadweep: ["LD"], Puducherry: ["PY", "Pondicherry"],
 };
-const cityAliases: Record<string, string[]> = { Bengaluru: ["Bangalore"], Mumbai: ["Bombay"], Gurugram: ["Gurgaon"], Kolkata: ["Calcutta"], Chennai: ["Madras"], Kochi: ["Cochin"], Thiruvananthapuram: ["Trivandrum"], Varanasi: ["Benares", "Banaras"] };
+const cityAliases: Record<string, string[]> = { Bengaluru: ["Bangalore"], Mumbai: ["Bombay"], Gurugram: ["Gurgaon"], Kolkata: ["Calcutta"], Chennai: ["Madras"], Kochi: ["Cochin"], Thiruvananthapuram: ["Trivandrum"], Varanasi: ["Benares", "Banaras"], Bokaro: ["Bokaro Steel City", "बोकारो"] };
 const stateNames = [...new Set(cities.map(city => city.state))];
 const stateLookup = new Map(stateNames.flatMap(state => [state, ...(stateCodes[state] ?? [])].map(alias => [clean(alias), state])));
 const unique = new Map<string, LocationOption>();
@@ -25,7 +25,9 @@ export const INDIA_LOCATIONS = [...unique.values()];
 const exactLocations = new Map(INDIA_LOCATIONS.map(option => [clean(option.label), option]));
 const aliases = new Map<string, LocationOption[]>();
 for (const option of INDIA_LOCATIONS) for (const alias of option.aliases) {
-  const key = clean(alias); aliases.set(key, [...(aliases.get(key) ?? []), option]);
+  const key = clean(alias), existing = aliases.get(key) ?? [];
+  // Multiple spellings of ONE city are not geographically ambiguous.
+  if (!existing.some(city => city.label === option.label)) aliases.set(key, [...existing, option]);
 }
 const searchable = INDIA_LOCATIONS.map(option => ({ option, tokens: clean([option.label, ...option.aliases, ...(stateCodes[option.state] ?? [])].join(" ")).split(" ") }));
 export function locationSuggestions(query: string, limit = 12): LocationOption[] {
