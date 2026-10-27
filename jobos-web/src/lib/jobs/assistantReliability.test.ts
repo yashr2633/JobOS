@@ -60,9 +60,11 @@ test("BBF Racer asks for clarification without inventing a role or pretending to
 });
 test("fresher follow-ups resolve selected roles quickly, without requiring or inventing a resume", () => {
   const fresher = quickCareerReply("BBA fresher");
-  assert.equal(fresher?.kind, "clarify");
-  if (fresher?.kind !== "clarify") throw new Error("Expected role question");
-  for (const suggestion of fresher.suggestions) {
+  assert.equal(fresher?.kind, "search");
+  if (fresher?.kind !== "search") throw new Error("Expected broad fresher search");
+  assert.equal(fresher.intent.qualification, "BBA");
+  assert.equal(fresher.intent.role, "");
+  for (const suggestion of ["Sales Executive fresher jobs", "Data Analyst fresher jobs"]) {
     const reply = quickCareerReply(suggestion);
     assert.equal(reply?.kind, "search");
     if (reply?.kind === "search") { assert.equal(reply.intent.experience, "entry"); assert.ok(reply.intent.role); }

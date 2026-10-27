@@ -257,7 +257,7 @@ export default async function Home({ searchParams }: HomeProps) {
       <>
         {/* Track authenticated session activity (non-blocking, once per day) */}
         <SessionTracker />
-        <Suspense fallback={<section className="product-panel mb-6"><p className="product-kicker">Career Assistant</p><h1>Find a job that fits you</h1><p className="mt-3 text-sm text-text-secondary">Loading your career workspace…</p></section>}><CareerHome userId={user.id} name={typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name.trim().split(/\s+/)[0].slice(0, 30) : undefined} gmailConnected={gmailConnected} /></Suspense>
+        <Suspense fallback={<section className="product-panel mb-6"><p className="product-kicker">Career Assistant</p><h1>Find your next opportunity.</h1><p className="mt-3 text-sm text-text-secondary">Loading your career workspace…</p></section>}><CareerHome userId={user.id} name={typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name.trim().split(/\s+/)[0].slice(0, 30) : undefined} gmailConnected={gmailConnected} /></Suspense>
         <Suspense fallback={<section className="product-panel mb-6"><h2>Opportunities to explore</h2><p className="mt-3 text-sm text-text-muted">Checking available sources…</p></section>}><RecommendedJobs /></Suspense>
         <details className="mt-6 rounded-lg border border-border bg-surface p-4 sm:p-5">
           <summary className="cursor-pointer text-sm font-semibold text-text">Application overview · totals and activity</summary>

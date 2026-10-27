@@ -1,12 +1,16 @@
 import { readGroundedResponse, type WebSearchResult } from "./webSearchContract.ts";
+import { searchRetrySeconds, searchQuotaMessage } from "./searchQuota.ts";
 
 export class WebSearchError extends Error {
   readonly status: number;
-  constructor(message: string, status = 503) { super(message); this.status = status; }
+  readonly retryAfterSeconds?: number;
+  constructor(message: string, status = 503, retryAfterSeconds?: number) { super(message); this.status = status; this.retryAfterSeconds = retryAfterSeconds; }
 }
+let backoffUntil = 0;
 export async function searchPublicJobs(query: { keywords: string; location: string }): Promise<WebSearchResult> {
   const key = process.env.GEMINI_API_KEY?.trim();
   if (!key) throw new WebSearchError("Web search is currently unavailable. Connected employer listings are still available.");
+  if (Date.now() < backoffUntil) { const seconds = Math.ceil((backoffUntil - Date.now()) / 1000); throw new WebSearchError(searchQuotaMessage(seconds), 429, seconds); }
   // Public search terms only. Never read or send user profiles, saved resumes,
   // email, application history or account identifiers. No offline LLM fallback.
   const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", {
@@ -20,8 +24,14 @@ Return at most 6 numbered leads. For EACH item give the role or source-page name
     }),
   });
   if (!response.ok) {
+    if (response.status === 429) {
+      let error: unknown;
+      try { const body = await response.text(); error = body.length < 20000 ? JSON.parse(body) : null; } catch { error = null; }
+      const seconds = searchRetrySeconds(error); backoffUntil = Date.now() + seconds * 1000;
+      throw new WebSearchError(searchQuotaMessage(seconds), 429, seconds);
+    }
     await response.body?.cancel();
-    throw new WebSearchError(response.status === 429 ? "Web search is busy or its provider quota is reached. Try again later; connected employer listings still work." : "Web search is temporarily unavailable. Please try again shortly.", response.status === 429 ? 429 : 503);
+    throw new WebSearchError("Web search is temporarily unavailable. Please try again shortly.");
   }
   const text = await response.text();
   if (text.length > 250_000) throw new WebSearchError("Web search returned an oversized response. Try a narrower role.");

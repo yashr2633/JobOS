@@ -36,7 +36,7 @@ async function JobResults({ userId, params }: { userId: string; params: Record<s
   const feed = catalog.status === "fulfilled" ? catalog.value : { jobs: [], checkedAt: new Date().toISOString(), warnings: ["Employer feeds could not load. You can still submit a search to check additional public sources."] };
   return <>
     {personal.status === "rejected" && <p role="alert" className="mb-4 rounded-md bg-warning-bg p-4 text-sm text-warning">Saved preferences and resumes could not load. General job search remains available; account actions are paused until you reload.</p>}
-    <JobsWorkspace key={JSON.stringify(filters)} {...data} profile={profile} catalog={feed} personalUnavailable={personal.status === "rejected"} initialJobId={params.job} initialJobSource={params.jobSource} initialQuery={filters.q} initialCompany={filters.company} initialLocation={filters.location} initialExperience={filters.experience} initialMode={filters.mode} initialDays={filters.days} initialAssistant={filters.assistant} />
+    <JobsWorkspace key={JSON.stringify(filters)} {...data} profile={profile} catalog={feed} personalUnavailable={personal.status === "rejected"} initialJobId={params.job} initialJobSource={params.jobSource} initialQuery={filters.q} initialCompany={filters.company} initialLocation={filters.location} initialExperience={filters.experience} initialMode={filters.mode} initialDays={filters.days} initialAssistant={filters.assistant} initialQualification={filters.qualification} />
     {catalog.status === "rejected" && <Link className="mt-4 inline-block text-sm text-accent" href="/applications">Your existing applications →</Link>}
   </>;
 }

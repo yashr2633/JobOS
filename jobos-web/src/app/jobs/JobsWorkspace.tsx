@@ -17,6 +17,7 @@ import JobSearchInput from "./JobSearchInput";
 import CompanySearch from "./CompanySearch";
 import WebJobSearch from "./WebJobSearch";
 import { findCompany, matchesCompany } from "@/lib/jobs/companies";
+import { graduateDirectionMatches } from "@/lib/jobs/assistantSearch";
 import { experienceMatches } from "@/lib/jobs/careerIntent";
 import { readJobJson } from "@/lib/jobs/response";
 import { catalogObservationTime } from "@/lib/jobs/employerCatalog";
@@ -26,10 +27,10 @@ import { includeProfileMatch, matchesDateWindow, matchesIndiaLocation, matchesJo
 const localDate = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const dateLabel = (date: string | null) => date ? new Date(date).toLocaleDateString("en-GB", { timeZone: "UTC" }) : "Not provided";
 
-export default function JobsWorkspace({ profile: initialProfile, states: initialStates, resumes, catalog: employerCatalog, initialJobId, initialJobSource, initialQuery = "", initialLocation = "India", initialCompany = "", initialExperience = "", initialMode = "", initialDays = "30", initialAssistant = false, personalUnavailable = false, ranking = DEFAULT_RANKING, asOf }: {
+export default function JobsWorkspace({ profile: initialProfile, states: initialStates, resumes, catalog: employerCatalog, initialJobId, initialJobSource, initialQuery = "", initialLocation = "India", initialCompany = "", initialExperience = "", initialMode = "", initialDays = "30", initialAssistant = false, initialQualification = "", personalUnavailable = false, ranking = DEFAULT_RANKING, asOf }: {
   profile: CareerProfile; states: JobState[]; resumes: ResumeEvidence[]; catalog: Catalog; initialJobId?: string;
   ranking?: RankingConfig; asOf?: string; initialQuery?: string; initialLocation?: string; initialJobSource?: string;
-  initialCompany?: string; initialExperience?: string; initialMode?: string; initialDays?: string; initialAssistant?: boolean; personalUnavailable?: boolean;
+  initialCompany?: string; initialExperience?: string; initialMode?: string; initialDays?: string; initialAssistant?: boolean; initialQualification?: string; personalUnavailable?: boolean;
 }) {
   const router = useRouter();
   const sourceQuery = [initialQuery, initialCompany].filter(Boolean).join(" ").slice(0, 120);
@@ -123,8 +124,9 @@ export default function JobsWorkspace({ profile: initialProfile, states: initial
       if (!publicJobQuery(company) || company.length > 100) { setError("Use a short company name without contact details or URLs."); return; }
       params.set("company", company.trim());
     }
-    if (safeQuery || company.trim()) params.set("assistant", "1");
+    if (safeQuery || company.trim() || experience === "entry") params.set("assistant", "1");
     if (experience) params.set("experience", experience);
+    if (!safeQuery && !company.trim() && initialQualification) params.set("qualification", initialQualification);
     if (mode) params.set("mode", mode);
     params.set("days", posted);
     if (profile.resumeId) params.set("resume", profile.resumeId);
@@ -190,6 +192,7 @@ export default function JobsWorkspace({ profile: initialProfile, states: initial
       if (!matchesJobQuery(job, initialQuery)) return false;
       
       if (!matchesCompany(job.company, initialCompany)) return false;
+      if (!initialQuery && !initialCompany && !graduateDirectionMatches(job, initialQualification)) return false;
       if (category && job.category !== category) return false;
       if (employment && job.employmentType !== employment) return false;
       if (!discovering && initialLocation !== "India" && !matchesIndiaLocation(job, initialLocation)) return false;
@@ -200,7 +203,7 @@ export default function JobsWorkspace({ profile: initialProfile, states: initial
     }).map((job) => rankJob(job, profile, resume, now, ranking))
       .filter((item) => includeProfileMatch(item, view, [initialQuery, initialCompany].filter(Boolean).join(" "), personalized))
       .sort((a, b) => compareRanked(a, b, view === "latest"));
-  }, [view, discovering, unavailable, closedIds, catalog.jobs, allJobs, currentDetails, stateMap, profile, resume, initialQuery, initialLocation, mode, experience, posted, initialCompany, category, employment, personalized, now, ranking]);
+  }, [view, discovering, unavailable, closedIds, catalog.jobs, allJobs, currentDetails, stateMap, profile, resume, initialQuery, initialLocation, mode, experience, posted, initialCompany, initialQualification, category, employment, personalized, now, ranking]);
 
   async function act(jobId: string, action: string) {
     if (personalUnavailable) { setError("Reload to restore your saved account data before using application actions. The original employer listing is still available."); return; }
@@ -265,7 +268,7 @@ export default function JobsWorkspace({ profile: initialProfile, states: initial
       {(experience || mode || category || employment) && <p className="mt-2 text-xs leading-5 text-text-muted">Filters use employer-supplied details. Missing experience, work mode or category is not assumed; open a job to check its full requirements.</p>}
       {[query, location !== "India", company, category, employment, mode, experience, posted !== defaultPosted].some(Boolean) && <button className="mt-1 min-h-[36px] text-xs text-accent hover:underline" onClick={() => { setQuery(""); setLocation("India"); setCompany(""); setCategory(""); setEmployment(""); setMode(""); setExperience(""); setPosted(defaultPosted); setLimit(30); startRefresh(() => router.replace("/jobs", { scroll: false })); }}>Reset filters</button>}
     </div>
-    {initialAssistant && sourceQuery && <WebJobSearch automatic keywords={[initialCompany ? `jobs at employer ${initialCompany}` : "", initialQuery, initialMode, initialExperience === "entry" ? "entry level" : ""].filter(Boolean).join(" ").slice(0, 120)} location={initialLocation} requestKey={refreshKey} />}
+    {initialAssistant && (sourceQuery || initialExperience === "entry") && <WebJobSearch automatic keywords={[initialCompany ? `jobs at employer ${initialCompany}` : "", initialQuery || initialQualification, initialMode, initialExperience === "entry" ? "entry level" : ""].filter(Boolean).join(" ").slice(0, 120)} location={initialLocation} requestKey={refreshKey} />}
     <>
       {remoteLoading && <p role="status" className="mb-3 text-xs text-text-muted">Checking additional India-eligible remote jobs… Employer results remain available.</p>}
       {remoteError && <p role="status" className="mb-3 text-xs text-warning">{remoteError}</p>}

@@ -37,12 +37,13 @@ function GroundedText({ result }: { result: WebSearchResult }) {
     return line.trim() ? <p key={index} className="mb-3 break-words">{inline(line)}{links}</p> : <div key={index} className="h-2" />;
   });
 }
-export default function WebJobSearch({ keywords, location, automatic = false, requestKey = 0 }: { keywords: string; location: string; automatic?: boolean; requestKey?: number }) {
+export default function WebJobSearch({ keywords, location, automatic = false, requestKey = 0, embedded = false }: { keywords: string; location: string; automatic?: boolean; requestKey?: number; embedded?: boolean }) {
   const [result, setResult] = useState<WebSearchResult | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null);
   const pending = useRef<AbortController | null>(null);
   const search = useCallback(async () => {
     if (pending.current && !pending.current.signal.aborted) return;
     const controller = new AbortController(); pending.current = controller;
+    const timer = setTimeout(() => controller.abort("timeout"), 55000);
     setBusy(true); setError(null); setResult(null);
     try {
       const response = await fetch("/api/jobs/web-search", { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ keywords, location: location.trim() || "India" }), signal: controller.signal });
@@ -50,8 +51,8 @@ export default function WebJobSearch({ keywords, location, automatic = false, re
       if (!response.ok) throw new Error(data.error ?? "Web search is unavailable. Please retry.");
       if (!validWebSearchResult(data)) throw new Error("A complete source-linked search response was not available. Please retry; employer listings remain below.");
       if (!controller.signal.aborted) setResult(data);
-    } catch (error) { if (!controller.signal.aborted) setError(error instanceof Error ? error.message : "Could not complete web search."); }
-    finally { if (pending.current === controller) { pending.current = null; if (!controller.signal.aborted) setBusy(false); } }
+    } catch (error) { if (controller.signal.reason === "timeout") setError("Public-source search took too long. Retry here; employer listings remain available."); else if (!controller.signal.aborted) setError(error instanceof Error ? error.message : "Could not complete web search."); }
+    finally { clearTimeout(timer); if (pending.current === controller) { pending.current = null; setBusy(false); } }
   }, [keywords, location]);
   useEffect(() => {
     if (!automatic || !keywords.trim()) return;
@@ -60,13 +61,13 @@ export default function WebJobSearch({ keywords, location, automatic = false, re
     return () => { clearTimeout(timer); pending.current?.abort(); pending.current = null; };
   }, [automatic, keywords, search, requestKey]);
   useEffect(() => () => pending.current?.abort(), []);
-  return <section aria-label={automatic ? "Career Assistant additional source results" : "Search the public web for jobs"} className="mb-5 rounded-xl border border-border bg-surface p-4 sm:p-5">
+  return <section aria-label={automatic ? "Career Assistant additional source results" : "Search the public web for jobs"} className={embedded ? "min-w-0 border-t border-border pt-5" : "mb-5 rounded-xl border border-border bg-surface p-4 sm:p-5"}>
     <div className="flex flex-wrap items-center justify-between gap-4"><div className="min-w-0 flex-1"><h2 className="text-sm font-semibold">{automatic ? "Career Assistant · Additional sources" : "Find opportunities beyond these employers"}</h2><p className="mt-1 text-xs leading-5 text-text-secondary">{automatic ? "Your search also checks public hiring pages beyond the connected feeds." : `Search public hiring pages for ${keywords || "jobs"} in ${location || "India"}.`} Open the original source to check details and apply.</p></div>{!automatic && <button type="button" disabled={busy} onClick={() => void search()} className={buttonClass + " shrink-0 border-accent/30 text-accent"}>{busy ? "Searching sources…" : "Search the web ↗"}</button>}</div>
     <p className="mt-2 text-[11px] leading-5 text-text-muted">Powered by Google Search. Only these keywords and location are sent; your resume and profile are not sent.</p>
     {busy && <p role="status" className="mt-4 text-sm text-text-secondary">Looking across public job platforms and employer pages…</p>}
     {error && <div role="alert" className="mt-4 rounded-md border border-warning/30 bg-warning-bg p-4 text-sm text-warning"><p>{error}</p><button type="button" disabled={busy} onClick={() => void search()} className={buttonClass + " mt-3 bg-surface"}>Try again</button></div>}
     {result && <div className="mt-5 border-t border-border pt-5">
-      <h3 className="text-base font-semibold">Public web search results</h3><p className="mb-4 mt-1 text-xs leading-5 text-text-muted">Search leads, not independently verified vacancies. Dates, availability and application instructions must be checked on the source. These results are separate from the employer-feed count.</p>
+      <h3 className="text-base font-semibold">Opportunities from public sources</h3><p className="mb-4 mt-1 text-xs leading-5 text-text-muted">Check dates, availability and application instructions at the source. Some links may open a search page rather than a specific vacancy. These leads are separate from the employer-feed count.</p>
       <article aria-label="Google-grounded search response" className="min-w-0 text-sm leading-7 text-text-secondary"><GroundedText result={result} /></article>
       <nav aria-label="Sources provided with the search response" className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs">{result.sources.map((source, index) => <a key={`${source.url}:${index}`} href={source.url} target="_blank" rel="noopener noreferrer" className="break-words text-accent underline">{source.title}</a>)}</nav>
       <SearchSuggestions html={result.suggestionsHtml} />
