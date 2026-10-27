@@ -5,6 +5,13 @@ import { normalizeIndiaLocation } from "./sources-india.ts";
 import { MAX_VERIFICATION_AGE } from "./catalogPolicy.ts";
 export interface EmployerSnapshot { jobs: Job[]; checkedAt: string }
 export interface EmployerRef { provider: string; board: string }
+// A mixed snapshot can contain checks later than its conservative aggregate
+// checkedAt. Ranking must not treat those genuinely newer checks as future jobs.
+// This is a comparison clock only: never rewrite any displayed source timestamp.
+export function catalogObservationTime(catalog: Catalog): number {
+  const times = [catalog.checkedAt, ...catalog.jobs.map(job => job.fetchedAt), ...(catalog.sources ?? []).map(source => source.checkedAt)];
+  return times.reduce((latest, time) => { const parsed = Date.parse(time); return Number.isFinite(parsed) ? Math.max(latest, parsed) : latest; }, 0);
+}
 export function mergeEmployerSnapshots(sources: EmployerRef[], results: PromiseSettledResult<EmployerSnapshot>[], now: number): Catalog {
   const jobs: Job[] = [], health: SourceHealth[] = [], checks: string[] = [];
   for (let i = 0; i < sources.length; i++) {

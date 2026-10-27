@@ -7,6 +7,7 @@ import { selectedResume } from "@/lib/jobs/profile";
 import { normalizeIndiaLocation } from "@/lib/jobs/sources-india";
 import { matchesDateWindow } from "@/lib/jobs/browsing";
 import { EMPTY_PROFILE } from "@/lib/jobs/types";
+import { catalogObservationTime } from "@/lib/jobs/employerCatalog";
 
 export default async function RecommendedJobs() {
   const supabase = await createClient();
@@ -15,7 +16,7 @@ export default async function RecommendedJobs() {
   const [personal, catalog] = await Promise.allSettled([discoveryData(supabase, user.id), getCachedCatalog()]);
   const profile = personal.status === "fulfilled" ? personal.value.profile : { ...EMPTY_PROFILE };
   const resume = personal.status === "fulfilled" ? selectedResume(personal.value.resumes, profile.resumeId) : undefined;
-  const checkedAt = catalog.status === "fulfilled" ? Date.parse(catalog.value.checkedAt) : 0;
+  const checkedAt = catalog.status === "fulfilled" ? catalogObservationTime(catalog.value) : 0;
   const ranked = catalog.status === "fulfilled" ? catalog.value.jobs.filter(job => normalizeIndiaLocation(job.location).isIndia && matchesDateWindow(job, "30", checkedAt)).map(job => rankJob(job, profile, resume, checkedAt)).sort((a, b) => compareRanked(a, b)) : [];
   const eligible = ranked.filter(item => item.eligible), personalized = !!(profile.roles.length || profile.skills.length || resume);
   const recommendations = personalized && eligible.length > 0;

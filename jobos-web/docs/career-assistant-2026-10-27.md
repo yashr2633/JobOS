@@ -29,6 +29,11 @@ input, schema validation and a per-instance burst guard. It does not create jobs
   keeps its original source-check timestamps; failures and expired checks remain
   explicit. The employer refresh window remains five minutes, with a maximum
   20-minute display age. Public source data only enters this cache.
+- Ranking uses the newest observed source check as its comparison clock. The
+  conservative aggregate check can be older than another employer's fresh jobs;
+  using it as the clock incorrectly hid those jobs until the next client update.
+  A regression test reproduces that first-render failure and verifies both source
+  timestamps remain unchanged. Dashboard recommendations use the same comparison.
 
 ## Additional public sources
 

@@ -18,6 +18,7 @@ import CompanySearch from "./CompanySearch";
 import WebJobSearch from "./WebJobSearch";
 import { findCompany, matchesCompany } from "@/lib/jobs/companies";
 import { experienceMatches } from "@/lib/jobs/careerIntent";
+import { catalogObservationTime } from "@/lib/jobs/employerCatalog";
 import { buildSearchVocabulary, publicJobQuery } from "@/lib/jobs/searchSuggestions";
 import { includeProfileMatch, matchesDateWindow, matchesIndiaLocation, matchesJobQuery, verificationTime } from "@/lib/jobs/browsing";
 
@@ -44,8 +45,8 @@ export default function JobsWorkspace({ profile: initialProfile, states: initial
   const [unavailable, setUnavailable] = useState<string[]>([]);
   const [closedIds, setClosedIds] = useState<string[]>([]);
   const jobsStart = useRef<HTMLDivElement>(null), preferencesStart = useRef<HTMLDivElement>(null);
-  const [clock, setClock] = useState(() => Date.parse(asOf ?? catalog.checkedAt));
-  const now = asOf ? Date.parse(asOf) : Math.max(clock, Date.parse(catalog.checkedAt));
+  const [clock, setClock] = useState(() => asOf ? Date.parse(asOf) : catalogObservationTime(catalog));
+  const now = asOf ? Date.parse(asOf) : Math.max(clock, catalogObservationTime(catalog));
   const [view, setView] = useState("latest");
   const [details, setDetails] = useState<Record<string, Job>>({});
   const [detailError, setDetailError] = useState<string | null>(null);

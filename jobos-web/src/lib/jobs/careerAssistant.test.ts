@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { companySuggestions, matchesCompany, findCompany } from "./companies.ts";
 import { careerSearchUrl, EMPTY_INTENT, experienceMatches, publicCareerMessage, validateCareerIntent } from "./careerIntent.ts";
 import { readJobFilters } from "./searchFilters.ts";
-import { mergeEmployerSnapshots } from "./employerCatalog.ts";
+import { mergeEmployerSnapshots, catalogObservationTime } from "./employerCatalog.ts";
+import { isActiveRecommendation, DEFAULT_RANKING } from "./ranking.ts";
 import { normalizeSmartRecruiters } from "./smartrecruiters.ts";
 test("company vocabulary survives empty feeds, supports aliases, and does not pretend import coverage", () => {
   assert.ok(companySuggestions("Info").some(company => company.name === "Infosys"));
@@ -15,6 +16,18 @@ test("company vocabulary survives empty feeds, supports aliases, and does not pr
   assert.equal(matchesCompany("Infosys Limited", "Infosys"), true);
   assert.equal(matchesCompany("Amazon Development Centre India", "AWS"), true);
   assert.equal(matchesCompany("Other Company", "Infosys"), false);
+});
+
+test("mixed employer check times cannot hide a newer source's real jobs on first render", () => {
+  const older = Date.parse("2026-10-27T07:00:00Z"), newer = older + 180_000;
+  const job = normalizeSmartRecruiters({ id: "123", name: "Software Engineer", visibility: "PUBLIC", location: { country: "in", city: "Hyderabad" }, releasedDate: "2026-10-26T07:00:00Z" }, "ServiceNow", "ServiceNow", new Date(newer).toISOString());
+  assert.ok(job);
+  const catalog = { jobs: [job], checkedAt: new Date(older).toISOString(), warnings: [] };
+  const original = job.fetchedAt;
+  assert.equal(isActiveRecommendation(job, older, DEFAULT_RANKING), false);
+  assert.equal(isActiveRecommendation(job, catalogObservationTime(catalog), DEFAULT_RANKING), true);
+  assert.equal(job.fetchedAt, original);
+  assert.equal(catalog.checkedAt, new Date(older).toISOString());
 });
 test("public intent accepts Hindi search preferences but blocks contact details and unbounded input", () => {
   assert.equal(publicCareerMessage("मुझे कोलकाता में analyst jobs चाहिए"), true);
