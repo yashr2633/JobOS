@@ -27,6 +27,7 @@
 import AppShell from "./components/AppShell";
 import PublicLanding from "./components/PublicLanding";
 import RecommendedJobs from "./dashboard/components/RecommendedJobs";
+import CareerHome from "./dashboard/components/CareerHome";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { homepageMetadata } from "@/lib/seo/metadata";
@@ -256,14 +257,18 @@ export default async function Home({ searchParams }: HomeProps) {
       <>
         {/* Track authenticated session activity (non-blocking, once per day) */}
         <SessionTracker />
+        <Suspense fallback={<section className="product-panel mb-6"><p className="product-kicker">Career Assistant</p><h1>What&apos;s your next move?</h1><p className="mt-3 text-sm text-text-secondary">Loading your career workspace…</p></section>}><CareerHome userId={user.id} name={typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name.trim().split(/\s+/)[0].slice(0, 30) : undefined} gmailConnected={gmailConnected} /></Suspense>
+        <Suspense fallback={<section className="product-panel mb-6"><h2>Opportunities to explore</h2><p className="mt-3 text-sm text-text-muted">Checking available sources…</p></section>}><RecommendedJobs /></Suspense>
+        <details className="mt-6 rounded-lg border border-border bg-surface p-4 sm:p-5">
+          <summary className="cursor-pointer text-sm font-semibold text-text">Application overview · totals and activity</summary>
         
         {/* Header. Compact — this page's hierarchy is established below by
             size and position, not by an oversized title here. */}
           <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-text">
-                Track My Job Applications
-              </h1>
+              <h2 className="mt-5 text-xl font-semibold tracking-tight text-text">
+                Your application activity
+              </h2>
               <p className="mt-1 text-sm text-text-secondary">
                 Here&apos;s what&apos;s happening with your job search.
               </p>
@@ -316,6 +321,7 @@ export default async function Home({ searchParams }: HomeProps) {
                 <RecentActivity activities={recentActivity} />
             </DashboardReportClient>
           </section>
+        </details>
 
           {/* SECONDARY: the input source. Gmail feeds the pipeline above; it does
               not compete with it for attention. Deliberately smaller and lower on
@@ -358,7 +364,6 @@ export default async function Home({ searchParams }: HomeProps) {
           <QuickActions />
           <a href="/gmail/review" className="mt-4 inline-flex text-sm font-medium text-accent">Review Gmail-linked applications →</a>
         </div>
-        <Suspense fallback={<section className="product-panel mt-6"><h2>Top jobs for you</h2><p className="mt-3 text-sm text-text-muted">Checking available sources…</p></section>}><RecommendedJobs /></Suspense>
       </>
     </AppShell>
   );

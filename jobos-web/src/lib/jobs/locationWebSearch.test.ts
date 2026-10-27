@@ -45,6 +45,10 @@ test("web search rejects known expired deadlines, inflated vacancy counts and ov
   assert.equal(acceptableSearchText("The last date to apply was September 25, 2026.", "2026-10-26"), false);
   assert.equal(acceptableSearchText("Apply by November 4, 2026; check the original source.", "2026-10-26"), true);
   assert.equal(acceptableSearchText("391 full-time vacancies in this city", "2026-10-26"), false);
+  assert.equal(acceptableSearchText("18 Deloitte Data Analyst jobs in Mumbai", "2026-10-26"), false);
+  assert.equal(acceptableSearchText("15 Deloitte Data Analyst jobs in Hyderabad", "2026-10-26"), false);
+  assert.equal(acceptableSearchText("200jobs available", "2026-10-26"), false);
+  assert.equal(acceptableSearchText("1. Data Analyst at Deloitte. Posting date not supplied.", "2026-10-26"), true);
   assert.equal(acceptableSearchText(Array.from({length:7}, (_, i) => `${i+1}. Lead`).join("\n"), "2026-10-26"), false);
   const response = grounded();
   response.candidates[0].groundingMetadata.groundingSupports = [];

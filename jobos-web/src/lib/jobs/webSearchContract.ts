@@ -1,6 +1,6 @@
 export interface WebSearchResult { text: string; suggestionsHtml: string; sources: { title: string; url: string }[]; citations: { start: number; end: number; sourceIndexes: number[] }[]; searchedAt: string }
 export function acceptableSearchText(text: string, today: string): boolean {
-  if (/₹|\b\d[\d,]*\s*(?:full[- ]time\s+)?(?:vacanc(?:y|ies)|openings|posts|jobs)\b/i.test(text)) return false;
+  if (/₹|\b\d[\d,]*\s*(?:[\p{L}&/-]+\s+){0,6}(?:vacanc(?:y|ies)|openings|posts|jobs)\b/iu.test(text)) return false;
   if ([...text.matchAll(/^\s*\d+[.)]\s/gm)].length > 6) return false;
   const deadlines = text.match(/[^\n.!?]*(?:deadline|last date|apply by|closing date|applications? close)[^\n.!?]*/gi) ?? [];
   return deadlines.every(sentence => {

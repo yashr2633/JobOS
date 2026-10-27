@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { publicSearchLink, safeSearchSuggestions, type WebSearchResult } from "@/lib/jobs/webSearchContract";
 import { buttonClass } from "./CareerProfileForm";
 
@@ -36,12 +36,11 @@ function GroundedText({ result }: { result: WebSearchResult }) {
     return line.trim() ? <p key={index} className="mb-3 break-words">{inline(line)}{links}</p> : <div key={index} className="h-2" />;
   });
 }
-export default function WebJobSearch({ keywords, location }: { keywords: string; location: string }) {
+export default function WebJobSearch({ keywords, location, automatic = false, requestKey = 0 }: { keywords: string; location: string; automatic?: boolean; requestKey?: number }) {
   const [result, setResult] = useState<WebSearchResult | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null);
   const pending = useRef<AbortController | null>(null);
-  useEffect(() => () => pending.current?.abort(), []);
-  async function search() {
-    if (busy) return;
+  const search = useCallback(async () => {
+    if (pending.current && !pending.current.signal.aborted) return;
     const controller = new AbortController(); pending.current = controller;
     setBusy(true); setError(null); setResult(null);
     try {
@@ -50,10 +49,17 @@ export default function WebJobSearch({ keywords, location }: { keywords: string;
       if (!response.ok) throw new Error(data.error ?? "Web search is unavailable. Please retry.");
       if (!controller.signal.aborted) setResult(data);
     } catch (error) { if (!controller.signal.aborted) setError(error instanceof Error ? error.message : "Could not complete web search."); }
-    finally { if (!controller.signal.aborted) setBusy(false); }
-  }
-  return <section aria-label="Search the public web for jobs" className="mb-5 rounded-xl border border-border bg-surface p-4 sm:p-5">
-    <div className="flex flex-wrap items-center justify-between gap-4"><div className="min-w-0 flex-1"><h2 className="text-sm font-semibold">Find opportunities beyond these employers</h2><p className="mt-1 text-xs leading-5 text-text-secondary">Search public hiring pages for {keywords || "jobs"} in {location || "India"}. Open the original source to check details and apply.</p></div><button type="button" disabled={busy} onClick={() => void search()} className={buttonClass + " shrink-0 border-accent/30 text-accent"}>{busy ? "Searching sources…" : "Search the web ↗"}</button></div>
+    finally { if (pending.current === controller) { pending.current = null; if (!controller.signal.aborted) setBusy(false); } }
+  }, [keywords, location]);
+  useEffect(() => {
+    if (!automatic || !keywords.trim()) return;
+    // A queued start avoids duplicate calls during React's development replay.
+    const timer = setTimeout(() => void search(), 0);
+    return () => { clearTimeout(timer); pending.current?.abort(); pending.current = null; };
+  }, [automatic, keywords, search, requestKey]);
+  useEffect(() => () => pending.current?.abort(), []);
+  return <section aria-label={automatic ? "Career Assistant additional source results" : "Search the public web for jobs"} className="mb-5 rounded-xl border border-border bg-surface p-4 sm:p-5">
+    <div className="flex flex-wrap items-center justify-between gap-4"><div className="min-w-0 flex-1"><h2 className="text-sm font-semibold">{automatic ? "Career Assistant · Additional sources" : "Find opportunities beyond these employers"}</h2><p className="mt-1 text-xs leading-5 text-text-secondary">{automatic ? "Your search also checks public hiring pages beyond the connected feeds." : `Search public hiring pages for ${keywords || "jobs"} in ${location || "India"}.`} Open the original source to check details and apply.</p></div>{!automatic && <button type="button" disabled={busy} onClick={() => void search()} className={buttonClass + " shrink-0 border-accent/30 text-accent"}>{busy ? "Searching sources…" : "Search the web ↗"}</button>}</div>
     <p className="mt-2 text-[11px] leading-5 text-text-muted">Powered by Google Search. Only these keywords and location are sent; your resume and profile are not sent.</p>
     {busy && <p role="status" className="mt-4 text-sm text-text-secondary">Looking across public job platforms and employer pages…</p>}
     {error && <p role="alert" className="mt-4 rounded-md bg-warning-bg p-3 text-sm text-warning">{error}</p>}
