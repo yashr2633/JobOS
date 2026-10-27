@@ -1,5 +1,6 @@
 "use client";
 
+import { readJobJson } from "@/lib/jobs/response";
 import { useRef, useState } from "react";
 import { validateResumeFile } from "@/lib/resumes/validation";
 import { uploadResumeFile } from "../resumes/services/resumeUploadClient";
@@ -17,8 +18,8 @@ export default function DiscoveryResumePicker({ resumes, value, onChange, onResu
   const selected = selectedResume(resumes, value);
   async function refresh() {
     const response = await fetch("/api/jobs/profile", { cache: "no-store" });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error ?? "Could not refresh resumes.");
+    const data = await readJobJson<{ resumes: ResumeEvidence[]; error?: string }>(response, "Your resume list could not refresh. Please try again.");
+    if (!response.ok || !Array.isArray(data.resumes)) throw new Error(data.error ?? "Could not refresh resumes.");
     onResumesChange(data.resumes); setNeedsRefresh(false);
   }
   async function upload(event: React.ChangeEvent<HTMLInputElement>) {

@@ -18,6 +18,7 @@ import CompanySearch from "./CompanySearch";
 import WebJobSearch from "./WebJobSearch";
 import { findCompany, matchesCompany } from "@/lib/jobs/companies";
 import { experienceMatches } from "@/lib/jobs/careerIntent";
+import { readJobJson } from "@/lib/jobs/response";
 import { catalogObservationTime } from "@/lib/jobs/employerCatalog";
 import { buildSearchVocabulary, publicJobQuery } from "@/lib/jobs/searchSuggestions";
 import { includeProfileMatch, matchesDateWindow, matchesIndiaLocation, matchesJobQuery, verificationTime } from "@/lib/jobs/browsing";
@@ -158,9 +159,9 @@ export default function JobsWorkspace({ profile: initialProfile, states: initial
     const controller = new AbortController();
     void fetch(`/api/jobs/detail?id=${encodeURIComponent(selected)}${sourceUrl ? `&source=${encodeURIComponent(sourceUrl)}` : ""}`, { signal: controller.signal })
       .then(async response => {
-        const data = await response.json();
+        const data = await readJobJson<{ job: Job; error?: string }>(response, "The employer details could not load just now. Open the original listing or try again.");
         if (response.status === 410 && !controller.signal.aborted) setClosedIds(ids => [...new Set([...ids, selected])]);
-        if (!response.ok) throw new Error(data.error ?? "Could not load job details.");
+        if (!response.ok || !data.job || typeof data.job.fetchedAt !== "string") throw new Error(data.error ?? "Could not load job details. Open the original listing or retry.");
         if (!controller.signal.aborted) {
           if (!asOf) setClock(Math.max(Date.now(), Date.parse(data.job.fetchedAt)));
           setDetails(previous => ({ ...previous, [selected]: data.job }));
@@ -207,15 +208,16 @@ export default function JobsWorkspace({ profile: initialProfile, states: initial
     setBusy(true); setError(null); setNotice(null);
     try {
       const response = await fetch("/api/jobs/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId, action, appliedDate, sourceUrl: currentDetails[jobId]?.sourceUrl ?? allJobs.get(jobId)?.sourceUrl }) });
-      const data = await response.json();
+      const data = await readJobJson<{ state?: JobState; applicationId?: string; code?: string; error?: string }>(response, "This action could not complete just now. Please retry; no success has been confirmed.");
       if (!response.ok) {
         if (response.status === 410) setClosedIds(ids => [...new Set([...ids, jobId])]);
         else if (data.code === "source_unavailable") setUnavailable(ids => [...new Set([...ids, jobId])]);
         throw new Error(data.error ?? "Could not save the action.");
       }
-      if (data.state) setStates((previous) => [...previous.filter((s) => s.job_id !== jobId), data.state]);
-      if (data.applicationId) {
-        setStates((previous) => previous.map((s) => s.job_id === jobId ? { ...s, application_id: data.applicationId, saved: true } : s));
+      const { state: nextState, applicationId } = data;
+      if (nextState) setStates((previous) => [...previous.filter((s) => s.job_id !== jobId), nextState]);
+      if (applicationId) {
+        setStates((previous) => previous.map((s) => s.job_id === jobId ? { ...s, application_id: applicationId, saved: true } : s));
         setNotice("Application added to your existing tracker.");
         router.refresh();
       } else setNotice(action === "apply" ? "Context saved. Open the employer page below, then confirm when you have applied." : "Job preference saved.");

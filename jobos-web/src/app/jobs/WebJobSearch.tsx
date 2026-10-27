@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { publicSearchLink, safeSearchSuggestions, type WebSearchResult } from "@/lib/jobs/webSearchContract";
+import { publicSearchLink, safeSearchSuggestions, validWebSearchResult, type WebSearchResult } from "@/lib/jobs/webSearchContract";
+import { readJobJson } from "@/lib/jobs/response";
 import { buttonClass } from "./CareerProfileForm";
 
 function inline(text: string): ReactNode[] {
@@ -45,8 +46,9 @@ export default function WebJobSearch({ keywords, location, automatic = false, re
     setBusy(true); setError(null); setResult(null);
     try {
       const response = await fetch("/api/jobs/web-search", { method: "POST", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ keywords, location: location.trim() || "India" }), signal: controller.signal });
-      const data = await response.json();
+      const data = await readJobJson<WebSearchResult & { error?: string }>(response, "Additional hiring sources are temporarily unavailable. Employer listings below remain available.");
       if (!response.ok) throw new Error(data.error ?? "Web search is unavailable. Please retry.");
+      if (!validWebSearchResult(data)) throw new Error("A complete source-linked search response was not available. Please retry; employer listings remain below.");
       if (!controller.signal.aborted) setResult(data);
     } catch (error) { if (!controller.signal.aborted) setError(error instanceof Error ? error.message : "Could not complete web search."); }
     finally { if (pending.current === controller) { pending.current = null; if (!controller.signal.aborted) setBusy(false); } }
@@ -62,7 +64,7 @@ export default function WebJobSearch({ keywords, location, automatic = false, re
     <div className="flex flex-wrap items-center justify-between gap-4"><div className="min-w-0 flex-1"><h2 className="text-sm font-semibold">{automatic ? "Career Assistant · Additional sources" : "Find opportunities beyond these employers"}</h2><p className="mt-1 text-xs leading-5 text-text-secondary">{automatic ? "Your search also checks public hiring pages beyond the connected feeds." : `Search public hiring pages for ${keywords || "jobs"} in ${location || "India"}.`} Open the original source to check details and apply.</p></div>{!automatic && <button type="button" disabled={busy} onClick={() => void search()} className={buttonClass + " shrink-0 border-accent/30 text-accent"}>{busy ? "Searching sources…" : "Search the web ↗"}</button>}</div>
     <p className="mt-2 text-[11px] leading-5 text-text-muted">Powered by Google Search. Only these keywords and location are sent; your resume and profile are not sent.</p>
     {busy && <p role="status" className="mt-4 text-sm text-text-secondary">Looking across public job platforms and employer pages…</p>}
-    {error && <p role="alert" className="mt-4 rounded-md bg-warning-bg p-3 text-sm text-warning">{error}</p>}
+    {error && <div role="alert" className="mt-4 rounded-md border border-warning/30 bg-warning-bg p-4 text-sm text-warning"><p>{error}</p><button type="button" disabled={busy} onClick={() => void search()} className={buttonClass + " mt-3 bg-surface"}>Try again</button></div>}
     {result && <div className="mt-5 border-t border-border pt-5">
       <h3 className="text-base font-semibold">Public web search results</h3><p className="mb-4 mt-1 text-xs leading-5 text-text-muted">Search leads, not independently verified vacancies. Dates, availability and application instructions must be checked on the source. These results are separate from the employer-feed count.</p>
       <article aria-label="Google-grounded search response" className="min-w-0 text-sm leading-7 text-text-secondary"><GroundedText result={result} /></article>

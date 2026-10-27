@@ -1,11 +1,12 @@
 "use client";
 
+import { readJobJson } from "@/lib/jobs/response";
 import { useRef, useState } from "react";
 import { parseProfile, prefillProfile, selectedResume as findResume, type InferredField } from "@/lib/jobs/profile";
 import type { CareerProfile, ResumeEvidence, WorkMode } from "@/lib/jobs/types";
 import DiscoveryResumePicker from "./DiscoveryResumePicker";
 
-export const inputClass = "w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-accent";
+export const inputClass = "w-full rounded-md border border-border-strong bg-surface px-3 py-2 text-sm text-text focus:outline-none focus:ring-2 focus:ring-accent";
 export const buttonClass = "min-h-[44px] rounded-md border border-border px-4 py-2 text-sm font-medium text-text hover:bg-surface-2 disabled:opacity-50 disabled:cursor-not-allowed";
 export const primaryClass = "min-h-[44px] rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-fg hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed";
 const split = (s: string) => s.split(",").map((s) => s.trim()).filter(Boolean);
@@ -37,9 +38,9 @@ export default function CareerProfileForm({ profile, resumes, onResumesChange, o
       const p = parseProfile({ ...draft, roles: split(roles), skills: split(skills), locations: split(locations), keywords: split(keywords) });
       if (!p.roles.length && !p.skills.length && !p.resumeId) throw new Error("Add a target role, skills, or a resume to personalize your feed.");
       const response = await fetch("/api/jobs/profile", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
-      const body = await response.json();
+      const body = await readJobJson<{ profile: CareerProfile; error?: string }>(response, "Preferences could not be saved just now. Please retry.");
       if (!response.ok) throw new Error(body.error ?? "Could not save preferences.");
-      onSave(body.profile);
+      onSave(parseProfile(body.profile));
     } catch (e) { setError(e instanceof Error ? e.message : "Could not save preferences."); }
     finally { setBusy(false); }
   }

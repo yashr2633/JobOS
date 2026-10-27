@@ -28,14 +28,14 @@
  * properties is clearer than importing a build step.
  */
 :root {
-  --bg: #ffffff;
+  --bg: #eef2f7;
   --surface: #ffffff;
-  --surface-2: #f5f8fc;
-  --border: #dbe4f0;
-  --border-strong: #b8cbe4;
+  --surface-2: #e9eff7;
+  --border: #c5d0df;
+  --border-strong: #7c8da5;
   --text: #0f172a;
   --text-secondary: #475569;
-  --text-muted: #64748b;
+  --text-muted: #526176;
   --accent: #175cd3;
   --accent-hover: #124ba9;
   --accent-fg: #ffffff;
@@ -55,11 +55,11 @@
     --bg: #0c0c0f;
     --surface: #151518;
     --surface-2: #1c1c21;
-    --border: #26262c;
-    --border-strong: #34343b;
+    --border: #3b4352;
+    --border-strong: #718198;
     --text: #f1f1f3;
     --text-secondary: #a3a3ad;
-    --text-muted: #6d6d78;
+    --text-muted: #9aa8ba;
     --accent: #74a7ff;
     --accent-hover: #9fc2ff;
     --accent-fg: #0f172a;
@@ -79,11 +79,11 @@
   --bg: #0c0c0f;
   --surface: #151518;
   --surface-2: #1c1c21;
-  --border: #26262c;
-  --border-strong: #34343b;
+  --border: #3b4352;
+  --border-strong: #718198;
   --text: #f1f1f3;
   --text-secondary: #a3a3ad;
-  --text-muted: #6d6d78;
+  --text-muted: #9aa8ba;
   --accent: #74a7ff;
   --accent-hover: #9fc2ff;
   --accent-fg: #0f172a;

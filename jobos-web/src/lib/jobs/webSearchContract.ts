@@ -33,6 +33,17 @@ export function safeSearchSuggestions(html: unknown): html is string {
 }
 type Row = Record<string, unknown>;
 const row = (value: unknown): Row => value && typeof value === "object" && !Array.isArray(value) ? value as Row : {};
+/** A JSON-shaped hosting error must not crash the results renderer either. */
+export function validWebSearchResult(value: unknown): value is WebSearchResult {
+  const result = row(value);
+  if (typeof result.text !== "string" || !result.text.trim() || result.text.length > 25_000 || !safeSearchSuggestions(result.suggestionsHtml) || typeof result.searchedAt !== "string" || !Number.isFinite(Date.parse(result.searchedAt)) || !Array.isArray(result.sources) || !result.sources.length || result.sources.length > 100 || !Array.isArray(result.citations) || !result.citations.length) return false;
+  const sources = result.sources, length = result.text.length;
+  if (!sources.every(source => typeof row(source).title === "string" && publicSearchLink(row(source).url))) return false;
+  return result.citations.every(citation => {
+    const item = row(citation);
+    return typeof item.start === "number" && typeof item.end === "number" && item.start >= 0 && item.start < item.end && item.end <= length && Array.isArray(item.sourceIndexes) && item.sourceIndexes.length > 0 && item.sourceIndexes.every(index => Number.isInteger(index) && index >= 0 && index < sources.length);
+  });
+}
 export function readGroundedResponse(value: unknown, searchedAt: string): WebSearchResult | null {
   const body = row(value), candidate = row(Array.isArray(body.candidates) ? body.candidates[0] : null);
   if (candidate.finishReason !== "STOP") return null;
