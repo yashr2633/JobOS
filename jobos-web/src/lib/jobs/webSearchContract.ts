@@ -1,4 +1,11 @@
 export interface WebSearchResult { text: string; suggestionsHtml: string; sources: { title: string; url: string }[]; citations: { start: number; end: number; sourceIndexes: number[] }[]; searchedAt: string }
+export interface WebSearchNotice { outcome: "no_supported_leads"; message: string; searchedAt: string }
+export function validWebSearchNotice(value: unknown): value is WebSearchNotice {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Record<string, unknown>;
+  return item.outcome === "no_supported_leads" && typeof item.message === "string" && item.message.length > 0 && item.message.length <= 320
+    && !/[<>]|https?:|Unexpected token|JSON\.parse/i.test(item.message) && typeof item.searchedAt === "string" && Number.isFinite(Date.parse(item.searchedAt));
+}
 export function acceptableSearchText(text: string, today: string): boolean {
   if (/₹|\b\d[\d,]*\s*(?:[\p{L}&/-]+\s+){0,6}(?:vacanc(?:y|ies)|openings|posts|jobs)\b/iu.test(text)) return false;
   if ([...text.matchAll(/^\s*\d+[.)]\s/gm)].length > 6) return false;

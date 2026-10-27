@@ -31,7 +31,10 @@ async function search(request: Request, deadline: number) {
   const entry = { day, count: (previous?.count ?? 0) + 1, minute: sameMinute ? previous.minute : now, turns: sameMinute ? previous.turns + 1 : 1, pending: true };
   requests.set(user.id, entry); total.count++; inFlight++;
   try { return NextResponse.json(await searchPublicJobs(query), { headers }); }
-  catch (error) { return NextResponse.json({ error: error instanceof WebSearchError ? error.message : "Web search did not complete. Please retry shortly." }, { status: error instanceof WebSearchError ? error.status : 503, headers: { ...headers, ...(error instanceof WebSearchError && error.retryAfterSeconds ? { "Retry-After": String(error.retryAfterSeconds) } : {}) } }); }
+  catch (error) {
+    if (error instanceof WebSearchError && error.status === 422) return NextResponse.json({ outcome: "no_supported_leads", message: error.message, searchedAt: new Date().toISOString() }, { headers });
+    return NextResponse.json({ error: error instanceof WebSearchError ? error.message : "Web search did not complete. Please retry shortly." }, { status: error instanceof WebSearchError ? error.status : 503, headers: { ...headers, ...(error instanceof WebSearchError && error.retryAfterSeconds ? { "Retry-After": String(error.retryAfterSeconds) } : {}) } });
+  }
   finally { entry.pending = false; inFlight--; }
 }
 export async function POST(request: Request) {

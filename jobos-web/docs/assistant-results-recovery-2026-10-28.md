@@ -69,4 +69,29 @@ credit balance. A bounded diagnostic was approved with that new evidence.
 Flash-Lite returned HTTP 404 NOT_FOUND, explicitly unavailable to this account;
 the suggested newer paid-grounding model was not enabled. No replacement key,
 model, paid plan, billing or funding change was made. No successful new external
-Google search is claimed. Production smoke results are recorded after deployment.
+Google search is claimed from that Flash-Lite diagnostic.
+
+## Production verification and additional-source follow-up
+
+Initial release 7e8f3b59dad610d868f018ddd967f1723a9733d0 deployed successfully
+through the existing Git main integration. The signed-in production dashboard
+restored its session on reload; BBA/fresher/Bokaro returned four explicitly
+India-eligible remote rows in the new table. Weekday full requirements, 66/100
+resume fit and original Apply destination opened. No browser error logs were
+captured. Public homepage/login returned 200, anonymous search APIs JSON 401 and
+foreign-origin results 403. These checks do not claim new Gmail/export verification.
+
+The unchanged existing Flash model returned one genuine, source-cited public
+research answer during diagnostics. Its links were mostly source-results pages,
+not independently verified individual vacancies. A separate HTTP 200 answer was
+rejected by the existing quality check; the app incorrectly described that as an
+outage. The follow-up keeps all content/grounding/HTML/deadline/count safeguards,
+but returns a typed no_supported_leads outcome for unsafe/incomplete research.
+This displays a clear non-error notice without replacing or blocking real jobs.
+No automatic generation retry or model switch was added. A later production
+explicit retry returned a genuine provider quota limit of about 12 hours.
+
+Follow-up validation: 23 affected tests passed, changed-file lint, TypeScript and
+production build passed. The original Google text, citations and suggestions are
+still preserved unchanged only when accepted. Source coverage and free provider
+quotas remain limited; no universal company coverage is claimed.

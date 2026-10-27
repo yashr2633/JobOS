@@ -8,6 +8,15 @@ import type { Job } from "./types.ts";
 import type { ResumeEvidence } from "./types.ts";
 import { availableAssistantCatalogs } from "./assistantCatalog.ts";
 import type { Catalog } from "./providers.ts";
+import { validWebSearchNotice } from "./webSearchContract.ts";
+
+test("an unsupported grounded answer has a distinct safe outcome rather than a hosting/parser error", () => {
+  const notice = { outcome: "no_supported_leads", message: "Additional leads could not be supported. Connected listings remain available.", searchedAt: "2026-10-28T00:00:00Z" };
+  assert.equal(validWebSearchNotice(notice), true);
+  assert.equal(validWebSearchNotice({ ...notice, message: "<script>error</script>" }), false);
+  assert.equal(validWebSearchNotice({ ...notice, searchedAt: "not-a-date" }), false);
+  assert.equal(validWebSearchNotice({ error: "An error occurred" }), false);
+});
 
 test("all-source outages are not successful empty searches; one healthy source survives a partial failure", () => {
   const failed: Catalog = { jobs: [], warnings: ["Source unavailable"], checkedAt: "2026-10-28T00:00:00Z", sources: [{ provider: "Lever", board: "example", status: "failed", checkedAt: "2026-10-28T00:00:00Z", jobs: 0 }] };

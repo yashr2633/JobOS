@@ -41,6 +41,6 @@ Return at most 6 numbered leads. For EACH item give the role or source-page name
   let data: unknown;
   try { data = JSON.parse(text); } catch { throw new WebSearchError("Web search returned an unreadable response. Please retry."); }
   const result = readGroundedResponse(data, new Date().toISOString());
-  if (!result) throw new WebSearchError("A complete, source-linked web response was not available. Try a more specific role and city.");
+  if (!result) throw new WebSearchError("The response did not contain safely supported, source-linked hiring leads. This does not mean no jobs exist. Refine the role or location; connected listings remain available.", 422);
   return result;
 }
