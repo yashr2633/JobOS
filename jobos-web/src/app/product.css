@@ -9,3 +9,26 @@
 .product-app :is(input:not([type=checkbox]):not([type=radio]),select){min-height:44px}
 
 .auth-product-shell :is(input:not([type=checkbox]):not([type=radio]),select,textarea){border-color:var(--border-strong)}
+
+/* Approved dashboard: neutral type, charcoal actions, no decorative imagery. */
+.product-app{--bg:light-dark(#f5f5f2,#15171a);--surface:light-dark(#fff,#202328);--surface-2:light-dark(#eceff0,#2c3036);--border:light-dark(#d4d8dc,#454d57);--border-strong:light-dark(#929aa4,#8793a1);--text:light-dark(#17191c,#f1f3f5);--text-secondary:light-dark(#555e68,#c5cdd6);--text-muted:light-dark(#626d77,#aeb9c6);--accent:light-dark(#30353c,#d8e0e8);--accent-hover:light-dark(#484f58,#edf1f5);--accent-fg:light-dark(#fff,#1b222b);--focus:light-dark(#536a82,#a8c4e6);font-family:Arial,Helvetica,sans-serif}
+.product-app .product-header{--text:#fff;--text-secondary:#d1d5db;--text-muted:#c0c7cf;--border:#515861;--surface:#24282d;--accent:#fff;--accent-fg:#24282d;--accent-hover:#e5e7eb;background:#24282d;min-height:72px;border-bottom:0}
+.product-app .product-header .product-mark{background:#f6f6f2;color:#252b32;border-radius:5px}
+.product-app .product-header .product-desktop-nav a{border-radius:0;background:transparent;border-bottom:2px solid transparent;min-height:72px}
+.product-app .product-header .product-desktop-nav a[aria-current=page]{border-bottom-color:#bcab86;color:#fff}
+.product-app .product-main{padding-top:28px}
+.product-app .product-kicker{color:var(--text-secondary);font-size:12px;font-weight:400;letter-spacing:0;text-transform:none}
+.product-app :is(.rounded-md,.rounded-lg,.rounded-xl,.product-panel){border-radius:6px}
+.product-app .career-search-input{color:var(--text);font-family:Arial,Helvetica,sans-serif;border-radius:5px;min-height:76px;background:var(--surface);box-shadow:none}
+.career-composer{padding:16px;border:1px solid var(--border-strong);border-radius:6px;background:var(--surface)}
+.career-tools .tracking-release-notice{--surface:#3d454e;--surface-2:#434c57;--text:#fff;--text-secondary:#d4dbe2;--text-muted:#bfc9d5;--border:#56616d;color:var(--text);background:#2b3036;border-color:#2b3036}
+.tracking-release-notice,.resume-tool-notice{padding:22px;border:1px solid var(--border);border-radius:6px;background:var(--surface)}
+.resume-tool-notice{background:var(--surface-2)}
+.career-workspace [aria-label="Matching employer listings"] th{background:var(--surface-2);color:var(--text-secondary)}
+.career-workspace [aria-label="Matching employer listings"] td{vertical-align:middle}
+.workspace-footer{margin-top:36px;padding:28px max(20px,calc((100vw - 1220px)/2));background:#282e32;color:#d3d9df;font-size:12px}
+.workspace-footer strong{color:#fff;font-size:18px;letter-spacing:-.4px}.workspace-footer p{margin-top:9px;line-height:1.8;color:#b8c1ca}
+.workspace-footer-links{display:flex;gap:20px;flex-wrap:wrap;margin-top:18px}.workspace-footer-links a{color:#e0e5ea;text-decoration:underline;text-underline-offset:4px}
+@media(max-width:767px){.product-app .product-header{min-height:66px}.career-composer,.tracking-release-notice,.resume-tool-notice{padding:16px}.workspace-footer{padding-bottom:100px}}
+@media(prefers-reduced-motion:no-preference){.career-workspace button{transition:background-color .16s ease,border-color .16s ease}.career-workspace button:active{transform:translateY(1px)}}
+.resume-document-preview :is(p,li,h4){font-size:inherit;line-height:inherit}

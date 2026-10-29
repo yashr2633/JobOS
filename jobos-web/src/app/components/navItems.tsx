@@ -66,7 +66,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: <svg className={ICON_CLASS} fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path strokeLinecap="round" d="m16 16 5 5" /></svg> },
   {
     href: "/applications",
-    label: "Applications",
+    label: "Track My Application",
     // "Applications", not "Jobs": the destination IS the Applications page, and a
     // different word on mobile implied a second, separate area of the product.
     // It fits at 375px because the bar has four evenly-sized targets.

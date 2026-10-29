@@ -13,6 +13,7 @@ import { verificationTime } from "@/lib/jobs/browsing";
 import ResumeFitScore from "@/app/jobs/ResumeFitScore";
 import { educationCheck, postingLabel } from "@/lib/jobs/resultPresentation";
 import { findCompany } from "@/lib/jobs/companies";
+import { orderLoadedAssistantJobs } from "@/lib/jobs/assistantOrdering";
 
 const button = "inline-flex min-h-[44px] items-center justify-center rounded-md border border-border-strong px-3 py-2 text-sm font-medium text-accent hover:bg-accent/5 disabled:opacity-50";
 type Page = { jobs: Job[]; nextOffset: number | null; total: number; warnings: string[]; related?: { location: string; jobs: Job[] } | null; error?: string };
@@ -68,6 +69,7 @@ export default function AssistantJobResults({ intent, profile, resume, refreshKe
     return () => { clearTimeout(timer); controller.abort("cancelled"); };
   }, [selected]);
   const fit = useMemo(() => detail && resume?.usable !== false && resume ? scoreJob(detail, profile, resume) : null, [detail, profile, resume]);
+  const orderedJobs = useMemo(() => orderLoadedAssistantJobs(jobs, profile, resume, intent.location), [jobs, profile, resume, intent.location]);
   function close() { dialog.current?.close(); setSelected(null); detailTrigger.current?.focus(); }
   function card(job: Job) {
       const ready = resume && resume.usable !== false && !job.descriptionPending, match = ready ? scoreJob(job, profile, resume) : null;
@@ -100,7 +102,8 @@ export default function AssistantJobResults({ intent, profile, resume, refreshKe
     {busy && !jobs.length && <p role="status" className="rounded-md bg-surface-2 p-4 text-sm text-text-secondary">Checking connected employer listings and additional feeds…</p>}
     {warnings.length > 0 && <details className="mb-3 text-xs leading-5 text-text-secondary"><summary className="cursor-pointer py-2">Source freshness and coverage notes</summary>{warnings.map(text => <p key={text} className="mt-2">{text}</p>)}</details>}
     {!busy && !error && !!jobs.length && !jobs.some(job => locationMatches(job.location, intent.location)) && intent.location !== "India" && <p className="mb-3 rounded-md border border-border bg-surface-2 p-3 text-sm leading-6 text-text-secondary">No exact-location listings were returned by these feeds. These remote roles explicitly accept candidates in India.</p>}
-    {!!jobs.length && resultTable(jobs.slice(0, visible))}
+    {!!jobs.length && resume?.usable !== false && resume && <p className="mb-3 text-xs leading-5 text-text-secondary">Loaded results are ordered by resume fit within the requested location. Jobs needing a full description are shown afterwards.</p>}
+    {!!jobs.length && resultTable(orderedJobs.slice(0, visible))}
     {!!jobs.length && <p className="mt-3 text-xs leading-5 text-text-secondary">Match /100 compares resume and profile evidence with the job. It is not a hiring probability or an employer ATS score. Opening Apply does not submit an application.</p>}
     {error && <div role="alert" className="mt-3 rounded-md border border-warning/30 bg-warning-bg p-4 text-sm text-warning"><p>{error}</p><button type="button" className={button + " mt-3 bg-surface"} disabled={busy} onClick={() => void load(jobs.length ? nextOffset ?? 0 : 0)}>Retry employer listings</button></div>}
     {!busy && !error && !jobs.length && <div className="rounded-md border border-border-strong bg-surface-2 p-4 text-sm leading-6"><p>No matching listings were returned by the connected feeds for these filters. This is not proof that no jobs exist.</p>{employer && !employer.connected && <p className="mt-2 text-text-secondary">{employer.name} is not currently connected to the job feed.{employer.careerUrl && <> <a className="font-medium text-accent underline" href={employer.careerUrl} target="_blank" rel="noopener noreferrer">Open its official careers page ↗</a></>}</p>}<p className="mt-2 text-xs text-text-secondary">Additional public-source research has its own availability and quota. Use All filters to change the date window or review jobs with unknown original posting dates.</p></div>}

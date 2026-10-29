@@ -437,7 +437,7 @@ export default function GmailScanModule({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-sm font-semibold text-text">
-            Sync & update from Gmail
+            Track My Application
           </h2>
           <p className="mt-0.5 text-sm text-text-secondary">
             Keep your application tracking up to date.
@@ -472,7 +472,7 @@ export default function GmailScanModule({
           disabled={scanning}
           className="rounded-md bg-accent px-3.5 py-1.5 text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {scanning ? "Scanning..." : "Sync Gmail"}
+          {scanning ? "Scanning..." : "Track my applications"}
         </button>
 
         {/* Compact, always-visible counts — the detail an interested user can

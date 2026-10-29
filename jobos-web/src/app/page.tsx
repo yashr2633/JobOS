@@ -300,7 +300,7 @@ export default async function Home({ searchParams }: HomeProps) {
                     the OAuth connect flow directly; when it is connected that
                     section runs the scan. The label never changes to "Connect
                     Gmail", so the primary action reads consistently. */}
-                Track My Applications
+                Track My Application
                 <span aria-hidden="true">↓</span>
               </a>
             </div>
@@ -362,7 +362,7 @@ export default async function Home({ searchParams }: HomeProps) {
 
         <div className="mt-4">
           <QuickActions />
-          <a href="/gmail/review" className="mt-4 inline-flex text-sm font-medium text-accent">Review Gmail-linked applications →</a>
+          <a href="/gmail/review" className="mt-4 inline-flex text-sm font-medium text-accent">Review application updates →</a>
         </div>
       </>
     </AppShell>

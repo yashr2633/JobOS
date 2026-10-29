@@ -55,8 +55,8 @@ test("authorization happens BEFORE any document is rendered", () => {
 
   const authIndex = source.indexOf("supabase.auth.getUser()");
   const ownershipIndex = source.indexOf("getApplicationIntelligenceInput(");
-  const docxIndex = source.indexOf("renderResumeDocx(document)");
-  const pdfIndex = source.indexOf("renderResumePdf(document)");
+  const docxIndex = source.indexOf("await renderResumeDocx(document,");
+  const pdfIndex = source.indexOf("await renderResumePdf(document,");
 
   assert.ok(authIndex > 0, "the session read is present");
   assert.ok(ownershipIndex > authIndex, "ownership is checked after the session");
@@ -154,10 +154,13 @@ test("the TXT export still works client-side and is unchanged in spirit", () => 
 test("every export format renders the same edited draft", () => {
   const source = read(TAILOR_PANEL);
   // TXT blob is built from `draft`; DOCX/PDF post `content: draft`.
-  assert.match(source, /new Blob\(\[draft\]/);
+  assert.match(source, /new Blob\(\[exportedDraft\]/);
   assert.match(source, /content: draft/);
   // The preview is derived from the same draft.
   assert.match(source, /parseResumeDocument\(draft\)/);
+  assert.match(source, /formatResumeDocument\(parseResumeDocument\(draft\), formatting\)/);
+  assert.match(source, /resumePlainText\(preview\)/);
+  assert.match(source, /formatting,/);
 });
 
 test("the panel exposes no control that could add a fact", () => {

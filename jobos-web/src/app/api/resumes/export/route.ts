@@ -42,6 +42,7 @@ import {
 } from "@/lib/resume/documentModel";
 import { renderResumeDocx } from "@/lib/resume/docx";
 import { renderResumePdf } from "@/lib/resume/pdf";
+import { validateResumeFormat } from "@/lib/resume/templates";
 
 /** Generous for a resume, small enough that a paste cannot exhaust memory. */
 const MAX_CONTENT_LENGTH = 60_000;
@@ -73,7 +74,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return err("Request body must be a JSON object.", 400);
   }
 
-  const { applicationId, content, format, label } = body as Record<string, unknown>;
+  const { applicationId, content, format, label, formatting } = body as Record<string, unknown>;
+  const options = validateResumeFormat(formatting);
+  if (!options) return err("Choose a supported resume template and formatting range.", 400);
 
   if (typeof applicationId !== "string" || applicationId.trim() === "") {
     return err("applicationId is required.", 400);
@@ -115,8 +118,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const bytes =
       format === "docx"
-        ? await renderResumeDocx(document)
-        : await renderResumePdf(document);
+        ? await renderResumeDocx(document, formatting === undefined ? undefined : options)
+        : await renderResumePdf(document, formatting === undefined ? undefined : options);
 
     // A fresh ArrayBuffer slice, so the response body is exactly the rendered
     // bytes regardless of the underlying pool buffer.

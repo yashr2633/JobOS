@@ -603,7 +603,7 @@ test("the primary tracking action always reads Track My Applications", () => {
   // switch to "Connect Gmail" based on connection state.
   assert.match(
     page,
-    /Track My Applications\s*\n?\s*<span aria-hidden="true">↓<\/span>/,
+    /Track My Application\s*\n?\s*<span aria-hidden="true">↓<\/span>/,
     "the shortcut label is a constant Track My Applications"
   );
   assert.doesNotMatch(

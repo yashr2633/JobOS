@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 
 import MobileNav from "./MobileNav";
 import Navbar from "./Navbar";
@@ -60,6 +61,7 @@ export default function AppShell({ children, maxWidth = "7xl" }: AppShellProps) 
         >
           <div className={MAX_WIDTH_CLASS[maxWidth]}>{children}</div>
         </main>
+        <footer className="workspace-footer"><strong>JobTrackOS</strong><p>Discover. Prepare. Apply. Track.</p><div className="workspace-footer-links"><Link href="/jobs">Find jobs</Link><Link href="/resumes">Resume Match</Link><Link href="/profile">Account settings</Link><Link href="/privacy-policy">Privacy &amp; contact</Link><Link href="/terms">Terms of service</Link></div></footer>
       </div>
 
       <MobileNav />

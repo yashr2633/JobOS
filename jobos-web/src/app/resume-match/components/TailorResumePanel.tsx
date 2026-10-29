@@ -10,6 +10,7 @@ import {
   parseResumeDocument,
   resumeFileStem,
 } from "@/lib/resume/documentModel";
+import { DEFAULT_RESUME_TEMPLATE, RESUME_PRIORITIES, RESUME_TEMPLATES, formatResumeDocument, resumeLayout, resumePlainText, type ResumeFormatInput } from "@/lib/resume/templates";
 import {
   TAILOR_BEFORE_ANALYZE_HINT,
   TAILOR_NEEDS_RESUME_HINT,
@@ -31,7 +32,7 @@ interface TailorResumePanelProps {
 
 type TailorStatus = "idle" | "tailoring" | "ready" | "error";
 type ExportFormat = "txt" | "docx" | "pdf";
-type ViewMode = "preview" | "edit";
+type ViewMode = "preview" | "edit" | "text";
 
 /**
  * Tailor Resume — the natural continuation of a Resume Match analysis.
@@ -68,6 +69,8 @@ export default function TailorResumePanel({
   /** Which export is in flight, so only that button shows progress. */
   const [exporting, setExporting] = useState<ExportFormat | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [formatting, setFormatting] = useState<ResumeFormatInput>({ templateId: DEFAULT_RESUME_TEMPLATE });
+  const layout = resumeLayout(formatting);
 
   const canTailor = resumeId !== null && status !== "tailoring";
 
@@ -118,7 +121,8 @@ export default function TailorResumePanel({
   );
 
   /** The structured view of the CURRENT draft — drives the preview. */
-  const preview = useMemo(() => parseResumeDocument(draft), [draft]);
+  const preview = useMemo(() => formatResumeDocument(parseResumeDocument(draft), formatting), [draft, formatting]);
+  const exportedDraft = useMemo(() => resumePlainText(preview), [preview]);
 
   /** Push bytes to the user as a download. */
   const saveBlob = useCallback((blob: Blob, filename: string) => {
@@ -146,7 +150,7 @@ export default function TailorResumePanel({
 
       if (format === "txt") {
         saveBlob(
-          new Blob([draft], { type: "text/plain;charset=utf-8" }),
+          new Blob([exportedDraft], { type: "text/plain;charset=utf-8" }),
           `${fileStem}.txt`
         );
         return;
@@ -164,6 +168,7 @@ export default function TailorResumePanel({
             content: draft,
             format,
             label: applicationLabel,
+            formatting,
           }),
         });
 
@@ -183,7 +188,7 @@ export default function TailorResumePanel({
         setExporting(null);
       }
     },
-    [applicationId, applicationLabel, draft, fileStem, saveBlob]
+    [applicationId, applicationLabel, draft, exportedDraft, fileStem, formatting, saveBlob]
   );
 
   return (
@@ -248,7 +253,31 @@ export default function TailorResumePanel({
             </div>
           )}
 
-          {/* Preview / Edit — the same content, two surfaces. */}
+          <details className="rounded-md border border-border p-4" open>
+            <summary className="cursor-pointer text-sm font-semibold text-text">Template & formatting</summary>
+            <p className="mt-2 text-xs leading-6 text-text-secondary">10 single-column layouts × 5 section priorities. Formatting changes presentation, never your qualifications.</p>
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
+              <label className="text-xs font-medium text-text">Resume template
+                <select value={formatting.templateId ?? DEFAULT_RESUME_TEMPLATE} disabled={exporting !== null} onChange={event => setFormatting({ templateId: event.target.value })} className="mt-1 block min-h-[44px] w-full px-3 text-sm">
+                  {RESUME_PRIORITIES.map(priority => <optgroup key={priority.id} label={priority.name}>{RESUME_TEMPLATES.filter(template => template.priority === priority.id).map(template => <option key={template.id} value={template.id}>{template.name}</option>)}</optgroup>)}
+                </select>
+              </label>
+              <label className="text-xs font-medium text-text">Page size
+                <select value={layout.pageSize} disabled={exporting !== null} onChange={event => setFormatting(value => ({ ...value, pageSize: event.target.value as "a4" | "letter" }))} className="mt-1 block min-h-[44px] w-full px-3 text-sm"><option value="a4">A4</option><option value="letter">US Letter</option></select>
+              </label>
+              <label className="text-xs font-medium text-text">Body text size · {layout.fontSize} pt
+                <input aria-label="Resume body text size" type="range" min="10.5" max="12.5" step="0.5" value={layout.fontSize} disabled={exporting !== null} onChange={event => setFormatting(value => ({ ...value, fontSize: Number(event.target.value) }))} className="mt-3 block w-full" />
+              </label>
+              <label className="text-xs font-medium text-text">Margins · {layout.margin} pt
+                <input aria-label="Resume page margins" type="range" min="40" max="72" step="1" value={layout.margin} disabled={exporting !== null} onChange={event => setFormatting(value => ({ ...value, margin: Number(event.target.value) }))} className="mt-3 block w-full" />
+              </label>
+              <label className="text-xs font-medium text-text">Line spacing · {layout.lineHeight.toFixed(2)}
+                <input aria-label="Resume line spacing" type="range" min="1.15" max="1.5" step="0.05" value={layout.lineHeight} disabled={exporting !== null} onChange={event => setFormatting(value => ({ ...value, lineHeight: Number(event.target.value) }))} className="mt-3 block w-full" />
+              </label>
+            </div>
+            <p className="mt-3 text-xs leading-6 text-text-secondary">Text view shows the content and order used for export, not an employer&apos;s ATS score. PDF uses Latin-script standard fonts; choose DOCX to preserve other scripts. Verify the downloaded file before applying.</p>
+          </details>
+          {/* All views and exports share the same ordered document. */}
           <div>
             <div className="mb-1.5 flex items-center justify-between gap-2">
               <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">
@@ -259,7 +288,7 @@ export default function TailorResumePanel({
                 aria-label="Tailored resume view"
                 className="inline-flex rounded-md border border-border p-0.5"
               >
-                {(["preview", "edit"] as const).map((mode) => (
+                {(["preview", "edit", "text"] as const).map((mode) => (
                   <button
                     key={mode}
                     type="button"
@@ -278,7 +307,7 @@ export default function TailorResumePanel({
               </div>
             </div>
 
-            {view === "edit" ? (
+            {view === "text" ? <pre className="max-h-[28rem] overflow-y-auto whitespace-pre-wrap break-words rounded-md border border-border bg-surface p-4 font-mono text-xs leading-relaxed text-text" aria-label="Resume text reading order">{exportedDraft}</pre> : view === "edit" ? (
               <>
                 <label htmlFor="tailored-draft" className="sr-only">
                   Tailored resume content
@@ -294,12 +323,13 @@ export default function TailorResumePanel({
             ) : (
               /* Rendered from the same model the exporters use, so this is a
                  faithful proof of what the DOCX/PDF will contain. */
-              <div className="max-h-[28rem] overflow-y-auto rounded-md border border-border bg-bg px-5 py-4">
+              <div className="resume-document-preview max-h-[28rem] overflow-y-auto rounded-md border border-border bg-surface px-5 py-4" style={{ fontFamily: layout.font === "serif" ? "Times New Roman, serif" : "Arial, sans-serif", fontSize: `${layout.fontSize}pt`, lineHeight: layout.lineHeight, padding: `${layout.margin / 2}px` }}>
                 {preview.headerLines.length > 0 && (
-                  <div className="mb-3 text-center">
+                  <div className="mb-3" style={{ textAlign: layout.centeredHeader ? "center" : "left" }}>
                     {preview.headerLines.map((line, index) => (
                       <p
                         key={index}
+                        style={index === 0 ? { fontSize: `${layout.nameSize}pt` } : undefined}
                         className={
                           index === 0
                             ? "text-base font-semibold text-text"
@@ -313,7 +343,7 @@ export default function TailorResumePanel({
                 )}
                 {preview.sections.map((section, sectionIndex) => (
                   <div key={sectionIndex} className="mb-3 last:mb-0">
-                    <h4 className="border-b border-border pb-1 text-[11px] font-semibold uppercase tracking-wide text-text">
+                    <h4 className="border-border pb-1 text-[11px] font-semibold uppercase tracking-wide text-text" style={{ borderBottomWidth: layout.sectionRule ? 1 : 0, marginTop: layout.sectionGap }}>
                       {section.heading}
                     </h4>
                     <div className="mt-1.5 space-y-1.5">

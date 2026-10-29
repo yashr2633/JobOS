@@ -1,5 +1,6 @@
 import { readGroundedResponse, type WebSearchResult } from "./webSearchContract.ts";
 import { searchRetrySeconds, searchQuotaMessage } from "./searchQuota.ts";
+import { publicResearchCache } from "./publicResearchCache.ts";
 
 export class WebSearchError extends Error {
   readonly status: number;
@@ -7,7 +8,18 @@ export class WebSearchError extends Error {
   constructor(message: string, status = 503, retryAfterSeconds?: number) { super(message); this.status = status; this.retryAfterSeconds = retryAfterSeconds; }
 }
 let backoffUntil = 0, providerRetryAt = 0;
+let activeResearchKey = "";
+let readPublicResearch = publicResearchCache(requestPublicJobs);
 export async function searchPublicJobs(query: { keywords: string; location: string }): Promise<WebSearchResult> {
+  const key = process.env.GEMINI_API_KEY?.trim() ?? "";
+  if (key !== activeResearchKey) {
+    activeResearchKey = key;
+    readPublicResearch = publicResearchCache(requestPublicJobs);
+  }
+  if (!key) throw new WebSearchError("Web search is currently unavailable. Connected employer listings are still available.");
+  return readPublicResearch(query);
+}
+async function requestPublicJobs(query: { keywords: string; location: string }): Promise<WebSearchResult> {
   const key = process.env.GEMINI_API_KEY?.trim();
   if (!key) throw new WebSearchError("Web search is currently unavailable. Connected employer listings are still available.");
   if (Date.now() < backoffUntil) { const seconds = Math.max(1, Math.ceil((providerRetryAt - Date.now()) / 1000)); throw new WebSearchError(searchQuotaMessage(seconds), 429, seconds); }

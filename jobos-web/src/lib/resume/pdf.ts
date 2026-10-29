@@ -30,19 +30,9 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 
 import type { ResumeDocument } from "./documentModel.ts";
+import { formatResumeDocument, resumeLayout, type ResumeFormatInput } from "./templates.ts";
 
-/** US Letter, in points. */
-const PAGE_WIDTH = 612;
-const PAGE_HEIGHT = 792;
-/** 0.75in margins, matching the DOCX renderer. */
-const MARGIN = 54;
-
-const SIZE_NAME = 17;
-const SIZE_CONTACT = 10;
-const SIZE_HEADING = 11;
 const SIZE_BODY = 10.5;
-
-const LINE_GAP = 1.32;
 const BULLET_INDENT = 12;
 const BULLET_HANGING = 10;
 
@@ -149,10 +139,20 @@ interface Cursor {
  *
  * Server-side, so the route authorizes before any document is produced.
  */
-export async function renderResumePdf(doc: ResumeDocument): Promise<Uint8Array> {
+export async function renderResumePdf(source: ResumeDocument, format?: ResumeFormatInput): Promise<Uint8Array> {
+  const layout = format ? resumeLayout(format) : null;
+  const doc = format ? formatResumeDocument(source, format) : source;
+  const PAGE_WIDTH = layout?.pageSize === "a4" ? 595.28 : 612;
+  const PAGE_HEIGHT = layout?.pageSize === "a4" ? 841.89 : 792;
+  const MARGIN = layout?.margin ?? 54;
+  const SIZE_BODY = layout?.fontSize ?? 10.5;
+  const SIZE_NAME = layout?.nameSize ?? 17;
+  const SIZE_CONTACT = layout ? Math.min(SIZE_BODY, 10.5) : 10;
+  const SIZE_HEADING = layout ? SIZE_BODY : 11;
+  const LINE_GAP = layout?.lineHeight ?? 1.32;
   const pdf = await PDFDocument.create();
-  const regular = await pdf.embedFont(StandardFonts.Helvetica);
-  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const regular = await pdf.embedFont(layout?.font === "serif" ? StandardFonts.TimesRoman : StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(layout?.font === "serif" ? StandardFonts.TimesRomanBold : StandardFonts.HelveticaBold);
 
   const contentWidth = PAGE_WIDTH - MARGIN * 2;
   const bottomLimit = MARGIN;
@@ -203,23 +203,23 @@ export async function renderResumePdf(doc: ResumeDocument): Promise<Uint8Array> 
   // The user's own header block, when they wrote one.
   doc.headerLines.forEach((line, index) => {
     if (index === 0) {
-      drawWrapped(line, bold, SIZE_NAME, { center: true, after: 3 });
+      drawWrapped(line, bold, SIZE_NAME, { center: layout?.centeredHeader ?? true, after: 3 });
     } else {
-      drawWrapped(line, regular, SIZE_CONTACT, { center: true });
+      drawWrapped(line, regular, SIZE_CONTACT, { center: layout?.centeredHeader ?? true });
     }
   });
   if (doc.headerLines.length > 0) cursor.y -= 8;
 
   for (const section of doc.sections) {
-    const headingHeight = SIZE_HEADING * LINE_GAP + 10;
+    const headingHeight = SIZE_HEADING * LINE_GAP + (layout?.sectionGap ?? 12);
     ensureSpace(headingHeight + SIZE_BODY * LINE_GAP);
-    cursor.y -= 6;
+    cursor.y -= (layout?.sectionGap ?? 12) / 2;
 
     drawWrapped(section.heading.toUpperCase(), bold, SIZE_HEADING);
 
     // The single non-text mark: a thin rule for hierarchy.
     cursor.y += 2;
-    cursor.page.drawLine({
+    if (layout?.sectionRule !== false) cursor.page.drawLine({
       start: { x: MARGIN, y: cursor.y },
       end: { x: MARGIN + contentWidth, y: cursor.y },
       thickness: 0.6,

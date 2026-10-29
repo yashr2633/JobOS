@@ -90,15 +90,17 @@ test("grounded job search sends only public terms and fails rather than fabricat
     assert.ok(!sent.includes("user_id"));
     assert.ok(!sent.includes("extracted_text"));
     assert.deepEqual(bodies[0].tools, [{ google_search: {} }]);
+    assert.ok((await searchPublicJobs({ keywords: "teacher", location: "Dhanbad" })).text);
+    assert.equal(bodies.length, 1, "repeated public research reuses the dated, supported result");
     globalThis.fetch = async () => Response.json({ candidates: [{ content: { parts: [{ text: "Invented jobs without grounding" }] } }] });
-    await assert.rejects(searchPublicJobs({ keywords: "teacher", location: "Dhanbad" }), error => error instanceof Error && /source-linked/.test(error.message) && "status" in error && error.status === 422);
+    await assert.rejects(searchPublicJobs({ keywords: "teacher", location: "Ranchi" }), error => error instanceof Error && /source-linked/.test(error.message) && "status" in error && error.status === 422);
     globalThis.fetch = async () => Response.json({ error: { details: [{ retryDelay: "56614s" }] } }, { status: 429 });
-    await assert.rejects(searchPublicJobs({ keywords: "teacher", location: "Dhanbad" }), /quota/);
+    await assert.rejects(searchPublicJobs({ keywords: "teacher", location: "Bokaro" }), /quota/);
     const originalNow = Date.now;
     try {
       Date.now = () => originalNow() + 61000;
       globalThis.fetch = async () => Response.json(grounded());
-      assert.ok((await searchPublicJobs({ keywords: "teacher", location: "Dhanbad" })).text, "a confirmed billing/quota recovery can be probed without waiting sixteen hours or redeploying");
+      assert.ok((await searchPublicJobs({ keywords: "teacher", location: "Bokaro" })).text, "a confirmed billing/quota recovery can be probed without waiting sixteen hours or redeploying");
     } finally { Date.now = originalNow; }
     delete process.env.GEMINI_API_KEY;
     await assert.rejects(searchPublicJobs({ keywords: "teacher", location: "Dhanbad" }), /unavailable/);

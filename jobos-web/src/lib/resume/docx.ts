@@ -33,21 +33,16 @@ import {
 } from "docx";
 
 import type { ResumeDocument } from "./documentModel.ts";
+import { formatResumeDocument, resumeLayout, type ResumeFormatInput } from "./templates.ts";
 
 /** ATS-safe, metrically ubiquitous. */
 const FONT = "Calibri";
 
 /** Half-points, the unit `docx` uses for size. 22 = 11pt. */
 const SIZE_BODY = 22;
-const SIZE_NAME = 32;
-const SIZE_CONTACT = 20;
-const SIZE_HEADING = 22;
 
-/** Twips. 1440 = 1 inch; 1080 = 0.75in, a conventional resume margin. */
-const MARGIN = 1080;
-
-function bodyRun(text: string, bold = false): TextRun {
-  return new TextRun({ text, bold, font: FONT, size: SIZE_BODY });
+function bodyRun(text: string, bold = false, font = FONT, size = SIZE_BODY): TextRun {
+  return new TextRun({ text, bold, font, size, color: "000000" });
 }
 
 /**
@@ -56,7 +51,15 @@ function bodyRun(text: string, bold = false): TextRun {
  * Split out from `renderResumeDocx` so the structure can be asserted in tests
  * without unzipping a binary.
  */
-export function buildDocxParagraphs(doc: ResumeDocument): Paragraph[] {
+export function buildDocxParagraphs(source: ResumeDocument, format?: ResumeFormatInput): Paragraph[] {
+  const layout = format ? resumeLayout(format) : null;
+  const doc = format ? formatResumeDocument(source, format) : source;
+  const FONT = layout ? layout.font === "serif" ? "Times New Roman" : "Arial" : "Calibri";
+  const SIZE_BODY = layout ? layout.fontSize * 2 : 22;
+  const SIZE_NAME = layout ? layout.nameSize * 2 : 32;
+  const SIZE_CONTACT = layout ? Math.min(SIZE_BODY, 21) : 20;
+  const SIZE_HEADING = SIZE_BODY;
+  const line = Math.round((layout?.lineHeight ?? 1.1) * 240);
   const paragraphs: Paragraph[] = [];
 
   // The user's own header block, when they wrote one. The first line reads as
@@ -65,7 +68,7 @@ export function buildDocxParagraphs(doc: ResumeDocument): Paragraph[] {
     const isName = index === 0;
     paragraphs.push(
       new Paragraph({
-        alignment: AlignmentType.CENTER,
+        alignment: layout?.centeredHeader === false ? AlignmentType.LEFT : AlignmentType.CENTER,
         spacing: { after: isName ? 40 : 0 },
         children: [
           new TextRun({
@@ -73,6 +76,7 @@ export function buildDocxParagraphs(doc: ResumeDocument): Paragraph[] {
             bold: isName,
             font: FONT,
             size: isName ? SIZE_NAME : SIZE_CONTACT,
+            color: "000000",
           }),
         ],
       })
@@ -85,8 +89,9 @@ export function buildDocxParagraphs(doc: ResumeDocument): Paragraph[] {
         // A real heading outline level, so the document has a machine-readable
         // structure rather than merely looking bold.
         heading: HeadingLevel.HEADING_2,
-        spacing: { before: 240, after: 100 },
-        border: {
+        keepNext: true,
+        spacing: { before: (layout?.sectionGap ?? 12) * 20, after: 100 },
+        border: layout?.sectionRule === false ? undefined : {
           bottom: { style: BorderStyle.SINGLE, size: 6, space: 2, color: "9AA0A6" },
         },
         children: [
@@ -109,8 +114,8 @@ export function buildDocxParagraphs(doc: ResumeDocument): Paragraph[] {
             new Paragraph({
               // A genuine list paragraph, not a literal "•" character.
               bullet: { level: 0 },
-              spacing: { after: 40, line: 264 },
-              children: [bodyRun(item)],
+              spacing: { after: 40, line },
+              children: [bodyRun(item, false, FONT, SIZE_BODY)],
             })
           );
         }
@@ -119,8 +124,9 @@ export function buildDocxParagraphs(doc: ResumeDocument): Paragraph[] {
 
       paragraphs.push(
         new Paragraph({
-          spacing: { after: block.emphasized ? 40 : 80, line: 264 },
-          children: [bodyRun(block.text, block.emphasized)],
+          keepNext: block.emphasized,
+          spacing: { after: block.emphasized ? 40 : 80, line },
+          children: [bodyRun(block.text, block.emphasized, FONT, SIZE_BODY)],
         })
       );
     }
@@ -135,7 +141,11 @@ export function buildDocxParagraphs(doc: ResumeDocument): Paragraph[] {
  * Server-side: `Packer.toBuffer` runs on Node, which keeps document generation
  * off the client and lets the route authorize the request first.
  */
-export async function renderResumeDocx(doc: ResumeDocument): Promise<Uint8Array> {
+export async function renderResumeDocx(doc: ResumeDocument, format?: ResumeFormatInput): Promise<Uint8Array> {
+  const layout = format ? resumeLayout(format) : null;
+  const MARGIN = layout ? Math.round(layout.margin * 20) : 1080;
+  const FONT = layout ? layout.font === "serif" ? "Times New Roman" : "Arial" : "Calibri";
+  const SIZE_BODY = layout ? layout.fontSize * 2 : 22;
   const document = new Document({
     styles: {
       default: {
@@ -148,10 +158,11 @@ export async function renderResumeDocx(doc: ResumeDocument): Promise<Uint8Array>
       {
         properties: {
           page: {
+            size: layout?.pageSize === "a4" ? { width: 11906, height: 16838 } : layout ? { width: 12240, height: 15840 } : undefined,
             margin: { top: MARGIN, right: MARGIN, bottom: MARGIN, left: MARGIN },
           },
         },
-        children: buildDocxParagraphs(doc),
+        children: buildDocxParagraphs(doc, format),
       },
     ],
   });

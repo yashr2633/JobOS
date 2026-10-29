@@ -18,7 +18,12 @@ export function assistantContext(intent: CareerIntent): string {
   return [intent.role, intent.company ? `at ${intent.company}` : "", `in ${intent.location}`, intent.experience === "entry" ? "fresher" : intent.experience ? `up to ${intent.experience} years experience` : "", intent.qualification, intent.mode, intent.days ? `last ${intent.days} days` : "all dates"].filter(Boolean).join(" ").slice(0, 350);
 }
 export function graduateDirectionMatches(job: Pick<Job, "title">, qualification: string) {
-  return !/^(BBA|BCom|MBA)$/.test(qualification) || (/sales|business development|operations|customer|support|human resources|recruit|administrat|marketing|business analyst|finance|accounts|graduate|trainee|intern/i.test(job.title) && !/\b(engineer|developer|architect|technician)\b/i.test(job.title));
+  if (!/^(BBA|BCom|MBA)$/.test(qualification)) return true;
+  // A generic "intern" or "administrator" suffix does not establish a
+  // business-graduate direction (e.g. design interns or Tomcat administrators).
+  if (/\b(engineer|developer|architect|technician|designer|graphic design|tomcat|devops|sysadmin)\b/i.test(job.title)) return false;
+  if (/\b(system|systems|network|database|cloud|linux|security)\b.*\b(administrat\w*|support|operations)\b/i.test(job.title)) return false;
+  return /\b(sales|business development|business operations|operations|customer|human resources|hr|talent acquisition|recruit\w*|marketing|business analyst|data analyst|finance|financial|accounting|accounts|office|administration|administrative|executive assistant|graduate|management trainee)\b/i.test(job.title);
 }
 export function assistantJobs(jobs: Job[], intent: CareerIntent, now = Date.now()): Job[] {
   return deduplicateJobs(jobs, now).filter(job => {
