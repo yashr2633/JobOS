@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   assembleTailoredText,
   TAILORING_NOTE,
@@ -255,11 +256,11 @@ export default function TailorResumePanel({
 
           <details className="rounded-md border border-border p-4" open>
             <summary className="cursor-pointer text-sm font-semibold text-text">Template & formatting</summary>
-            <p className="mt-2 text-xs leading-6 text-text-secondary">10 single-column layouts × 5 section priorities. Formatting changes presentation, never your qualifications.</p>
+            <p className="mt-2 text-xs leading-6 text-text-secondary">50 single-column typographic layouts, each with five section-priority arrangements. Formatting changes presentation, never your qualifications.</p>
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
               <label className="text-xs font-medium text-text">Resume template
                 <select value={formatting.templateId ?? DEFAULT_RESUME_TEMPLATE} disabled={exporting !== null} onChange={event => setFormatting({ templateId: event.target.value })} className="mt-1 block min-h-[44px] w-full px-3 text-sm">
-                  {RESUME_PRIORITIES.map(priority => <optgroup key={priority.id} label={priority.name}>{RESUME_TEMPLATES.filter(template => template.priority === priority.id).map(template => <option key={template.id} value={template.id}>{template.name}</option>)}</optgroup>)}
+                {RESUME_PRIORITIES.map(priority => <optgroup key={priority.id} label={priority.name}>{RESUME_TEMPLATES.filter(template => template.priority === priority.id).map(template => <option key={template.id} value={template.id}>{template.name}</option>)}</optgroup>)}
                 </select>
               </label>
               <label className="text-xs font-medium text-text">Page size
@@ -389,6 +390,7 @@ export default function TailorResumePanel({
           {/* Export row. DOCX is the primary, recommended output; PDF sits
               beside it; TXT stays available as the plain fallback. */}
           <div className="border-t border-border pt-3">
+            <Link href={`/cover-letter?resume=${encodeURIComponent(resumeId ?? "")}&application=${encodeURIComponent(applicationId)}`} className="mb-4 inline-flex text-sm font-semibold text-accent">Prepare a Cover Letter for this application →</Link>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">

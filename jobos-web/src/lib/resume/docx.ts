@@ -84,6 +84,7 @@ export function buildDocxParagraphs(source: ResumeDocument, format?: ResumeForma
   });
 
   for (const section of doc.sections) {
+    if (section.heading.trim()) {
     paragraphs.push(
       new Paragraph({
         // A real heading outline level, so the document has a machine-readable
@@ -106,6 +107,7 @@ export function buildDocxParagraphs(source: ResumeDocument, format?: ResumeForma
         ],
       })
     );
+    }
 
     for (const block of section.blocks) {
       if (block.kind === "bullets") {

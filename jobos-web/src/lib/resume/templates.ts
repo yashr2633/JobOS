@@ -19,7 +19,7 @@ export interface ResumeFormatInput {
   margin?: number;
   pageSize?: "a4" | "letter";
 }
-const STYLES = [
+const BASE_STYLES = [
   { id: "classic", name: "Classic", font: "sans", centeredHeader: true, sectionRule: true, fontSize: 11, lineHeight: 1.32, margin: 54, sectionGap: 12, nameSize: 17 },
   { id: "modern", name: "Modern", font: "sans", centeredHeader: false, sectionRule: true, fontSize: 11, lineHeight: 1.32, margin: 50, sectionGap: 13, nameSize: 20 },
   { id: "editorial", name: "Editorial", font: "serif", centeredHeader: false, sectionRule: true, fontSize: 11.5, lineHeight: 1.3, margin: 54, sectionGap: 14, nameSize: 20 },
@@ -32,6 +32,16 @@ const STYLES = [
   { id: "formal", name: "Formal", font: "serif", centeredHeader: true, sectionRule: false, fontSize: 12, lineHeight: 1.35, margin: 60, sectionGap: 15, nameSize: 20 },
 ] as const;
 
+// Additional single-column presets vary typography, header alignment, rules,
+// whitespace and density. Section-priority arrangements remain separate.
+const EXTRA_STYLE_NAMES = ["Professional", "Executive", "Graduate", "Analyst", "Engineer", "Consultant", "Researcher", "Associate", "Specialist", "Manager", "Director", "Academic", "Technical", "Corporate", "Concise", "Open", "Structured", "Essential", "Focused", "Contemporary", "Heritage", "Balanced", "Standard", "Refined", "Clean", "Simple", "Literary", "Practical", "Clear", "Organized", "Leadership", "Neutral", "Studio", "Campus", "Apprentice", "Commerce", "Operations", "Public Service", "Healthcare", "Teaching"];
+export const RESUME_STYLES = [...BASE_STYLES, ...EXTRA_STYLE_NAMES.map((name, index) => ({
+  id: name.toLowerCase().replace(/\s+/g, "-"), name, font: index % 2 ? "serif" as const : "sans" as const,
+  centeredHeader: Math.floor(index / 2) % 2 === 1, sectionRule: Math.floor(index / 4) % 2 === 0,
+  fontSize: 10.5 + Math.floor(index / 8) * 0.5, lineHeight: 1.25 + (index % 5) * 0.04,
+  margin: 44 + (index % 7) * 3, sectionGap: 9 + index % 6, nameSize: 18 + index % 5,
+}))];
+
 export const RESUME_PRIORITIES = [
   { id: "original", name: "Keep my section order", groups: [] },
   { id: "experience", name: "Experience first", groups: ["summary", "experience", "skills", "projects", "education"] },
@@ -40,8 +50,8 @@ export const RESUME_PRIORITIES = [
   { id: "projects", name: "Projects first", groups: ["summary", "projects", "skills", "experience", "education"] },
 ] as const;
 
-/** 10 typographic layouts × 5 section priorities, not 50 claimed unique designs. */
-export const RESUME_TEMPLATES = STYLES.flatMap(style => RESUME_PRIORITIES.map(priority => ({
+/** 50 single-column layouts; five explicit section-priority arrangements each. */
+export const RESUME_TEMPLATES = RESUME_STYLES.flatMap(style => RESUME_PRIORITIES.map(priority => ({
   id: `${style.id}-${priority.id}`,
   name: `${style.name} · ${priority.name}`,
   style: style.name,

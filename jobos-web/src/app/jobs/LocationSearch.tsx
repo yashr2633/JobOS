@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { locationSuggestions, resolveLocation, resolveState } from "@/lib/jobs/locations";
 import { inputClass } from "./CareerProfileForm";
 
-export default function LocationSearch({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+export default function LocationSearch({ value, onChange, name }: { value: string; onChange: (value: string) => void; name?: string }) {
   const [open, setOpen] = useState(false), [active, setActive] = useState(0);
   const draft = value;
   const input = useRef<HTMLInputElement>(null), list = useRef<HTMLUListElement>(null), id = useId();
@@ -19,7 +19,7 @@ export default function LocationSearch({ value, onChange }: { value: string; onC
   function commit(label: string) { onChange(label); setOpen(false); }
   return <div className="relative min-w-0" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
     <label htmlFor={id} className="text-xs font-medium text-text-secondary">City or region in India</label>
-    <input ref={input} id={id} role="combobox" aria-autocomplete="list" aria-expanded={open} aria-controls={`${id}-options`} aria-activedescendant={open && options[active] ? `${id}-${active}` : undefined}
+    <input ref={input} id={id} name={name} role="combobox" aria-autocomplete="list" aria-expanded={open} aria-controls={`${id}-options`} aria-activedescendant={open && options[active] ? `${id}-${active}` : undefined}
       className={inputClass + " mt-1 w-full"} autoComplete="off" value={draft} placeholder="City, state or India"
       onFocus={event => { event.currentTarget.select(); setOpen(true); setActive(0); }}
       onChange={event => { onChange(event.target.value); setOpen(true); setActive(0); }}

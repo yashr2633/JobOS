@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @import "./product.css";
+@import "./public-home.css";
+@import "./documents.css";
 
 /**
  * JobOS design tokens.
@@ -28,16 +30,16 @@
  * properties is clearer than importing a build step.
  */
 :root {
-  --bg: #eef2f7;
+  --bg: #f3f5f9;
   --surface: #ffffff;
-  --surface-2: #e9eff7;
-  --border: #c5d0df;
+  --surface-2: #edf2fd;
+  --border: #c4cede;
   --border-strong: #7c8da5;
-  --text: #0f172a;
-  --text-secondary: #475569;
+  --text: #172338;
+  --text-secondary: #536174;
   --text-muted: #526176;
-  --accent: #175cd3;
-  --accent-hover: #124ba9;
+  --accent: #204fc4;
+  --accent-hover: #153b9b;
   --accent-fg: #ffffff;
   --success: #15803d;
   --success-bg: #f0fdf4;

@@ -211,6 +211,7 @@ export async function renderResumePdf(source: ResumeDocument, format?: ResumeFor
   if (doc.headerLines.length > 0) cursor.y -= 8;
 
   for (const section of doc.sections) {
+    if (section.heading.trim()) {
     const headingHeight = SIZE_HEADING * LINE_GAP + (layout?.sectionGap ?? 12);
     ensureSpace(headingHeight + SIZE_BODY * LINE_GAP);
     cursor.y -= (layout?.sectionGap ?? 12) / 2;
@@ -226,6 +227,7 @@ export async function renderResumePdf(source: ResumeDocument, format?: ResumeFor
       color: RULE,
     });
     cursor.y -= 8;
+    }
 
     for (const block of section.blocks) {
       if (block.kind === "bullets") {

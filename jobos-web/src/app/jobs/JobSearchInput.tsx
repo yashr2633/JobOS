@@ -3,7 +3,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { searchSuggestions, type SearchSuggestion } from "@/lib/jobs/searchSuggestions";
 import { inputClass } from "./CareerProfileForm";
 
-export default function JobSearchInput({ value, onChange, vocabulary, label = "Role, skill or company", companiesOnly = false }: { value: string; onChange: (value: string) => void; vocabulary: SearchSuggestion[]; label?: string; companiesOnly?: boolean }) {
+export default function JobSearchInput({ value, onChange, vocabulary, label = "Role, skill or company", companiesOnly = false, name }: { value: string; onChange: (value: string) => void; vocabulary: SearchSuggestion[]; label?: string; companiesOnly?: boolean; name?: string }) {
   const id = useId(), list = useRef<HTMLUListElement>(null);
   const [open, setOpen] = useState(false), [active, setActive] = useState(0);
   const options = useMemo(() => companiesOnly ? vocabulary.slice(0, 10) : searchSuggestions(vocabulary, value), [vocabulary, value, companiesOnly]);
@@ -17,7 +17,7 @@ export default function JobSearchInput({ value, onChange, vocabulary, label = "R
   function choose(text: string) { onChange(text); setOpen(false); }
   return <div className="relative min-w-0" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
     <label htmlFor={id} className="text-xs font-medium text-text-secondary">{label}</label>
-    <input id={id} role="combobox" aria-autocomplete="list" aria-expanded={open && !!options.length} aria-controls={`${id}-options`} aria-activedescendant={open && options[active] ? `${id}-${active}` : undefined}
+    <input id={id} name={name} role="combobox" aria-autocomplete="list" aria-expanded={open && !!options.length} aria-controls={`${id}-options`} aria-activedescendant={open && options[active] ? `${id}-${active}` : undefined}
       className={inputClass + " mt-1 w-full"} autoComplete="off" value={value} maxLength={120} placeholder={companiesOnly ? "Any company, e.g. Infosys" : "e.g. Data Analyst, Sales Executive"}
       onFocus={() => { setOpen(true); setActive(0); }} onChange={event => { onChange(event.target.value); setOpen(true); setActive(0); }}
       onKeyDown={event => {

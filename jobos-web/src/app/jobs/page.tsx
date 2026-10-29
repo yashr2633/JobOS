@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { redirect } from "next/navigation";
+import PublicLanding from "../components/PublicLanding";
 import Link from "next/link";
 import AppShell from "../components/AppShell";
 import { createClient } from "@/lib/supabase/server";
@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: "Find jobs" };
 export default async function JobsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login?next=/jobs");
+  if (!user) return <PublicLanding params={await searchParams} />;
   const params = await searchParams;
   return <AppShell>
     <Suspense fallback={<WorkspaceLoading title="Find jobs" message="Checking employer listings and loading your preferences…" />}>

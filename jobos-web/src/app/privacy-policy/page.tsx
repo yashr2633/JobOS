@@ -220,6 +220,13 @@ export default function PrivacyPolicyPage() {
                 access data belonging to other users.
               </li>
               <li>
+                Resume Builder and Cover Letter drafts are saved in private
+                storage scoped to your account. The Cover Letter draft tool
+                prioritizes facts you enter or import; it does not send those
+                facts to an AI provider. Adding a built resume to Resume Match
+                creates a separate copy in your existing resume library.
+              </li>
+              <li>
                 <span className="font-medium text-text">
                   Encrypted transmission:
                 </span>{" "}

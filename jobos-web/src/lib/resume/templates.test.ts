@@ -4,7 +4,7 @@ import { extractText } from "unpdf";
 import { extractRawText } from "mammoth";
 import { PDFDocument } from "pdf-lib";
 import { collectDocumentText, parseResumeDocument } from "./documentModel.ts";
-import { RESUME_TEMPLATES, formatResumeDocument, resumeLayout, resumePlainText, validateResumeFormat } from "./templates.ts";
+import { RESUME_STYLES, RESUME_TEMPLATES, formatResumeDocument, resumeLayout, resumePlainText, validateResumeFormat } from "./templates.ts";
 import { renderResumePdf } from "./pdf.ts";
 import { renderResumeDocx } from "./docx.ts";
 
@@ -13,7 +13,9 @@ const document = parseResumeDocument("Test Candidate\ntest@example.com\nSUMMARY\
 test("templates retain every content fragment and leave the input untouched", () => {
   const original = JSON.stringify(document);
   const expected = collectDocumentText(document).sort();
-  assert.equal(new Set(RESUME_TEMPLATES.map(item => item.id)).size, 50);
+  assert.equal(RESUME_STYLES.length, 50);
+  assert.equal(new Set(RESUME_TEMPLATES.map(item => item.id)).size, 250);
+  assert.equal(new Set(RESUME_STYLES.map(style => JSON.stringify(Object.fromEntries(Object.entries(style).filter(([key]) => key !== "id" && key !== "name"))))).size, 50);
   for (const template of RESUME_TEMPLATES) {
     const reordered = formatResumeDocument(document, { templateId: template.id });
     assert.deepEqual(collectDocumentText(reordered).sort(), expected, template.id);

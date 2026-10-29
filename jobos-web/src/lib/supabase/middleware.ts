@@ -18,11 +18,12 @@ const PASSTHROUGH_PREFIXES = ["/auth", "/api"];
  * `/admin` routes have additional authorization checks in their layout.
  */
 const PROTECTED_PREFIXES = [
-  "/jobs",
   "/admin",
   "/applications",
   "/resume-match",
   "/resumes",
+  "/resume-builder",
+  "/cover-letter",
   "/settings",
   "/profile",
   "/gmail/review",
@@ -86,12 +87,12 @@ export async function updateSession(request: NextRequest) {
   // URLs allow-list falls back to it. Preserve the existing hand-off to the
   // canonical exchange route BEFORE "/" is allowed to render publicly, so
   // opening the homepage does not regress Google sign-in.
-  if (pathname === "/" && !user) {
+  if ((pathname === "/" || pathname === "/jobs") && !user) {
     const code = request.nextUrl.searchParams.get("code");
     if (code) {
       const exchangeUrl = request.nextUrl.clone();
       exchangeUrl.pathname = "/auth/callback";
-      exchangeUrl.searchParams.set("next", "/");
+      exchangeUrl.searchParams.set("next", pathname);
       return NextResponse.redirect(exchangeUrl);
     }
     // No code: fall through and let the public homepage render.
