@@ -33,7 +33,7 @@ export default function MobileNav() {
         {NAV_ITEMS.map((item) => {
           const active = isNavItemActive(item, pathname);
           return (
-            <li key={item.href} className="flex-1">
+            <li key={item.href} className="min-w-0 flex-1">
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}

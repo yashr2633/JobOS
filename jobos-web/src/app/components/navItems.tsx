@@ -77,10 +77,18 @@ export const NAV_ITEMS: readonly NavItem[] = [
   {
     href: "/resumes",
     label: "Resume Match",
-    shortLabel: "Resume Match",
+    shortLabel: "Match",
     exact: false,
     icon: <ResumeIcon />,
-    alsoActiveFor: ["/resume-builder", "/resume-match", "/cover-letter"],
+    alsoActiveFor: ["/resume-match"],
+  },
+  {
+    href: "/resume-builder",
+    label: "Resume & Cover Letter Templates",
+    shortLabel: "Templates",
+    exact: false,
+    icon: <svg className={ICON_CLASS} fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" aria-hidden="true"><rect x="3" y="3" width="7" height="18" rx="1.5" /><rect x="14" y="3" width="7" height="18" rx="1.5" /><path strokeLinecap="round" d="M5.5 7h2m-2 4h2m9-4h2m-2 4h2" /></svg>,
+    alsoActiveFor: ["/cover-letter"],
   },
   {
     href: "/profile",
