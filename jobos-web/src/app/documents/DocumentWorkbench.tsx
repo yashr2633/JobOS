@@ -12,7 +12,6 @@ import ResumeUploadForm from "../resumes/components/ResumeUploadForm";
 import { DEFAULT_STUDIO_TEMPLATE } from "@/lib/resume/designs";
 import type { ResumeFormatInput } from "@/lib/resume/templates";
 
-export interface PreparedResume { data: BuilderResume; formatting: ResumeFormatInput; text: string }
 export interface LetterSeed { resumeText?: string; name?: string; contact?: string; facts?: string; formatting?: ResumeFormatInput; role?: string; company?: string; jobDescription?: string }
 
 type DraftSummary = { id: string; label: string; updatedAt: string };
@@ -26,7 +25,7 @@ async function readResponse(response: Response) {
   return body;
 }
 
-export default function DocumentWorkbench({ kind, initialResumeId, context, seed, embedded = false, onPrepareLetter, onResumeChange }: { kind: DocumentKind; initialResumeId?: string; context?: { role: string; company: string; jobDescription: string }; seed?: LetterSeed; embedded?: boolean; onPrepareLetter?: (resume: PreparedResume) => void; onResumeChange?: (resume: PreparedResume) => void }) {
+export default function DocumentWorkbench({ kind, initialResumeId, context, seed, embedded = false }: { kind: DocumentKind; initialResumeId?: string; context?: { role: string; company: string; jobDescription: string }; seed?: LetterSeed; embedded?: boolean }) {
   const [document, setDocument] = useState<WorkspaceDocument>(() => {
     const value = blank(kind);
     if (value.kind !== "letter") return value;
@@ -48,7 +47,6 @@ export default function DocumentWorkbench({ kind, initialResumeId, context, seed
   const model = useMemo(() => document.kind === "resume" ? builderDocument(document.data) : letterDocument(document.data), [document]);
   const text = useMemo(() => resumePlainText(formatResumeDocument(model, document.formatting)), [model, document.formatting]);
   const resume = document.kind === "resume" ? document.data : null, letter = document.kind === "letter" ? document.data : null;
-  useEffect(() => { if (document.kind === "resume") onResumeChange?.({ data: document.data, formatting: document.formatting, text }); }, [document, onResumeChange, text]);
   const updateResume = (change: (value: BuilderResume) => BuilderResume) => setDocument(value => value.kind === "resume" ? { ...value, data: change(value.data) } : value);
   const updateLetter = (change: Partial<CoverLetter>) => setDocument(value => value.kind === "letter" ? { ...value, data: { ...value.data, ...change } } : value);
   function updateContact(field: "name" | "contact", content: string) {
@@ -151,9 +149,9 @@ export default function DocumentWorkbench({ kind, initialResumeId, context, seed
     });
   }
   return <div className="document-workbench">
-    {!embedded && <header className="product-heading"><div><p className="product-kicker">PREPARE YOUR APPLICATION</p><h1>{kind === "resume" ? "Build a resume that represents you." : "Make your introduction count."}</h1><p className="mt-3 text-sm text-text-secondary">Choose a design, customize your document and prepare your application.</p></div></header>}
+    {!embedded && <header className="product-heading"><div><p className="product-kicker">PREPARE YOUR APPLICATION</p><h1>{kind === "resume" ? "Resume Builder" : "Cover Letter Builder"}</h1><p className="mt-3 text-sm text-text-secondary">{kind === "resume" ? "Choose a resume template, customize your details and export your resume." : "Choose a Cover Letter template, add your resume facts and job description, then edit and export your letter."}</p></div></header>}
     <FormatControls mode="gallery" value={document.formatting} letter={kind === "letter"} onChange={formatting => setDocument(value => ({ ...value, formatting }))} />
-    <div id={`document-editor-${kind}`} className="studio-edit-step"><p className="product-kicker">STEP 2 · CUSTOMIZE YOUR {kind === "letter" ? "LETTER" : "RESUME"}</p>{onPrepareLetter && resume && <button type="button" className="product-button product-button-primary" onClick={() => onPrepareLetter({ data: resume, formatting: document.formatting, text })}>Create matching Cover Letter →</button>}</div>
+    <div id={`document-editor-${kind}`} className="studio-edit-step"><p className="product-kicker">STEP 2 · CUSTOMIZE YOUR {kind === "letter" ? "LETTER" : "RESUME"}</p></div>
     <div className="document-toolbar"><label className="document-label">Document name<input maxLength={160} value={document.label} onChange={event => setDocument(value => ({ ...value, label: event.target.value }))} /></label><div><button type="button" className="product-button" disabled={busy !== null} onClick={newDraft}>New document</button><button type="button" className="product-button product-button-primary" disabled={busy !== null || !document.label.trim()} onClick={() => void saveDraft()}>{busy === "saving" ? "Saving…" : "Save draft"}</button></div></div>
     <div className="document-saved-row"><label>Saved drafts<select value={draftId ?? ""} disabled={busy !== null || draftLoading} onChange={event => void openDraft(event.target.value)}><option value="">{draftLoading ? "Loading drafts…" : "Choose a saved draft"}</option>{drafts.map(draft => <option key={draft.id} value={draft.id}>{draft.label}</option>)}</select></label>{nextOffset !== null && <button type="button" className="product-button" disabled={draftLoading} onClick={() => void loadDrafts(nextOffset)}>More saved drafts</button>}<span>{dirty ? "Unsaved edits" : draftId ? "Saved" : "New document"}</span></div>
     {error && <div role="alert" className="product-notice product-error">{error}<button type="button" className="ml-3 underline" onClick={() => { setError(null); void loadDrafts(); void loadLibrary(); }}>Retry library / drafts</button></div>}
