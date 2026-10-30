@@ -11,6 +11,7 @@ import { publicJobQuery } from "@/lib/jobs/searchSuggestions";
 import DiscoveryResumePicker from "@/app/jobs/DiscoveryResumePicker";
 import WebJobSearch from "@/app/jobs/WebJobSearch";
 import AssistantJobResults from "./AssistantJobResults";
+import CareerSearchInput from "./CareerSearchInput";
 
 const secondary = "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md border border-border-strong bg-surface px-3 py-2 text-sm font-medium text-accent hover:bg-accent/5 disabled:opacity-50";
 const primary = "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-fg hover:bg-accent-hover disabled:opacity-50";
@@ -83,7 +84,7 @@ export default function CareerAssistant({ profile, resumes, name, gmailConnected
         <div className="p-4 sm:p-6">
           <form onSubmit={event => { event.preventDefault(); void interpret(); }} className="career-composer mb-5">
             <label htmlFor="career-message" className="mb-2 block text-sm font-semibold">Tell us what you are looking for</label>
-            <textarea ref={input} id="career-message" rows={2} maxLength={400} value={message} onChange={event => setMessage(event.target.value)} aria-describedby="career-input-help" placeholder={submitted ? "Try: Only operations roles, or show remote options…" : "e.g. I'm a BBA fresher. Find jobs in Kolkata."} className="career-search-input w-full resize-y p-3 text-base text-text placeholder:text-text-muted" />
+            <CareerSearchInput value={message} onChange={setMessage} inputRef={input} followup={!!submitted} />
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3"><p id="career-input-help" className="max-w-sm text-xs leading-5 text-text-muted">Public job preferences only. Your resume stays out of public web searches.</p><button type="submit" disabled={busy || uploading || !message.trim()} className={primary}>{busy ? "Understanding…" : "Find opportunities →"}</button></div>
             {busy && <p role="status" className="mt-3 text-sm text-text-secondary">Understanding your request and keeping your earlier preferences…</p>}
             {error && <div role="alert" className="mt-4 rounded-md border border-warning/30 bg-warning-bg p-4 text-sm text-warning"><p>{error}</p><div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={busy} className={secondary} onClick={() => void interpret()}>Try again</button><button type="button" disabled={busy} className={secondary} onClick={exact}>Search these exact words</button></div></div>}

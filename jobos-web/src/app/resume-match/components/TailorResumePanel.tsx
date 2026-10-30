@@ -202,11 +202,12 @@ export default function TailorResumePanel({
   );
 
   return (
-    <section className="rounded-md border border-border bg-surface p-4">
+    <section className="tailor-resume-panel rounded-md border border-border bg-surface p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-text">Tailor resume</h3>
-          <p className="mt-0.5 text-xs text-text-muted">
+          <p className="product-kicker">YOUR APPLICATION RESUME</p>
+          <h3 className="text-base font-semibold text-text">Tailored Resume</h3>
+          <p className="mt-2 text-sm text-text-secondary">
             Rewrite your resume for this job — using only what it already contains.
           </p>
         </div>
@@ -215,11 +216,7 @@ export default function TailorResumePanel({
             type="button"
             onClick={() => void runTailor()}
             disabled={!canTailor}
-            className={`rounded-md px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-              analysisReady
-                ? "bg-accent text-accent-fg hover:bg-accent-hover"
-                : "border border-border-strong text-text-secondary hover:bg-surface-2"
-            }`}
+            className="product-button product-button-primary"
           >
             {status === "tailoring" ? "Tailoring..." : "Tailor Resume"}
           </button>
