@@ -30,7 +30,7 @@ export default function MobileNav() {
       className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface md:hidden"
     >
       <ul className="flex items-stretch">
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.filter(item => item.href !== "/profile").map((item) => {
           const active = isNavItemActive(item, pathname);
           return (
             <li key={item.href} className="min-w-0 flex-1">
