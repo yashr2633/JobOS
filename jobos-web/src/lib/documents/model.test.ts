@@ -41,6 +41,23 @@ test("tailored letters rank supplied facts and never copy JD qualifications into
   assert.doesNotMatch(letter, /five years|Java experience|MBA|AWS certification|selected|95%/);
   assert.equal(createLetterDraft({ ...data, mode: "general" }).includes("Analyst opportunities"), true);
 });
+
+test("uppercase resume names with a contact header seed a complete tailored letter", () => {
+  const imported = importResumeText("AARAV TEST CANDIDATE\naarav@example.com | Kolkata\nlinkedin.com/in/example\nSUMMARY\nBBA graduate with SQL reporting practice.\nSKILLS\nSQL, Excel");
+  assert.equal(imported.name, "AARAV TEST CANDIDATE");
+  assert.match(imported.contact, /aarav@example.com/);
+  assert.ok(!imported.sections.some(section => section.title === imported.name));
+  const body = createLetterDraft({ ...emptyLetter(), name: imported.name, contact: imported.contact, facts: imported.sections.map(section => section.body).join("\n"), mode: "tailored", role: "Analyst", company: "Example Co", jobDescription: "SQL reporting, MBA preferred" });
+  assert.match(body, /Analyst position at Example Co/);
+  assert.match(body, /AARAV TEST CANDIDATE/);
+  assert.doesNotMatch(body, /MBA/);
+});
+
+test("a section heading followed by contact text is not imported as a candidate name", () => {
+  for (const heading of ["CONTACT INFORMATION", "PROFESSIONAL SUMMARY", "RESUME", "SKILLS"]) {
+    assert.equal(importResumeText(`${heading}\nsample@example.com\nEDUCATION\nBBA, Example College`).name, "");
+  }
+});
 test("Cover Letter exports retain the user's edited letter, facts and reading order", async () => {
   const data = { ...emptyLetter(), name: "Sample Candidate", contact: "sample@example.com", body: "Dear Hiring Team,\n\nI am applying for the Analyst role.\n\nI built a practice SQL dashboard.\n\nKind regards,\nSample Candidate" };
   const doc = letterDocument(data), format = { templateId: "minimal-original" };

@@ -67,7 +67,17 @@ export function builderDocument(data: BuilderResume): ResumeDocument {
 
 /** Preserve all imported text, including sections the parser cannot classify. */
 export function importResumeText(text: string): BuilderResume {
-  const document = parseResumeDocument(text);
+  let document = parseResumeDocument(text);
+  const lines = text.split(/\r\n|\r|\n/).map(line => line.trim()).filter(Boolean);
+  const first = lines[0] ?? "";
+  // An uppercase candidate name is a heading to the export parser. In an
+  // imported resume, an immediately following contact block identifies the
+  // opening header; retain that exact source text as the candidate name.
+  const conventionalHeading = /^(?:(?:professional|personal|career)\s+)?(?:summary|profile|skills|experience|education|contact(?:\s+(?:details|information))?|objective|projects|certifications|resume|curriculum vitae|work history)$/i;
+  if (!document.headerLines.length && !conventionalHeading.test(first) && /^[\p{L}][\p{L} .'-]{1,199}$/u.test(first) && first.split(/\s+/).length <= 6 && lines.slice(1, 4).some(line => /[^\s@]+@[^\s@]+\.[^\s@]+/.test(line))) {
+    document = parseResumeDocument(lines.slice(1).join("\n"));
+    document.headerLines.unshift(first);
+  }
   const sections = document.sections.map((section, index) => ({ id: `import-${index}`, title: section.heading, body: section.blocks.flatMap(block => block.kind === "line" ? [block.text] : block.items.map(item => `- ${item}`)).join("\n") }));
   return sections.length ? { name: document.headerLines[0] ?? "", headline: "", contact: document.headerLines.slice(1).join("\n"), sections }
     : { name: "", headline: "", contact: "", sections: [{ id: "imported", title: "IMPORTED CONTENT", body: text.trim() }] };
