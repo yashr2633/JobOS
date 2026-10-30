@@ -34,6 +34,7 @@ import {
 
 import type { ResumeDocument } from "./documentModel.ts";
 import { formatResumeDocument, resumeLayout, type ResumeFormatInput } from "./templates.ts";
+import { renderDesignedDocx } from "./designedDocx.ts";
 
 /** ATS-safe, metrically ubiquitous. */
 const FONT = "Calibri";
@@ -145,6 +146,7 @@ export function buildDocxParagraphs(source: ResumeDocument, format?: ResumeForma
  */
 export async function renderResumeDocx(doc: ResumeDocument, format?: ResumeFormatInput): Promise<Uint8Array> {
   const layout = format ? resumeLayout(format) : null;
+  if (layout?.design) return renderDesignedDocx(formatResumeDocument(doc, format), layout);
   const MARGIN = layout ? Math.round(layout.margin * 20) : 1080;
   const FONT = layout ? layout.font === "serif" ? "Times New Roman" : "Arial" : "Calibri";
   const SIZE_BODY = layout ? layout.fontSize * 2 : 22;

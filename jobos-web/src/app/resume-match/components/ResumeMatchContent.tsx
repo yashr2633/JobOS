@@ -522,6 +522,9 @@ export default function ResumeMatchContent() {
                   applicationId={selectedApplication.id}
                   resumeId={selectedResumeId}
                   applicationLabel={`${selectedApplication.company}-${selectedApplication.role}`}
+                  role={selectedApplication.role}
+                  company={selectedApplication.company}
+                  jobDescription={jobDescriptionDraft}
                   analysisReady={flow.tailorIsNextStep}
                 />
               </div>

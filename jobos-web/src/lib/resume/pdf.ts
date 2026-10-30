@@ -31,6 +31,7 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf
 
 import type { ResumeDocument } from "./documentModel.ts";
 import { formatResumeDocument, resumeLayout, type ResumeFormatInput } from "./templates.ts";
+import { renderDesignedPdf } from "./designedPdf.ts";
 
 const SIZE_BODY = 10.5;
 const BULLET_INDENT = 12;
@@ -142,6 +143,7 @@ interface Cursor {
 export async function renderResumePdf(source: ResumeDocument, format?: ResumeFormatInput): Promise<Uint8Array> {
   const layout = format ? resumeLayout(format) : null;
   const doc = format ? formatResumeDocument(source, format) : source;
+  if (layout?.design) return renderDesignedPdf(doc, layout);
   const PAGE_WIDTH = layout?.pageSize === "a4" ? 595.28 : 612;
   const PAGE_HEIGHT = layout?.pageSize === "a4" ? 841.89 : 792;
   const MARGIN = layout?.margin ?? 54;

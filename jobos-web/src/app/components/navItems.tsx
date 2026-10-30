@@ -75,12 +75,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: <ApplicationsIcon />,
   },
   {
-    href: "/resumes",
-    label: "Resume Match",
+    href: "/resume-builder",
+    label: "Resume Studio",
     shortLabel: "Resume",
     exact: false,
     icon: <ResumeIcon />,
-    alsoActiveFor: ["/resume-match", "/resume-builder", "/cover-letter"],
+    alsoActiveFor: ["/resumes", "/resume-match", "/cover-letter"],
   },
   {
     href: "/profile",

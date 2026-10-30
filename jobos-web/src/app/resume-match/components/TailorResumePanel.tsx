@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import Link from "next/link";
+import TailoredCoverLetter from "@/app/documents/TailoredCoverLetter";
+import FormatControls from "@/app/documents/FormatControls";
+import DocumentPreview from "@/app/documents/DocumentPreview";
 import {
   assembleTailoredText,
   TAILORING_NOTE,
@@ -11,7 +13,8 @@ import {
   parseResumeDocument,
   resumeFileStem,
 } from "@/lib/resume/documentModel";
-import { DEFAULT_RESUME_TEMPLATE, RESUME_PRIORITIES, RESUME_TEMPLATES, formatResumeDocument, resumeLayout, resumePlainText, type ResumeFormatInput } from "@/lib/resume/templates";
+import { formatResumeDocument, resumeLayout, resumePlainText, type ResumeFormatInput } from "@/lib/resume/templates";
+import { DEFAULT_STUDIO_TEMPLATE } from "@/lib/resume/designs";
 import {
   TAILOR_BEFORE_ANALYZE_HINT,
   TAILOR_NEEDS_RESUME_HINT,
@@ -29,6 +32,9 @@ interface TailorResumePanelProps {
    * tailoring as the recommended next step — it never gates the action.
    */
   analysisReady?: boolean;
+  role?: string;
+  company?: string;
+  jobDescription?: string;
 }
 
 type TailorStatus = "idle" | "tailoring" | "ready" | "error";
@@ -58,6 +64,9 @@ export default function TailorResumePanel({
   resumeId,
   applicationLabel,
   analysisReady = false,
+  role,
+  company,
+  jobDescription,
 }: TailorResumePanelProps) {
   const [status, setStatus] = useState<TailorStatus>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +79,7 @@ export default function TailorResumePanel({
   /** Which export is in flight, so only that button shows progress. */
   const [exporting, setExporting] = useState<ExportFormat | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
-  const [formatting, setFormatting] = useState<ResumeFormatInput>({ templateId: DEFAULT_RESUME_TEMPLATE });
+  const [formatting, setFormatting] = useState<ResumeFormatInput>({ templateId: DEFAULT_STUDIO_TEMPLATE });
   const layout = resumeLayout(formatting);
 
   const canTailor = resumeId !== null && status !== "tailoring";
@@ -254,30 +263,7 @@ export default function TailorResumePanel({
             </div>
           )}
 
-          <details className="rounded-md border border-border p-4" open>
-            <summary className="cursor-pointer text-sm font-semibold text-text">Template & formatting</summary>
-            <p className="mt-2 text-xs leading-6 text-text-secondary">50 single-column typographic layouts, each with five section-priority arrangements. Formatting changes presentation, never your qualifications.</p>
-            <div className="mt-3 grid gap-4 sm:grid-cols-2">
-              <label className="text-xs font-medium text-text">Resume template
-                <select value={formatting.templateId ?? DEFAULT_RESUME_TEMPLATE} disabled={exporting !== null} onChange={event => setFormatting({ templateId: event.target.value })} className="mt-1 block min-h-[44px] w-full px-3 text-sm">
-                {RESUME_PRIORITIES.map(priority => <optgroup key={priority.id} label={priority.name}>{RESUME_TEMPLATES.filter(template => template.priority === priority.id).map(template => <option key={template.id} value={template.id}>{template.name}</option>)}</optgroup>)}
-                </select>
-              </label>
-              <label className="text-xs font-medium text-text">Page size
-                <select value={layout.pageSize} disabled={exporting !== null} onChange={event => setFormatting(value => ({ ...value, pageSize: event.target.value as "a4" | "letter" }))} className="mt-1 block min-h-[44px] w-full px-3 text-sm"><option value="a4">A4</option><option value="letter">US Letter</option></select>
-              </label>
-              <label className="text-xs font-medium text-text">Body text size · {layout.fontSize} pt
-                <input aria-label="Resume body text size" type="range" min="10.5" max="12.5" step="0.5" value={layout.fontSize} disabled={exporting !== null} onChange={event => setFormatting(value => ({ ...value, fontSize: Number(event.target.value) }))} className="mt-3 block w-full" />
-              </label>
-              <label className="text-xs font-medium text-text">Margins · {layout.margin} pt
-                <input aria-label="Resume page margins" type="range" min="40" max="72" step="1" value={layout.margin} disabled={exporting !== null} onChange={event => setFormatting(value => ({ ...value, margin: Number(event.target.value) }))} className="mt-3 block w-full" />
-              </label>
-              <label className="text-xs font-medium text-text">Line spacing · {layout.lineHeight.toFixed(2)}
-                <input aria-label="Resume line spacing" type="range" min="1.15" max="1.5" step="0.05" value={layout.lineHeight} disabled={exporting !== null} onChange={event => setFormatting(value => ({ ...value, lineHeight: Number(event.target.value) }))} className="mt-3 block w-full" />
-              </label>
-            </div>
-            <p className="mt-3 text-xs leading-6 text-text-secondary">Text view shows the content and order used for export, not an employer&apos;s ATS score. PDF uses Latin-script standard fonts; choose DOCX to preserve other scripts. Verify the downloaded file before applying.</p>
-          </details>
+          <fieldset disabled={exporting !== null}><FormatControls value={formatting} onChange={setFormatting} /></fieldset>
           {/* All views and exports share the same ordered document. */}
           <div>
             <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -321,7 +307,7 @@ export default function TailorResumePanel({
                   className="w-full rounded-md border border-border bg-bg px-3 py-2 font-mono text-xs leading-relaxed text-text focus:border-accent focus:outline-none"
                 />
               </>
-            ) : (
+            ) : layout.design ? <DocumentPreview document={parseResumeDocument(draft)} formatting={formatting} /> : (
               /* Rendered from the same model the exporters use, so this is a
                  faithful proof of what the DOCX/PDF will contain. */
               <div className="resume-document-preview max-h-[28rem] overflow-y-auto rounded-md border border-border bg-surface px-5 py-4" style={{ fontFamily: layout.font === "serif" ? "Times New Roman, serif" : "Arial, sans-serif", fontSize: `${layout.fontSize}pt`, lineHeight: layout.lineHeight, padding: `${layout.margin / 2}px` }}>
@@ -390,7 +376,7 @@ export default function TailorResumePanel({
           {/* Export row. DOCX is the primary, recommended output; PDF sits
               beside it; TXT stays available as the plain fallback. */}
           <div className="border-t border-border pt-3">
-            <Link href={`/cover-letter?resume=${encodeURIComponent(resumeId ?? "")}&application=${encodeURIComponent(applicationId)}`} className="mb-4 inline-flex text-sm font-semibold text-accent">Prepare a Cover Letter for this application →</Link>
+            <TailoredCoverLetter resumeText={draft} formatting={formatting} role={role} company={company} jobDescription={jobDescription} />
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">

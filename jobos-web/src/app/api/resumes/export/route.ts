@@ -135,6 +135,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       },
     });
   } catch (error: unknown) {
+    if (error instanceof Error && error.name === "UnsupportedDesignPdfError") return err("Use DOCX or TXT for these characters so your text is preserved. PDF currently supports Latin-script standard fonts.", 422);
     console.error(`[resumes/export] ${format} render failed:`, error);
     return err(
       "That resume could not be exported. Please try again.",
