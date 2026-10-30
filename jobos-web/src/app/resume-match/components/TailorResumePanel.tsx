@@ -376,7 +376,6 @@ export default function TailorResumePanel({
           {/* Export row. DOCX is the primary, recommended output; PDF sits
               beside it; TXT stays available as the plain fallback. */}
           <div className="border-t border-border pt-3">
-            <TailoredCoverLetter resumeText={draft} formatting={formatting} role={role} company={company} jobDescription={jobDescription} />
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">
@@ -422,6 +421,7 @@ export default function TailorResumePanel({
           </div>
         </div>
       )}
+      <TailoredCoverLetter resumeText={status === "ready" ? draft : ""} resumeId={resumeId} formatting={formatting} role={role} company={company} jobDescription={jobDescription} sourceLabel={status === "ready" ? "your edited tailored resume" : "your selected resume"} />
     </section>
   );
 }
