@@ -52,7 +52,7 @@ export const PUBLIC_STRUCTURED_DATA = {
   "@context": "https://schema.org",
   "@graph": [
     { "@type": "Organization", "@id": `${SITE_ORIGIN}/#organization`, name: "JobTrackOS", url: `${SITE_ORIGIN}/`, description: PRODUCT_DESCRIPTION, logo: `${SITE_ORIGIN}/brand-mark.svg` },
-    { "@type": "WebSite", "@id": `${SITE_ORIGIN}/#website`, name: "JobTrackOS", alternateName: "Job Track OS", url: `${SITE_ORIGIN}/`,
+    { "@type": "WebSite", "@id": `${SITE_ORIGIN}/#website`, name: "JobTrackOS", alternateName: ["Job Track OS", "jobtrackos.online"], url: `${SITE_ORIGIN}/`,
       description: PRODUCT_DESCRIPTION, publisher: { "@id": `${SITE_ORIGIN}/#organization` } },
   ],
 };

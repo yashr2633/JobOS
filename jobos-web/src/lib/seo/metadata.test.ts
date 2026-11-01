@@ -45,6 +45,8 @@ test("the homepage excludes session cookies, including chunked/expired cookie na
 test("structured data describes only supported public identity, with no fabricated rich result claims", () => {
   const data = JSON.parse(PUBLIC_STRUCTURED_DATA_JSON);
   assert.deepEqual(data["@graph"].map((entry: {"@type": string}) => entry["@type"]), ["Organization", "WebSite"]);
+  assert.equal(data["@graph"][1].name, "JobTrackOS");
+  assert.deepEqual(data["@graph"][1].alternateName, ["Job Track OS", "jobtrackos.online"]);
   assert.ok(!/aggregateRating|review|offers|price|userId|email|SearchAction/.test(PUBLIC_STRUCTURED_DATA_JSON));
   assert.ok(!PUBLIC_STRUCTURED_DATA_JSON.includes("<"));
 });

@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
   async redirects() {
     // Consolidate only public pages on the old hostname. Leave API, OAuth,
     // signed-in workspaces and root code exchange under their existing handlers.
-    return ["/", "/privacy-policy", "/terms", "/jobs", "/about", "/features/:slug", "/opportunities/:id", "/locations/:city"].map(source => ({
+    return ["/", "/privacy-policy", "/terms", "/jobs", "/about", "/features/:slug", "/opportunities/:id", "/locations/:city", "/favicon.ico", "/icon.png", "/apple-icon.png", "/brand-mark.svg", "/opengraph-image"].map(source => ({
       source,
       has: [{ type: "host" as const, value: "jobtrackos.vercel.app" }],
       missing: [{ type: "query" as const, key: "code" }, { type: "query" as const, key: "error" }, { type: "header" as const, key: "cookie", value: ".*sb-[^=;]+-auth-token.*" }],
