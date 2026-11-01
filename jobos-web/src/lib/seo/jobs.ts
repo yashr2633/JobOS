@@ -13,15 +13,17 @@ export function opportunityPath(id: string) { return `/opportunities/${encodeURI
 export function opportunityId(value: string) {
   try {
     const id = decodeURIComponent(value);
-    return /^[a-z]+:[a-zA-Z0-9_-]{1,80}:[a-zA-Z0-9_-]{1,64}$/.test(id) ? id : null;
+    return /^(greenhouse|lever|ashby|smartrecruiters):[a-zA-Z0-9_-]{1,80}:[a-zA-Z0-9_-]{1,64}$/.test(id) ? id : null;
   } catch { return null; }
 }
-export function isPublicOpportunity(job: Job, now = Date.now()) {
-  return /^[a-z]+:[a-zA-Z0-9_-]{1,80}:[a-zA-Z0-9_-]{1,64}$/.test(job.id)
+export function isPublicListing(job: Job, now = Date.now()) {
+  return opportunityId(job.id) === job.id
     && isActiveRecommendation(job, now) && normalizeIndiaLocation(job.location).isIndia
     && !!safeJobUrl(job.applicationUrl) && !!safeJobUrl(job.sourceUrl)
-    && !!job.title.trim() && !!job.company.trim() && !job.descriptionPending
-    && plainText(job.description).length >= 200;
+    && !!job.title.trim() && !!job.company.trim();
+}
+export function isPublicOpportunity(job: Job, now = Date.now()) {
+  return isPublicListing(job, now) && !job.descriptionPending && plainText(job.description).length >= 200;
 }
 export function jobPosting(job: Job, now = Date.now()) {
   // Unknown original posting dates never become fetch/release dates for Google.
@@ -46,5 +48,7 @@ export function jobPosting(job: Job, now = Date.now()) {
 }
 export const safeJsonLd = (value: unknown) => JSON.stringify(value).replace(/</g, "\\u003c");
 export function opportunitySitemap(jobs: Job[], now = Date.now()) {
-  return [...new Set(jobs.filter(job => isPublicOpportunity(job, now)).map(job => new URL(opportunityPath(job.id), SITE_ORIGIN).href))];
+  // ATS list feeds may omit descriptions. Their detail route hydrates the full
+  // record through the existing allowlisted provider before rendering/indexing.
+  return [...new Set(jobs.filter(job => isPublicListing(job, now)).map(job => new URL(opportunityPath(job.id), SITE_ORIGIN).href))];
 }

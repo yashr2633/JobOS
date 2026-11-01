@@ -10,7 +10,13 @@ test("encoded page and decoded metadata params resolve the same safe source ID",
   const id = "greenhouse:example:123";
   assert.equal(opportunityId(id), id);
   assert.equal(opportunityId(encodeURIComponent(id)), id);
-  for (const invalid of [encodeURIComponent(encodeURIComponent(id)), "%ZZ", "https://example.com", "../private", "greenhouse:example:123/secret"]) assert.equal(opportunityId(invalid), null);
+  for (const invalid of [encodeURIComponent(encodeURIComponent(id)), "%ZZ", "https://example.com", "../private", "greenhouse:example:123/secret", "himalayas:india:123"]) assert.equal(opportunityId(invalid), null);
+});
+test("ATS description stubs remain discoverable while incomplete rich data and URL-dependent remote IDs are excluded", () => {
+  const stub = job({ id: "smartrecruiters:ServiceNow:123", source: "SmartRecruiters", board: "ServiceNow", description: "", descriptionPending: true, postedAt: null });
+  assert.equal(opportunitySitemap([stub], now).length, 1);
+  assert.equal(jobPosting(stub, now), null);
+  assert.equal(opportunitySitemap([job({ id: "himalayas:india:123", source: "Himalayas" })], now).length, 0);
 });
 function job(overrides: Partial<Job> = {}): Job {
   return { id: "greenhouse:example:123", source: "Greenhouse", board: "example", externalId: "123", company: "Example", title: "Analyst", description: "Responsibilities include analysing sales data and preparing accurate reports. Requirements include SQL, spreadsheet analysis and clear communication with stakeholders. Please review the full employer requirements before applying.", requirements: [], location: "Bengaluru, India", workMode: "On-site", minYearsExperience: 0, skills: [], salary: null, employmentType: "Full Time", postedAt: "2026-10-30T10:00:00Z", expiresAt: null, updatedAt: null, fetchedAt: new Date(now).toISOString(), applicationUrl: "https://example.com/jobs/123", sourceUrl: "https://example.com/jobs", availability: "listed", ...overrides };

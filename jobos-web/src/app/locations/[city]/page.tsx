@@ -6,7 +6,7 @@ import PublicInfoPage from "../../components/PublicInfoPage";
 import PublicJobBrowser from "../../components/PublicJobBrowser";
 import { getCachedCatalog } from "@/lib/jobs/cachedCatalog";
 import { DEFAULT_PUBLIC_FILTERS, publicJobPage } from "@/lib/jobs/publicBrowsing";
-import { JOB_CITIES, isPublicOpportunity } from "@/lib/seo/jobs";
+import { JOB_CITIES, isPublicListing } from "@/lib/seo/jobs";
 import { publicPageMetadata } from "@/lib/seo/metadata";
 import "../../public-home.css";
 
@@ -17,7 +17,7 @@ const readCity = cache(async (slug: string) => {
   const catalog = await getCachedCatalog();
   const filters = { ...DEFAULT_PUBLIC_FILTERS, location: city.name };
   const initial = { ...publicJobPage(catalog.jobs, filters), warnings: catalog.warnings, vocabulary: [], loadedAt: catalog.checkedAt };
-  const indexable = catalog.jobs.some(job => isPublicOpportunity(job) && city.aliases.test(job.location));
+  const indexable = catalog.jobs.some(job => isPublicListing(job) && city.aliases.test(job.location));
   return { city, filters, initial, indexable };
 });
 export async function generateMetadata({ params }: { params: Promise<{ city: string }> }): Promise<Metadata> {
