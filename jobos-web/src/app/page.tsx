@@ -61,11 +61,11 @@ interface HomeProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({ searchParams }: HomeProps): Promise<Metadata> {
   // Cookie names conservatively exclude the signed-in dashboard at the same URL.
   // No auth request, token parsing, cookie mutation or change to the page's guard.
   const cookieStore = await cookies();
-  return homepageMetadata(cookieStore.getAll().map(cookie => cookie.name));
+  return homepageMetadata(cookieStore.getAll().map(cookie => cookie.name), await searchParams);
 }
 
 export default async function Home({ searchParams }: HomeProps) {

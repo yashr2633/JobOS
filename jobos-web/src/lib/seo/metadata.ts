@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 
 export const SITE_ORIGIN = "https://www.jobtrackos.online";
-export const HOME_TITLE = "JobTrackOS | Job Application Tracker & Resume Match";
-export const HOME_DESCRIPTION = "Track job applications, organize Gmail job updates, match your resume with job descriptions, and tailor resumes with JobTrackOS.";
-export const PRODUCT_DESCRIPTION = "JobTrackOS helps job seekers organize job applications, track application-related Gmail updates, view their application journey and use resume matching and tailoring tools.";
+export const HOME_TITLE = "JobTrackOS | Find Jobs in India, Resume Match & Templates";
+export const HOME_DESCRIPTION = "Explore jobs in India, compare your resume with a job description, and prepare tailored resumes and cover letters with JobTrackOS.";
+export const PRODUCT_DESCRIPTION = HOME_DESCRIPTION;
 
 /** Only these anonymous, public pages belong in the sitemap. */
-export const PUBLIC_PATHS = ["/", "/privacy-policy", "/terms"] as const;
+export const PUBLIC_PATHS = ["/", "/jobs", "/features/resume-match", "/features/resume-builder", "/features/cover-letter", "/about", "/privacy-policy", "/terms"] as const;
 
 export const PRIVATE_ROBOTS: Metadata["robots"] = {
   index: false,
@@ -15,7 +15,7 @@ export const PRIVATE_ROBOTS: Metadata["robots"] = {
   googleBot: { index: false, follow: false, noimageindex: true },
 };
 
-export function publicPageMetadata(path: typeof PUBLIC_PATHS[number], title: string, description: string): Metadata {
+export function publicPageMetadata(path: string, title: string, description: string): Metadata {
   const url = new URL(path, SITE_ORIGIN).href;
   return {
     title: path === "/" ? { absolute: title } : title,
@@ -23,9 +23,9 @@ export function publicPageMetadata(path: typeof PUBLIC_PATHS[number], title: str
     alternates: { canonical: url },
     robots: { index: true, follow: true },
     openGraph: { type: "website", siteName: "JobTrackOS", title, description, url,
-      images: [{ url: `${SITE_ORIGIN}/opengraph-image`, width: 1200, height: 630, alt: "JobTrackOS — Job Application Tracker & Resume Match" }] },
+      images: [{ url: `${SITE_ORIGIN}/opengraph-image`, width: 1200, height: 630, alt: "JobTrackOS — Find jobs and prepare your application" }] },
     twitter: { card: "summary_large_image", title, description,
-      images: [{ url: `${SITE_ORIGIN}/opengraph-image`, alt: "JobTrackOS — Job Application Tracker & Resume Match" }] },
+      images: [{ url: `${SITE_ORIGIN}/opengraph-image`, alt: "JobTrackOS — Find jobs and prepare your application" }] },
   };
 }
 
@@ -34,17 +34,25 @@ export function hasSessionCookie(cookieNames: string[]): boolean {
   return cookieNames.some(name => /^sb-.+-auth-token(?:\.\d+)?$/.test(name));
 }
 
-export function homepageMetadata(cookieNames: string[]): Metadata {
+export function homepageMetadata(cookieNames: string[], params: Record<string, unknown> = {}): Metadata {
   const metadata = publicPageMetadata("/", HOME_TITLE, HOME_DESCRIPTION);
-  return hasSessionCookie(cookieNames) ? { ...metadata, robots: PRIVATE_ROBOTS } : metadata;
+  if (hasSessionCookie(cookieNames)) return { ...metadata, robots: PRIVATE_ROBOTS };
+  return Object.keys(params).some(key => !/^(utm_|gclid$|fbclid$)/.test(key)) ? { ...metadata, robots: { index: false, follow: true } } : metadata;
+}
+
+/** Only the unfiltered anonymous listing is an indexing destination. */
+export function jobsPageMetadata(cookieNames: string[], params: Record<string, unknown>): Metadata {
+  const metadata = publicPageMetadata("/jobs", "Jobs in India", "Browse India job opportunities from connected employer sources. Check the role, location and source before preparing your application.");
+  if (hasSessionCookie(cookieNames)) return { ...metadata, robots: PRIVATE_ROBOTS };
+  return Object.keys(params).length ? { ...metadata, robots: { index: false, follow: true } } : metadata;
 }
 
 /** Public product identity only; no offers, ratings, statistics or user data. */
 export const PUBLIC_STRUCTURED_DATA = {
   "@context": "https://schema.org",
   "@graph": [
-    { "@type": "Organization", "@id": `${SITE_ORIGIN}/#organization`, name: "JobTrackOS", url: `${SITE_ORIGIN}/` },
-    { "@type": "WebSite", "@id": `${SITE_ORIGIN}/#website`, name: "JobTrackOS", url: `${SITE_ORIGIN}/`,
+    { "@type": "Organization", "@id": `${SITE_ORIGIN}/#organization`, name: "JobTrackOS", url: `${SITE_ORIGIN}/`, description: PRODUCT_DESCRIPTION, logo: `${SITE_ORIGIN}/brand-mark.svg` },
+    { "@type": "WebSite", "@id": `${SITE_ORIGIN}/#website`, name: "JobTrackOS", alternateName: "Job Track OS", url: `${SITE_ORIGIN}/`,
       description: PRODUCT_DESCRIPTION, publisher: { "@id": `${SITE_ORIGIN}/#organization` } },
   ],
 };

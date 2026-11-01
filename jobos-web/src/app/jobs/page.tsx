@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
+import { jobsPageMetadata } from "@/lib/seo/metadata";
 import { Suspense } from "react";
 import PublicLanding from "../components/PublicLanding";
 import Link from "next/link";
@@ -12,7 +14,9 @@ import InternalJobs from "./InternalJobs";
 import { EMPTY_PROFILE } from "@/lib/jobs/types";
 import { readJobFilters } from "@/lib/jobs/searchFilters";
 
-export const metadata: Metadata = { title: "Find jobs" };
+export async function generateMetadata({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }): Promise<Metadata> {
+  return jobsPageMetadata((await cookies()).getAll().map(cookie => cookie.name), await searchParams);
+}
 
 export default async function JobsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const supabase = await createClient();
