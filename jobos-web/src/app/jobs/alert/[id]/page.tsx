@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import PublicInfoPage from '../../../components/PublicInfoPage';
 import { getCachedCatalog } from '@/lib/jobs/cachedCatalog';
 import { plainText } from '@/lib/jobs/normalize';
@@ -9,7 +10,9 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Your job opportunity | JobTrackOS', robots: { index: false, follow: true } };
 
 export default async function AlertJobPage({params}: {params: Promise<{id:string}>}) {
-  const {id}=await params;
+  const {id:rawId}=await params;
+  let id:string;
+  try { id=decodeURIComponent(rawId); } catch { notFound(); }
   // Resolve only jobs in our public catalog; never accept a caller-supplied redirect URL.
   const catalog=await getCachedCatalog().catch(()=>null);
   if(!catalog) return <PublicInfoPage><h1>We could not load this job just now.</h1><p>Please reload shortly. Your email link is still valid.</p><Link className="seo-button" href="/jobs">Browse jobs</Link></PublicInfoPage>;
