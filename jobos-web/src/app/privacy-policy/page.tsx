@@ -17,7 +17,7 @@ import { publicPageMetadata } from "@/lib/seo/metadata";
  */
 export const metadata: Metadata = publicPageMetadata("/privacy-policy", "Privacy Policy", "How JobTrackOS handles your account information and optional Gmail data.");
 
-const LAST_UPDATED = "October 26, 2026";
+const LAST_UPDATED = "November 3, 2026";
 
 /** Official monitored support address (matches Google OAuth Branding). */
 const SUPPORT_EMAIL = "kenilja946@gmail.com";
@@ -45,6 +45,12 @@ export default function PrivacyPolicyPage() {
         </header>
 
         <div className="space-y-8 text-sm leading-6 text-text-secondary">
+          <section>
+            <h2 className="mb-2 text-lg font-semibold text-text">Optional job emails</h2>
+            <p>When you enable email job updates, JobTrackOS stores your selected role or company, location, frequency, and consent record. We use your verified account email to send matching job recommendations through Brevo when delivery is configured. Brevo receives your email address and the message content. Your resume and Gmail contents are not included.</p>
+            <p className="mt-2">You can change your preferences in Settings → Job alerts or stop these emails using the unsubscribe link in a message. We store delivery records to avoid repeated jobs and diagnose sending problems. Account deletion also deletes the associated alert preferences, consent events and delivery records. WhatsApp job alerts are not currently offered.</p>
+          </section>
+
           <section>
             <h2 className="mb-2 text-lg font-semibold text-text">Overview</h2>
             <p>

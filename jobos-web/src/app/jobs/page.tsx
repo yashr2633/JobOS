@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { discoveryData } from "@/lib/jobs/data";
 import { getCachedCatalog } from "@/lib/jobs/cachedCatalog";
 import WorkspaceLoading from "../components/WorkspaceLoading";
+import JobAlertPrompt from "../components/JobAlertPrompt";
 import JobsWorkspace from "./JobsWorkspace";
 import InternalJobs from "./InternalJobs";
 import { EMPTY_PROFILE } from "@/lib/jobs/types";
@@ -24,6 +25,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   if (!user) return <PublicLanding params={await searchParams} />;
   const params = await searchParams;
   return <AppShell>
+    <JobAlertPrompt key={`${params.q ?? ""}:${params.location ?? ""}`} query={(params.q ?? "").slice(0,100)} location={(params.location ?? "").slice(0,100)} />
     <Suspense fallback={<WorkspaceLoading title="Find jobs" message="Checking employer listings and loading your preferences…" />}>
       <JobResults userId={user.id} params={params} />
     </Suspense>

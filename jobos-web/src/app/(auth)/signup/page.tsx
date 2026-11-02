@@ -53,6 +53,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [revealPassword, setRevealPassword] = useState(false);
+  const [setupJobEmails, setSetupJobEmails] = useState(false);
   const [loading, setLoading] = useState<"email" | "google" | null>(null);
   const [error, setError] = useState<string | null>(null);
   /**
@@ -66,6 +67,9 @@ export default function SignupPage() {
 
   const supabase = createClient();
   const busy = loading !== null;
+  const destination = () => setupJobEmails
+    ? `/settings/alerts?onboarding=1&next=${encodeURIComponent(signUpDestination())}`
+    : signUpDestination();
 
   /**
    * Verify the emailed signup code.
@@ -84,7 +88,7 @@ export default function SignupPage() {
     if (verifyError) throw new Error(describeOtpError(verifyError.message));
 
     // Verified: a session now exists, so land the user in the product.
-    router.push(signUpDestination());
+    router.push(destination());
     router.refresh();
   }
 
@@ -138,7 +142,7 @@ export default function SignupPage() {
 
       // Confirmation is disabled on this project, so the account is already
       // usable and there is no code to enter.
-      router.push(signUpDestination());
+      router.push(destination());
       router.refresh();
     } catch (err: unknown) {
       setError(
@@ -158,7 +162,7 @@ export default function SignupPage() {
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: buildSupabaseOAuthCallbackUrl(window.location.origin, signUpDestination()),
+          redirectTo: buildSupabaseOAuthCallbackUrl(window.location.origin, destination()),
         },
       });
 
@@ -215,6 +219,11 @@ export default function SignupPage() {
           {error}
         </div>
       )}
+
+      <label className="mb-5 flex items-start gap-3 rounded-lg border border-border-strong bg-surface-2 p-3 text-sm text-text">
+        <input type="checkbox" checked={setupJobEmails} disabled={busy} onChange={event => setSetupJobEmails(event.target.checked)} className="mt-1 size-5 shrink-0" />
+        <span><strong className="block">Don’t miss an opportunity</strong>Help me set up matching job emails after signup. I will choose my role, location and email preference before alerts start.</span>
+      </label>
 
       <form onSubmit={handleEmailSignup} className="space-y-4">
         <div>
