@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parseAlertInput,matchingAlertJobs,jobKey,escapeHtml} from './model.ts';
-import {composeJobAlert} from './email.ts';
+import {composeJobAlert,alertJobUrl} from './email.ts';
 import type {Job} from '../jobs/types.ts';
 const now=Date.parse('2026-11-03T12:00:00Z');
 const job={id:'1',title:'Sales Executive',company:'Example',location:'Kolkata, India',availability:'listed',postedAt:'2026-11-03T09:00:00Z',fetchedAt:'2026-11-03T11:00:00Z',expiresAt:null,applicationUrl:'https://example.com/jobs/1',source:'Example'} as Job;
@@ -16,11 +16,17 @@ test('only current, originally dated, relevant, unseen and deduplicated jobs ent
  assert.equal(matchingAlertJobs([job],'Developer','India',now-86400000,new Set(),now).length,0);
 });
 test('source text is escaped before composing email HTML',()=>assert.equal(escapeHtml('<a x="&">'), '&lt;a x=&quot;&amp;&quot;&gt;'));
-test('email includes genuine vacancy destinations, escapes candidate data, and exposes unsubscribe',()=>{
+test('email routes job clicks through JobTrackOS with branding and unsubscribe',()=>{
  const email=composeJobAlert([job],'Sales','Kolkata','https://www.jobtrackos.online/api/job-alerts/unsubscribe?token=test','<img src=x>');
- assert.equal(email.subject,'1 job matching Sales in Kolkata');
+ assert.equal(email.subject,'JobTrackOS: 1 job matching Sales in Kolkata');
  assert.ok(email.htmlContent.includes('&lt;img src=x&gt;'));
- assert.ok(email.htmlContent.includes('href="https://example.com/jobs/1"'));
+ assert.ok(!email.htmlContent.includes('href="https://example.com/jobs/1"'));
+ const link=new URL(alertJobUrl({...job,sourceUrl:'https://example.com/jobs/1?x=a&y=b'}));
+ assert.equal(link.origin,'https://www.jobtrackos.online');
+ assert.equal(link.searchParams.get('job'),job.id);
+ assert.equal(link.searchParams.get('jobSource'),'https://example.com/jobs/1?x=a&y=b');
+ assert.ok(email.htmlContent.includes('/brand-mark-email.png'));
+ assert.ok(email.htmlContent.includes('View job on JobTrackOS'));
  assert.ok(email.htmlContent.includes('Unsubscribe'));
  assert.ok(email.htmlContent.includes('not an interview invitation'));
 });
