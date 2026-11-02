@@ -23,10 +23,11 @@ test('email routes job clicks through JobTrackOS with branding and unsubscribe',
  assert.ok(!email.htmlContent.includes('href="https://example.com/jobs/1"'));
  const link=new URL(alertJobUrl({...job,sourceUrl:'https://example.com/jobs/1?x=a&y=b'}));
  assert.equal(link.origin,'https://www.jobtrackos.online');
- assert.equal(link.searchParams.get('job'),job.id);
- assert.equal(link.searchParams.get('jobSource'),'https://example.com/jobs/1?x=a&y=b');
+ assert.equal(link.pathname,'/jobs/alert/1');
+ assert.equal(link.searchParams.get('utm_source'),'job_alert');
+ assert.ok(!link.href.includes('example.com'));
  assert.ok(email.htmlContent.includes('/brand-mark-email.png'));
- assert.ok(email.htmlContent.includes('View job on JobTrackOS'));
+ assert.ok(email.htmlContent.includes('Apply now'));
  assert.ok(email.htmlContent.includes('Unsubscribe'));
  assert.ok(email.htmlContent.includes('not an interview invitation'));
 });

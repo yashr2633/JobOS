@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import { jobsPageMetadata } from "@/lib/seo/metadata";
 import { Suspense } from "react";
 import PublicLanding from "../components/PublicLanding";
@@ -23,14 +22,8 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
 export default async function JobsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return <PublicLanding params={await searchParams} />;
   const params = await searchParams;
-  if (!user) {
-    if (params.job) {
-      const next = `/jobs?${new URLSearchParams(Object.entries(params).filter((entry): entry is [string,string] => typeof entry[1] === 'string'))}`;
-      redirect(`/login?next=${encodeURIComponent(next)}`);
-    }
-    return <PublicLanding params={params} />;
-  }
   return <AppShell>
     <JobAlertPrompt key={`${params.q ?? ""}:${params.location ?? ""}`} query={(params.q ?? "").slice(0,100)} location={(params.location ?? "").slice(0,100)} />
     <Suspense fallback={<WorkspaceLoading title="Find jobs" message="Checking employer listings and loading your preferences…" />}>
