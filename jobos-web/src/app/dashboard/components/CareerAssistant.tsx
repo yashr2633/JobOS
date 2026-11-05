@@ -16,7 +16,7 @@ import CareerSearchInput from "./CareerSearchInput";
 const secondary = "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md border border-border-strong bg-surface px-3 py-2 text-sm font-medium text-accent hover:bg-accent/5 disabled:opacity-50";
 const primary = "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-accent-fg hover:bg-accent-hover disabled:opacity-50";
 function CaseMark() { return <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-accent text-accent-fg"><svg width="24" height="24" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M11 9V7.5A2.5 2.5 0 0 1 13.5 5h5A2.5 2.5 0 0 1 21 7.5V9M6 10h20v15H6zM6 16h20" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /></svg></span>; }
-export default function CareerAssistant({ profile, resumes, name, gmailConnected }: { profile: CareerProfile; resumes: ResumeEvidence[]; name?: string; gmailConnected: boolean }) {
+export default function CareerAssistant({ profile, resumes, name }: { profile: CareerProfile; resumes: ResumeEvidence[]; name?: string }) {
   const request = useRef<AbortController | null>(null), input = useRef<HTMLTextAreaElement>(null);
   const [intent, setIntent] = useState<CareerIntent | null>(null), [message, setMessage] = useState(""), [submitted, setSubmitted] = useState("");
   const [history, setHistory] = useState<string[]>([]), [busy, setBusy] = useState(false), [error, setError] = useState<string | null>(null);
@@ -78,7 +78,7 @@ export default function CareerAssistant({ profile, resumes, name, gmailConnected
   const searchKey = intent ? JSON.stringify(intent) : "";
   return <section aria-label="Your career workspace" className="career-workspace mb-7">
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><p className="product-kicker">{name ? "Welcome back, " + name : "Your career workspace"}</p><h1 className="mt-2 font-semibold tracking-tight text-text">Find a role that fits you.</h1><p className="mt-2 text-sm text-text-secondary">Search for opportunities. Know your fit. Keep every application on track.</p></div><Link className={secondary} href="/jobs">Browse jobs ↗</Link></div>
-    <div className={"grid items-start gap-5" + (intent ? "" : " lg:grid-cols-[minmax(0,2.6fr)_minmax(240px,1fr)]")}>
+    <div className="grid min-w-0 items-start">
       <div className="min-w-0 overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
         <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4"><div className="flex items-center gap-3"><CaseMark /><h2 className="text-base font-semibold">Career Assistant</h2></div><button type="button" className="min-h-[44px] text-sm font-medium text-accent" onClick={reset}>New search</button></div>
         <div className="p-4 sm:p-6">
@@ -107,7 +107,6 @@ export default function CareerAssistant({ profile, resumes, name, gmailConnected
           <details className="mt-3 text-xs leading-5 text-text-secondary"><summary className="cursor-pointer py-2">How search works &amp; privacy</summary><p className="mt-2">Search combines connected public job feeds with Google-grounded hiring leads. Coverage varies; availability must be checked at the original source. Only public search preferences are sent to AI search services. Your saved resume and application history are not sent to public search. Fit scores compare available resume/profile evidence with source requirements.</p></details>
         </div>
       </div>
-      {!intent && <aside className="career-tools space-y-5"><section className="tracking-release-notice"><h2 className="text-base font-semibold">Track My Application</h2><p className="mt-3 text-sm leading-7 text-text-secondary">Keep every application and next step in one place.</p><Link href="/applications" className="product-button mt-4">View my applications →</Link><a href="#gmail-tracking" className="mt-3 block text-xs underline">{gmailConnected ? "Review inbox updates" : "Track my applications from my inbox"}</a></section><section className="resume-tool-notice"><h2 className="text-lg font-semibold">Resume Match &amp; tailoring</h2><p className="mt-3 text-sm leading-7 text-text-secondary">Understand your fit, improve your resume and export a single-column document.</p><p className="mt-4 text-xs text-text-secondary">Match → Tailor → Export</p><Link href="/resumes" className="product-button product-button-primary mt-4 w-full">Match my resume →</Link><div className="career-document-links"><Link href="/resume-builder">Resume Builder</Link><Link href="/cover-letter">Cover Letter</Link></div></section></aside>}
     </div>
   </section>;
 }

@@ -28,6 +28,7 @@ const PROTECTED_PREFIXES = [
   "/profile",
   "/gmail/review",
   "/track-my-jobs",
+  "/recruiters",
 ];
 
 export async function updateSession(request: NextRequest) {

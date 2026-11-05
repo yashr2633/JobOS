@@ -27,6 +27,8 @@
 import AppShell from "./components/AppShell";
 import PublicLanding from "./components/PublicLanding";
 import RecommendedJobs from "./dashboard/components/RecommendedJobs";
+import CareerToolsCarousel from "./dashboard/components/CareerToolsCarousel";
+import Link from "next/link";
 import CareerHome from "./dashboard/components/CareerHome";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
@@ -259,7 +261,10 @@ export default async function Home({ searchParams }: HomeProps) {
         {/* Track authenticated session activity (non-blocking, once per day) */}
         <SessionTracker />
         <JobAlertPrompt />
-        <Suspense fallback={<section className="product-panel mb-6"><p className="product-kicker">Career Assistant</p><h1>Find your next opportunity.</h1><p className="mt-3 text-sm text-text-secondary">Loading your career workspace…</p></section>}><CareerHome userId={user.id} name={typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name.trim().split(/\s+/)[0].slice(0, 30) : undefined} gmailConnected={gmailConnected} /></Suspense>
+        <div className="mb-6 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_16rem]">
+          <Suspense fallback={<section className="product-panel"><p className="product-kicker">Career Assistant</p><h1>Find your next opportunity.</h1><p className="mt-3 text-sm text-text-secondary">Loading your career workspace…</p></section>}><CareerHome userId={user.id} name={typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name.trim().split(/\s+/)[0].slice(0, 30) : undefined} /></Suspense>
+          <CareerToolsCarousel />
+        </div>
         <Suspense fallback={<section className="product-panel mb-6"><h2>Opportunities to explore</h2><p className="mt-3 text-sm text-text-muted">Checking available sources…</p></section>}><RecommendedJobs /></Suspense>
         <details className="mt-6 rounded-lg border border-border bg-surface p-4 sm:p-5">
           <summary className="cursor-pointer text-sm font-semibold text-text">Application overview · totals and activity</summary>
@@ -332,7 +337,7 @@ export default async function Home({ searchParams }: HomeProps) {
           {/* The shortcut above targets this id. `scroll-mt-20` clears the sticky
               header so the section heading is not hidden under it on arrival. */}
           <div id="gmail-tracking" className="mt-6 scroll-mt-20">
-            <GmailScanModule
+            {process.env.JOBTRACKOS_AUTOMATIC_TRACKING_ENABLED === "true" ? <GmailScanModule
               connected={gmailConnected}
               lastSyncAt={gmailConnection?.lastSyncAt ?? null}
               resumable={openJob !== null}
@@ -359,12 +364,17 @@ export default async function Home({ searchParams }: HomeProps) {
               // Unknown employer only. There is no approval queue in this flow.
               exceptions={{ unknownEmployer: unknownBucketCount }}
               opportunityCount={opportunityCount}
-            />
+            /> : <section className="product-panel">
+              <p className="product-kicker">Automatic tracking · Coming soon</p>
+              <h2>Track My Application</h2>
+              <p className="mt-2 text-sm text-text-secondary">Apply anywhere. Track every application in one place.</p>
+              <Link href="/applications" className="product-button mt-4">Open manual application tracker</Link>
+            </section>}
           </div>
 
         <div className="mt-4">
           <QuickActions />
-          <a href="/gmail/review" className="mt-4 inline-flex text-sm font-medium text-accent">Review application updates →</a>
+          {process.env.JOBTRACKOS_AUTOMATIC_TRACKING_ENABLED === "true" && <a href="/gmail/review" className="mt-4 inline-flex text-sm font-medium text-accent">Review application updates →</a>}
         </div>
       </>
     </AppShell>

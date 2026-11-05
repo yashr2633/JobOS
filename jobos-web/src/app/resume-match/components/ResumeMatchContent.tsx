@@ -111,7 +111,7 @@ export default function ResumeMatchContent() {
    * else. Reported by `IntelligencePanel` so there is no second scoring engine
    * and no duplicated analysis state.
    */
-  const [analysisReady, setAnalysisReady] = useState(false);
+  const [analyzedInput, setAnalyzedInput] = useState<string | null>(null);
 
   /**
    * Inline "New Application" flow, so a direct user never has to visit the
@@ -183,11 +183,9 @@ export default function ResumeMatchContent() {
   const selectedApplication =
     applications.find((app) => app.id === selectedApplicationId) ?? null;
 
-  /**
-   * Which step to emphasize. The rules live in `resumeMatchFlowState`, which is
-   * unit-tested to guarantee analysis can never gate tailoring — this component
-   * only renders the result.
-   */
+  const analysisInput = JSON.stringify([selectedApplicationId, selectedResumeId, jobDescriptionDraft]);
+  const analysisReady = analyzedInput === analysisInput;
+
   const flow = resumeMatchFlowState({
     hasResume: selectedResumeId !== null,
     hasJobDescription: jobDescriptionDraft.trim().length > 0,
@@ -204,7 +202,7 @@ export default function ResumeMatchContent() {
     // A result belongs to the application it was computed for, so switching
     // applications clears the recommendation state rather than carrying a stale
     // "analysis done" signal across.
-    setAnalysisReady(false);
+    setAnalyzedInput(null);
   }
 
   /**
@@ -491,32 +489,32 @@ export default function ResumeMatchContent() {
                   )}
                 </div>
                 <IntelligencePanel
-                  key={selectedApplication.id}
+                  key={analysisInput}
                   application={selectedApplication}
                   jobDescription={jobDescriptionDraft}
                   // Controlled mode: this page owns resume selection, whether the
                   // resume came from a saved resume or a fresh upload.
                   resumeId={selectedResumeId}
-                  // Presentation signal only — see `analysisReady`.
-                  onResultChange={setAnalysisReady}
+                  onResultChange={hasResult => setAnalyzedInput(hasResult ? analysisInput : null)}
                 />
               </div>
             )}
 
-            {/* Tailoring is the RECOMMENDED next step after analysis, but is not
-                hard-blocked by it — it needs only a resume and this application's
-                JD, both already selected above. `analysisReady` changes only how
-                prominent the action looks, never whether it works. */}
             {selectedApplication && (
               <div>
                 <div className="mb-1.5 flex items-center justify-between gap-2">
-                  <StepLabel step={5} label="Tailor Resume" />
+                  <StepLabel step={5} label="Tailor your application" />
                   {flow.tailorIsNextStep && (
                     <span className="text-xs font-medium text-accent">
                       Next step
                     </span>
                   )}
                 </div>
+                <p className="mb-2 rounded-md border border-border bg-accent/10 px-3 py-2 text-sm font-medium text-accent">
+                  Make your relevant experience easier to spot before shortlisting.
+                </p>
+                {!analysisReady && <p className="mb-2 text-xs font-medium text-text-secondary">Locked until you scan your resume</p>}
+                <fieldset disabled={!analysisReady} className="min-w-0">
                 <TailorResumePanel
                   key={`${selectedApplication.id}:${selectedResumeId ?? "none"}`}
                   applicationId={selectedApplication.id}
@@ -527,6 +525,7 @@ export default function ResumeMatchContent() {
                   jobDescription={jobDescriptionDraft}
                   analysisReady={flow.tailorIsNextStep}
                 />
+                </fieldset>
               </div>
             )}
           </div>

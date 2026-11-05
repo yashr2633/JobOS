@@ -61,7 +61,7 @@ export default function AppShell({ children, maxWidth = "7xl" }: AppShellProps) 
         >
           <div className={MAX_WIDTH_CLASS[maxWidth]}>{children}</div>
         </main>
-        <footer className="workspace-footer"><strong>JobTrackOS</strong><p>Discover. Prepare. Apply. Track.</p><div className="workspace-footer-links"><Link href="/jobs">Find jobs</Link><Link href="/resumes">Resume Match</Link><Link href="/resume-builder">Resume Builder</Link><Link href="/cover-letter">Cover Letter</Link><Link href="/profile">Account settings</Link><Link href="/privacy-policy">Privacy &amp; contact</Link><Link href="/terms">Terms of service</Link></div></footer>
+        <footer className="workspace-footer"><strong>JobTrackOS</strong><p>Find jobs. Build a resume. Make your move.</p><div className="workspace-footer-links"><Link href="/jobs">Find jobs</Link><Link href="/resumes">Resume Match</Link><Link href="/resume-builder">Resume Templates</Link><Link href="/cover-letter">Cover Letter Templates</Link><Link href="/recruiters">Recruiter Outreach</Link><Link href="/profile">Account settings</Link><Link href="/privacy-policy">Privacy Policy</Link><Link href="/terms">Terms of Service</Link><a href="mailto:support@jobtrackos.online">Contact support</a><Link href="/#faq">Help &amp; FAQ</Link></div></footer>
       </div>
 
       <MobileNav />
