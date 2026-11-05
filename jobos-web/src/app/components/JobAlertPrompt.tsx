@@ -29,15 +29,16 @@ export default function JobAlertPrompt({query='',location=''}:{query?:string;loc
   } catch(error) {setMessage(error instanceof Error?error.message:'Could not enable alerts.');}
   finally {setBusy(false);}
  }
- return <section aria-label="Email job updates" className="my-4 rounded-xl border border-border-strong bg-surface p-4 sm:p-5">
-  <h2 className="text-base font-semibold text-text">Don’t miss an opportunity</h2>
+ return <section aria-label="Email job updates" className="job-alert-prompt my-4">
+  <div className="job-alert-heading"><span className="job-alert-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg></span><div><p className="product-kicker">Your next opportunity, in your inbox</p><h2>Don’t miss an opportunity</h2></div><span className="job-alert-status">{enabled?'Alerts on':'Job alerts'}</span></div>
   {enabled?<p className="mt-2 text-sm text-text-secondary">Your email alert preference is enabled. <Link className="font-medium text-accent underline" href="/settings/alerts">Manage or stop alerts</Link></p>:<>
-   <p className="mt-1 text-sm text-text-secondary">Get new jobs matching your role and location at your verified account email. Unsubscribe anytime.</p>
+   <p className="job-alert-description">Get new jobs matching your role and city sent to your verified account email. Set it up below so you can spend less time checking for updates.</p>
    <form onSubmit={enable} className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
     <label className="min-w-0 text-sm text-text">Role or company<input value={role} onChange={event=>setRole(event.target.value)} maxLength={100} required placeholder="Sales Executive" className="mt-1 min-h-11 w-full rounded-lg border border-border-strong bg-bg px-3 text-text"/></label>
     <label className="min-w-0 text-sm text-text">City or India<input value={city} onChange={event=>setCity(event.target.value)} maxLength={100} required className="mt-1 min-h-11 w-full rounded-lg border border-border-strong bg-bg px-3 text-text"/></label>
-    <button disabled={busy} className="min-h-11 self-end rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-fg disabled:opacity-50">{busy?'Saving…':'Enable daily emails'}</button>
+    <button disabled={busy} className="product-button product-button-primary self-end">{busy?'Saving…':'Enable daily job emails →'}</button>
    </form>
+   <p className="job-alert-small">Daily updates when matching jobs are available. Change your preferences or unsubscribe anytime.</p>
   </>}
   {message&&<p role="status" className="mt-3 text-sm text-text-secondary">{message}</p>}
  </section>;

@@ -35,6 +35,13 @@ export default function FormatControls({ value, onChange, letter = false, mode =
   }), [category, columns, query]);
   const shown = Math.min(limit, visible.length);
   const scrollArea = useRef<HTMLDivElement>(null), moreMarker = useRef<HTMLDivElement>(null);
+  function loadMoreDesigns() {
+    const previousHeight = scrollArea.current?.scrollHeight ?? 0;
+    setLimit(value => Math.min(value + 12, visible.length));
+    requestAnimationFrame(() => {
+      scrollArea.current?.scrollTo({ top: Math.max(0, previousHeight - 80), behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    });
+  }
   useEffect(() => {
     if (!scrollArea.current || !moreMarker.current || shown >= visible.length || typeof IntersectionObserver === "undefined") return;
     const observer = new IntersectionObserver(entries => {
@@ -60,7 +67,7 @@ export default function FormatControls({ value, onChange, letter = false, mode =
       </button>)}</div><div ref={moreMarker} aria-hidden="true" style={{ height: 1 }} /></div>
       {lockedDesign && <div className="mt-4 rounded-lg border border-border bg-surface-2 p-4" role="status"><strong>{lockedDesign} · Premium</strong><p className="mt-1 text-sm">Choose a Free template or get Pro access to use this design.</p><div className="mt-3 flex gap-3"><Link href="/plans" className="product-button product-button-primary">View plans</Link><button type="button" className="product-button" onClick={() => setLockedDesign("")}>Keep browsing</button></div></div>}
       {!visible.length && <p className="product-notice">No designs match these filters. Choose another style or clear your search.</p>}
-      <div className="studio-browse-footer"><div aria-live="polite"><strong>{shown} of {visible.length} designs</strong><span>Scroll inside the gallery to explore. Your selected design stays applied.</span></div>{shown < visible.length ? <button type="button" className="product-button product-button-primary" onClick={() => setLimit(value => value + 12)}>Show {Math.min(12, visible.length - shown)} more templates ↓</button> : <span className="studio-library-complete">All matching designs loaded ✓</span>}</div>
+      <div className="studio-browse-footer"><div aria-live="polite"><strong>Showing {shown} of {visible.length} designs</strong><span>Scroll to explore, or load more designs below. Your selection stays applied.</span></div>{shown < visible.length ? <button type="button" className="product-button product-button-primary" onClick={loadMoreDesigns}>Load more templates ↓</button> : <span className="studio-library-complete">All matching designs loaded ✓</span>}</div>
     </section>}
     {mode !== "gallery" && <section className="document-format-panel" aria-label="Document formatting"><p className="product-kicker">LAYOUT &amp; TYPOGRAPHY</p><div className="studio-format-heading"><h2>Customize your document</h2><a href={`#${galleryId}`}>Change design ↗</a></div><p className="document-help">{selectedStyle.name} · Adjust the page and text below. Your preview updates as you go.</p><div className="document-format-grid">
       {!letter && <label>Section priority<select value={priority} onChange={event => onChange({ ...value, templateId: `${selectedStyle.id}-${event.target.value}` })}>{RESUME_PRIORITIES.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}

@@ -40,18 +40,19 @@ export default function OutreachDraft({ contact }: { contact: Contact }) {
     <section className="product-panel mb-6" aria-labelledby="recruiter-draft-title">
       <h2 id="recruiter-draft-title">Draft an email</h2>
       <p className="mt-2 text-sm text-text-secondary">To {contact.name || contact.company} · {contact.email}</p>
+      <p className="mt-2 text-sm leading-7 text-text-secondary">Add the role you want and one relevant skill or achievement. Generate an editable introduction, then review it before opening your email app.</p>
       <form className="mt-4 grid gap-3" onSubmit={event => { event.preventDefault(); if (role.trim()) draft(); }}>
         <label className="grid gap-1 text-sm font-medium">Target role<input className="rounded-lg border border-border bg-surface p-3" value={role} maxLength={80} required onChange={event => setRole(event.target.value)} placeholder="e.g. Business Analyst" /></label>
         <label className="grid gap-1 text-sm font-medium">A relevant achievement or skill<textarea className="rounded-lg border border-border bg-surface p-3" rows={2} value={evidence} maxLength={350} onChange={event => setEvidence(event.target.value)} placeholder="Use an example from your resume" /></label>
-        <button type="submit" className="p-outline justify-self-start">Generate draft</button>
+        <button type="submit" className="product-button product-button-primary justify-self-start">Generate draft</button>
       </form>
       {subject && (
         <div className="mt-4 grid gap-3">
           <label className="grid gap-1 text-sm font-medium">Subject<input className="rounded-lg border border-border bg-surface p-3" value={subject} maxLength={280} onChange={event => setSubject(event.target.value)} /></label>
           <label className="grid gap-1 text-sm font-medium">Message<textarea className="rounded-lg border border-border bg-surface p-3" rows={8} value={message} maxLength={2000} onChange={event => setMessage(event.target.value)} /></label>
           <div className="flex flex-wrap gap-2">
-            {ready && <a className="p-primary" href={gmail.href} target="_blank" rel="noopener noreferrer">Open in Gmail</a>}
-            <button className="p-outline" type="button" disabled={!ready} onClick={() => void copy()}>Copy draft</button>
+            {ready && <a className="product-button product-button-primary" href={gmail.href} target="_blank" rel="noopener noreferrer">Open in Gmail</a>}
+            <button className="product-button" type="button" disabled={!ready} onClick={() => void copy()}>Copy draft</button>
           </div>
           <p className="text-sm text-text-muted" role="status">{copyStatus || "Review the draft and send from your own account."}</p>
         </div>
