@@ -17,6 +17,7 @@ const SECTIONS: ReadonlyArray<{ href: string; label: string; exact: boolean }> =
   { href: "/settings/security", label: "Security", exact: false },
   { href: "/settings/preferences", label: "Preferences", exact: false },
   { href: "/settings/alerts", label: "Job alerts", exact: false },
+  { href: "/plans", label: "Plans & billing", exact: false },
   { href: "/settings/integrations", label: "Integrations", exact: false },
 ];
 

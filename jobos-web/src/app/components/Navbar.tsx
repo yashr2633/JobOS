@@ -25,7 +25,7 @@ export default async function Navbar() {
       <DesktopNav />
 
       <div className="flex items-center gap-2 sm:gap-3">
-        <details className="relative md:hidden">
+        <details className="product-mobile-tools relative md:hidden">
           <summary className="cursor-pointer rounded-lg px-2 py-2 text-sm">Tools</summary>
           <div className="absolute right-0 z-50 mt-2 grid min-w-52 gap-1 rounded-lg border border-border bg-surface p-2 shadow-lg">
             {CAREER_TOOL_LINKS.map(item => <Link key={item.href} href={item.href} className="rounded-md px-3 py-2 text-sm">{item.label}</Link>)}

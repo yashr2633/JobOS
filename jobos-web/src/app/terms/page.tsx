@@ -13,7 +13,7 @@ import { publicPageMetadata } from "@/lib/seo/metadata";
  */
 export const metadata: Metadata = publicPageMetadata("/terms", "Terms of Service", "The terms that govern your use of JobTrackOS.");
 
-const LAST_UPDATED = "August 25, 2026";
+const LAST_UPDATED = "November 5, 2026";
 
 /** Official monitored support address (matches Google OAuth Branding). */
 const SUPPORT_EMAIL = "kenilja946@gmail.com";
@@ -185,6 +185,13 @@ export default function TermsPage() {
               </a>
               .
             </p>
+          </section>
+
+          <section>
+            <h2 className="mb-2 text-lg font-semibold text-text">12. Paid plans, renewals and cancellation</h2>
+            <p>Pro pricing and included features are shown on the <Link href="/plans" className="text-accent underline">Plans &amp; Billing page</Link> before checkout. Monthly billing is ₹349 per month. Yearly billing is ₹3,350.40 per year, a 20% discount against twelve monthly payments. Yearly billing is an annual charge, not a monthly instalment.</p>
+            <p className="mt-3">By accepting recurring billing at checkout, you authorise Razorpay to collect the selected recurring amount. Paid access starts after payment is verified. You may cancel future renewals from Plans &amp; Billing; confirmed paid access continues through its expiry date. Closing your browser or stopping use does not itself cancel a subscription.</p>
+            <p className="mt-3">For payment discrepancies, duplicate charges or refund requests, contact {SUPPORT_EMAIL} with your payment reference. Refund requests are reviewed individually. A full refund removes access purchased by that payment. Premium access does not guarantee a job offer or recruitment outcome.</p>
           </section>
 
           <section className="border-t border-border pt-6">

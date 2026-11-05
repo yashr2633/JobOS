@@ -17,7 +17,7 @@ import { publicPageMetadata } from "@/lib/seo/metadata";
  */
 export const metadata: Metadata = publicPageMetadata("/privacy-policy", "Privacy Policy", "How JobTrackOS handles your account information and optional Gmail data.");
 
-const LAST_UPDATED = "November 3, 2026";
+const LAST_UPDATED = "November 5, 2026";
 
 /** Official monitored support address (matches Google OAuth Branding). */
 const SUPPORT_EMAIL = "kenilja946@gmail.com";
@@ -304,6 +304,12 @@ export default function PrivacyPolicyPage() {
               </a>
               .
             </p>
+          </section>
+
+          <section>
+            <h2 className="mb-2 text-lg font-semibold text-text">Subscription payments and receipts</h2>
+            <p>Paid checkout is processed by Razorpay. Your account email may be prefilled in checkout. Payment details you enter there are processed by the payment provider; JobTrackOS does not store your card details or UPI authentication credentials.</p>
+            <p className="mt-3">We store subscription and payment references, amounts, payment status, refund records and access expiry dates to manage your plan. We use Brevo to send payment confirmation emails containing your receipt details. Resume content and Gmail message data are not sent to the payment provider for billing.</p>
           </section>
 
           <section className="border-t border-border pt-6">

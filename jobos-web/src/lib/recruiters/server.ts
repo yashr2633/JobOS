@@ -31,14 +31,14 @@ export async function readRecruiterDirectory(query: string, page: number) {
 }
 
 export async function hasCandidateProAccess(userId: string) {
-  const { data, error } = await recruiterDatabase()
-    .from("candidate_pro_access")
-    .select("user_id")
-    .eq("user_id", userId)
-    .gt("valid_until", new Date().toISOString())
-    .maybeSingle();
-  if (error) throw new Error("Pro access could not be verified.");
-  return !!data;
+  const db = recruiterDatabase();
+  const [manual, paid] = await Promise.all([
+    db.from("candidate_pro_access").select("user_id").eq("user_id", userId).gt("valid_until", new Date().toISOString()).maybeSingle(),
+    db.rpc("billing_access_until", { p_user_id: userId }),
+  ]);
+  if (manual.data || (!paid.error && paid.data)) return true;
+  if (manual.error || paid.error) throw new Error("Pro access could not be verified.");
+  return false;
 }
 
 export async function readProRecruiterContact(userId: string, id: string) {
