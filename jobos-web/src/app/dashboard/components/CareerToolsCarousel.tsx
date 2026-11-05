@@ -1,10 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import DesignPreview from "@/app/documents/DesignPreview";
-import { GALLERY_SAMPLE, GALLERY_LETTER } from "@/lib/resume/gallerySample";
-import { resumeLayout } from "@/lib/resume/templates";
 
 const tools = [
   { title: "Resume Match", href: "/resumes", label: "Job requirements", first: "Skills that match", second: "Evidence to strengthen", tone: "bg-[#d9e8dc]", detail: "See what to highlight before you apply." },
@@ -34,16 +32,8 @@ export default function CareerToolsCarousel() {
       <div className="career-carousel-viewport">
         <div className="career-carousel-track" style={{ transform: `translateX(-${index * 100}%)` }}>
           {tools.map((tool, slide) => <Link key={tool.href} href={tool.href} className="career-carousel-slide" tabIndex={slide === index ? 0 : -1} aria-hidden={slide !== index}>
-            <div className={`career-carousel-art ${tool.tone}`} aria-hidden="true">
-              {slide === 1 || slide === 2 ? <div className="career-carousel-document"><DesignPreview document={slide === 2 ? GALLERY_LETTER : GALLERY_SAMPLE} layout={resumeLayout({ templateId: slide === 2 ? "design-archive-signature-original" : "design-meridian-signature-original" })} thumbnail /></div> : (
-                <div className="career-carousel-illustration">
-                  <strong>{tool.label}</strong>
-                  {slide === 0 && <span className="career-carousel-score">Resume → JD</span>}
-                  <span>{tool.first}</span><span>{tool.second}</span>
-                </div>
-              )}
-            </div>
-            <div className="career-carousel-copy">
+            <Image className="career-carousel-image" src={`/career-tools/${["resume-match", "resume-templates", "cover-letter-templates", "recruiter-outreach", "job-alerts"][slide]}.webp`} width={672} height={840} sizes="(max-width: 767px) calc(100vw - 70px), 336px" loading={slide === 0 ? "eager" : "lazy"} alt={`${tool.title} — ${tool.detail}`} />
+            <div className="career-carousel-copy sr-only">
               <strong>{tool.title}</strong>
               <span>{tool.detail}</span>
               <span className="career-carousel-link">Open {tool.title} →</span>

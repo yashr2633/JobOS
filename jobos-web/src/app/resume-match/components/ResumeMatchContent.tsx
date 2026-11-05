@@ -510,9 +510,7 @@ export default function ResumeMatchContent() {
                     </span>
                   )}
                 </div>
-                <p className="mb-2 rounded-md border border-border bg-accent/10 px-3 py-2 text-sm font-medium text-accent">
-                  Make your relevant experience easier to spot before shortlisting.
-                </p>
+                <div className="tailoring-benefit-callout"><strong>It can increase your chances of being shortlisted.</strong><p>Tailor your resume and cover letter to this job description, using your real skills and experience.</p></div>
                 {!analysisReady && <p className="mb-2 text-xs font-medium text-text-secondary">Locked until you scan your resume</p>}
                 <fieldset disabled={!analysisReady} className="min-w-0">
                 <TailorResumePanel

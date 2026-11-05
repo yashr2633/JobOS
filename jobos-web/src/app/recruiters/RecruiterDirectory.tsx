@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
+import { ProUpgradeButton } from "../components/ProUpgrade";
 
 export interface DirectoryContact {
   id: string;
@@ -49,7 +50,7 @@ export default function RecruiterDirectory({ initialContacts, total, query, pro,
     {!contacts.length ? <p className="text-sm text-text-secondary">{query ? "No published contacts match this search. Try another name or company." : "No recruiter contacts have been published yet."}</p> : <div className="grid gap-3">
       {contacts.map(item => <article key={item.id} className="recruiter-contact-row">
         <div><h3>{item.name || item.company}</h3><p>{[item.name && item.company, item.title, item.location].filter(Boolean).join(" · ")}</p></div>
-        {pro ? <Link className="product-button" href={contactHref(item.id)}>View email &amp; draft →</Link> : <div className="recruiter-email-lock"><span><span aria-hidden="true" className="mr-2 select-none blur-[2px]">••••••••@••••••••</span>Email · Pro</span><Link href="/plans">Unlock email →</Link></div>}
+        {pro ? <Link className="product-button" href={contactHref(item.id)}>View email &amp; draft →</Link> : <div className="recruiter-email-lock"><span className="recruiter-email-label">Work email <span className="pro-tag">Pro</span></span><span className="recruiter-email-placeholder" aria-hidden="true">name@company.com</span><ProUpgradeButton label="Unlock email →" reason="Unlock recruiter work emails and prepare a personal introduction." className="recruiter-unlock-button" /></div>}
       </article>)}
     </div>}
     {!!contacts.length && <div className="recruiter-load-more"><p aria-live="polite">Showing <strong>{contacts.length.toLocaleString("en-IN")}</strong> of {count.toLocaleString("en-IN")} contacts</p>

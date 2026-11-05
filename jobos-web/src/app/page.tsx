@@ -36,6 +36,7 @@ import { homepageMetadata } from "@/lib/seo/metadata";
 import { Suspense } from "react";
 import SessionTracker from "./components/SessionTracker";
 import JobAlertPrompt from "./components/JobAlertPrompt";
+import { ProUpgradeCard } from "./components/ProUpgrade";
 import {
   RECENT_ACTIVITY_LIMIT,
   buildRecentActivity,
@@ -265,6 +266,7 @@ export default async function Home({ searchParams }: HomeProps) {
           <Suspense fallback={<section className="product-panel"><p className="product-kicker">Career Assistant</p><h1>Find your next opportunity.</h1><p className="mt-3 text-sm text-text-secondary">Loading your career workspace…</p></section>}><CareerHome userId={user.id} name={typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name.trim().split(/\s+/)[0].slice(0, 30) : undefined} /></Suspense>
           <CareerToolsCarousel />
         </div>
+        <ProUpgradeCard />
         <Suspense fallback={<section className="product-panel mb-6"><h2>Opportunities to explore</h2><p className="mt-3 text-sm text-text-muted">Checking available sources…</p></section>}><RecommendedJobs /></Suspense>
         <details className="mt-6 rounded-lg border border-border bg-surface p-4 sm:p-5">
           <summary className="cursor-pointer text-sm font-semibold text-text">Application overview · totals and activity</summary>

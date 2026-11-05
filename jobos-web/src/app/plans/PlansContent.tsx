@@ -23,7 +23,7 @@ async function api(path: string, body?: unknown) {
   return result;
 }
 const date = (value: string) => new Date(value).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-const benefits = ["64 Premium resume & cover letter designs", "Recruiter work emails, beyond free profile browsing", "Personal outreach drafts to review and send", "All Free features included"];
+const benefits = ["60+ Premium resume & cover letter designs", "Recruiter work emails, beyond free profile browsing", "Personal outreach drafts to review and send", "All Free features included"];
 
 export default function PlansContent({ signedIn, initiallyAvailable }: { signedIn: boolean; initiallyAvailable: boolean }) {
   const [plan, setPlan] = useState<BillingPlan>("monthly"), [consent, setConsent] = useState(false);
@@ -55,7 +55,7 @@ export default function PlansContent({ signedIn, initiallyAvailable }: { signedI
       const session = await api("checkout", { plan, renewalConsent: true });
       const payment = new window.Razorpay({ key: session.keyId, subscription_id: session.subscriptionId,
         name: "JobTrackOS", description: `Pro · ${BILLING_PLANS[plan].name}`, image: "https://www.jobtrackos.online/brand-mark-email.png",
-        prefill: { email: session.email }, theme: { color: "#204fc4" },
+        prefill: { email: session.email }, theme: { color: "#60c1e5" },
         modal: { ondismiss: () => { setBusy(false); setMessage("Checkout closed. Refresh your payment status before retrying."); void refresh(); } },
         handler: response => {
           void (async () => {

@@ -2,6 +2,7 @@
 @import "./product.css";
 @import "./public-home.css";
 @import "./documents.css";
+@import "./brand-theme.css";
 
 /**
  * JobOS design tokens.
@@ -32,14 +33,14 @@
 :root {
   --bg: #f3f5f9;
   --surface: #ffffff;
-  --surface-2: #edf2fd;
+  --surface-2: #edf8fc;
   --border: #c4cede;
   --border-strong: #7c8da5;
-  --text: #172338;
+  --text: #09251c;
   --text-secondary: #536174;
   --text-muted: #526176;
-  --accent: #204fc4;
-  --accent-hover: #153b9b;
+  --accent: #60c1e5;
+  --accent-hover: #44b2dd;
   --accent-fg: #ffffff;
   --success: #15803d;
   --success-bg: #f0fdf4;
