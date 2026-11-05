@@ -23,7 +23,7 @@ async function api(path: string, body?: unknown) {
   return result;
 }
 const date = (value: string) => new Date(value).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-const benefits = ["60+ Premium resume & cover letter designs", "Recruiter work emails, beyond free profile browsing", "Personal outreach drafts to review and send", "All Free features included"];
+const benefits = ["60+ Premium resume & cover letter designs", "Customise layouts, typography and page settings", "Edit and export your Premium documents", "Unlock recruiter work emails", "Personal outreach drafts to review, edit and send", "Resume Match and JD-based tailoring tools included", "All Free features and optional job alerts included"];
 
 export default function PlansContent({ signedIn, initiallyAvailable }: { signedIn: boolean; initiallyAvailable: boolean }) {
   const [plan, setPlan] = useState<BillingPlan>("monthly"), [consent, setConsent] = useState(false);
