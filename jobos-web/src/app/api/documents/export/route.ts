@@ -5,6 +5,8 @@ import { MAX_DOCUMENT_BYTES, readWorkspaceDocument, builderDocument, letterDocum
 import { renderResumePdf } from "@/lib/resume/pdf";
 import { renderResumeDocx } from "@/lib/resume/docx";
 import { formatResumeDocument, resumePlainText } from "@/lib/resume/templates";
+import { isFreeTemplate } from "@/lib/resume/templateAccess";
+import { hasCandidateProAccess } from "@/lib/recruiters/server";
 
 export const runtime = "nodejs";
 const headers = { "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex, nofollow" };
@@ -21,6 +23,9 @@ export async function POST(request: Request) {
     try { input = JSON.parse(raw); } catch { return err("Use a valid document request.", 400); }
     const document = readWorkspaceDocument(input?.document), format = input?.format;
     if (!document || !["pdf", "docx", "txt"].includes(format)) return err("Choose a valid document and export format.", 400);
+    if (!isFreeTemplate(document.formatting.templateId) && !(await hasCandidateProAccess(user.id))) {
+      return err("This template requires Pro. Choose a Free template or view plans.", 403);
+    }
     const model = document.kind === "resume" ? builderDocument(document.data) : letterDocument(document.data);
     const text = resumePlainText(formatResumeDocument(model, document.formatting));
     if (!document.data.name.trim() || !model.sections.some(section => section.blocks.length) || text.length > 60000) return err("Add your name and document content before exporting (maximum 60,000 characters).", 400);

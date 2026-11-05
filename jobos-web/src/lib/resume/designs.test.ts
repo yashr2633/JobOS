@@ -11,11 +11,11 @@ import { resumeLayout } from "./templates.ts";
 import { renderResumePdf } from "./pdf.ts";
 import { renderResumeDocx } from "./docx.ts";
 
-test("60 designs span twelve compositions and remain structurally distinct without their colors", () => {
-  assert.equal(STUDIO_STYLES.length, 60);
+test("72 designs span twelve compositions and remain structurally distinct without their colors", () => {
+  assert.equal(STUDIO_STYLES.length, 72);
   assert.equal(new Set(STUDIO_STYLES.map(style => style.design.composition)).size, 12);
   const silhouettes = STUDIO_STYLES.map(style => JSON.stringify(composeDesign(GALLERY_SAMPLE, resumeLayout({ templateId: `${style.id}-original` })).map(page => page.elements.map(item => item.kind === "text" ? { ...item, color: "ink" } : item.kind === "rect" ? { ...item, fill: item.fill ? "fill" : undefined, stroke: item.stroke ? "stroke" : undefined } : { ...item, color: "ink" }))));
-  assert.equal(new Set(silhouettes).size, 60);
+  assert.equal(new Set(silhouettes).size, 72);
 });
 for (const style of STUDIO_STYLES) test(`${style.name}: PDF and editable DOCX preserve every source fact`, async () => {
   const format = { templateId: `${style.id}-original` };

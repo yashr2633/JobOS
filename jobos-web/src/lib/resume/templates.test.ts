@@ -14,8 +14,8 @@ test("templates retain every content fragment and leave the input untouched", ()
   const original = JSON.stringify(document);
   const expected = collectDocumentText(document).sort();
   assert.equal(LEGACY_RESUME_STYLES.length, 50);
-  assert.equal(RESUME_STYLES.length, 110);
-  assert.equal(new Set(RESUME_TEMPLATES.map(item => item.id)).size, 550);
+  assert.equal(RESUME_STYLES.length, 122);
+  assert.equal(new Set(RESUME_TEMPLATES.map(item => item.id)).size, 610);
   for (const template of RESUME_TEMPLATES) {
     const reordered = formatResumeDocument(document, { templateId: template.id });
     assert.deepEqual(collectDocumentText(reordered).sort(), expected, template.id);

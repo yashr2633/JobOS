@@ -75,3 +75,26 @@
 .studio-gallery-catalog .design-thumbnail{border:8px solid var(--surface-2);box-shadow:0 3px 12px #102b5512}
 @media(max-width:850px){.studio-gallery-catalog .studio-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:500px){.studio-gallery-catalog .studio-gallery-grid{grid-template-columns:minmax(0,1fr)}.studio-gallery-catalog{max-height:700px}}
+
+/* Shared header destinations remain visible as the window narrows. */
+.product-desktop-nav{gap:2px;flex-wrap:wrap}
+.product-desktop-nav>a{padding:10px;font-size:13px}
+.product-nav-menu>summary{color:var(--text-secondary);font-size:13px;min-height:44px}
+.product-nav-menu[open]>summary{color:var(--text);background:#ffffff0d}
+@media(min-width:768px) and (max-width:1279px){.product-header{flex-wrap:wrap;padding-block:12px}.product-header>.product-desktop-nav{order:3;width:100%}}
+.career-carousel-viewport{overflow:hidden;border-radius:10px;border:1px solid var(--border);margin-top:12px}
+.career-carousel-track{display:flex;transition:transform .5s cubic-bezier(.22,1,.36,1)}
+.career-carousel-slide{flex:0 0 100%;width:100%;min-width:0;display:block;background:var(--surface)}
+.career-carousel-art{height:224px;padding:16px;display:grid;place-items:center;overflow:hidden}
+.career-carousel-document{width:146px;transform:rotate(-5deg);box-shadow:0 8px 20px #102b552b}
+.career-carousel-document .design-thumbnail{aspect-ratio:210/297;max-height:none;border:0}
+.career-carousel-illustration{display:grid;gap:12px;padding:20px;min-height:156px;width:100%;max-width:236px;background:#fffdf8;color:#243128;border:1px solid #d1d7c8;border-top:6px solid #315f46;border-radius:8px;box-shadow:0 8px 20px #102b5520;font-size:14px}
+.career-carousel-score{font-size:22px;font-weight:600;color:#315f46}
+.career-carousel-copy{display:grid;gap:6px;padding:16px;min-height:152px}
+.career-carousel-copy>strong{font-size:19px;font-weight:600}
+.career-carousel-copy>span{font-size:14px;color:var(--text-secondary)}
+.career-carousel-copy .career-carousel-link{font-weight:600;color:var(--accent);margin-top:4px}
+.career-carousel-controls .product-button{padding:8px 11px;font-size:12px}
+.legacy-template-thumbnail .document-preview-scroll{overflow:hidden;padding:0}
+.legacy-template-thumbnail .document-page{width:595px;max-width:none;transform:scale(.4);transform-origin:top left}
+@media(prefers-reduced-motion:reduce){.career-carousel-track{transition:none}}

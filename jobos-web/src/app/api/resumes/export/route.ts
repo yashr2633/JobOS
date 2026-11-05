@@ -43,6 +43,8 @@ import {
 import { renderResumeDocx } from "@/lib/resume/docx";
 import { renderResumePdf } from "@/lib/resume/pdf";
 import { validateResumeFormat } from "@/lib/resume/templates";
+import { isFreeTemplate } from "@/lib/resume/templateAccess";
+import { hasCandidateProAccess } from "@/lib/recruiters/server";
 
 /** Generous for a resume, small enough that a paste cannot exhaust memory. */
 const MAX_CONTENT_LENGTH = 60_000;
@@ -102,6 +104,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // by the existing user-scoped read, not merely by RLS.
   const owned = await getApplicationIntelligenceInput(supabase, applicationId.trim());
   if (owned === null) return err("Application not found.", 404);
+  if (!isFreeTemplate(options.templateId)) {
+    try {
+      if (!(await hasCandidateProAccess(user.id))) return err("This template requires Pro. Choose a Free template or view plans.", 403);
+    } catch {
+      return err("Your Pro access could not be checked. Please retry.", 503);
+    }
+  }
 
   // Structure the user's edited text. Every string in the document is a
   // substring of `content`; this step cannot add one.

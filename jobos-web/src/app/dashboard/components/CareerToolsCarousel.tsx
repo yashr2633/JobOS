@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import DesignPreview from "@/app/documents/DesignPreview";
+import { GALLERY_SAMPLE, GALLERY_LETTER } from "@/lib/resume/gallerySample";
+import { resumeLayout } from "@/lib/resume/templates";
 
 const tools = [
   { title: "Resume Match", href: "/resumes", label: "Job requirements", first: "Skills that match", second: "Evidence to strengthen", tone: "bg-[#d9e8dc]", detail: "See what to highlight before you apply." },
@@ -13,41 +16,47 @@ const tools = [
 
 export default function CareerToolsCarousel() {
   const [index, setIndex] = useState(0);
-  const [focused, setFocused] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const container = useRef<HTMLElement>(null);
   useEffect(() => {
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (paused) return;
     const timer = window.setInterval(() => {
-      if (!focused && !reducedMotion.matches && !document.hidden) setIndex(previous => (previous + 1) % tools.length);
-    }, 5500);
+      if (!document.hidden && !container.current?.querySelector("a:focus-visible")) {
+        setIndex(previous => (previous + 1) % tools.length);
+      }
+    }, 4500);
     return () => window.clearInterval(timer);
-  }, [focused]);
-  const tool = tools[index];
+  }, [paused]);
 
   return (
-    <aside className="product-panel h-fit" aria-label="Career tools" onFocusCapture={() => setFocused(true)} onBlurCapture={event => {
-      if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
-    }}>
+    <aside ref={container} className="product-panel career-carousel h-fit" aria-label="Career tools">
       <h2>Career tools</h2>
-      <Link href={tool.href} className="mt-3 block rounded-lg border border-border bg-surface">
-        <div className={`grid min-h-36 place-items-center rounded-t-lg p-4 ${tool.tone}`} aria-hidden="true">
-          <div className="w-full max-w-44 rounded-lg border border-border bg-surface p-3 text-xs text-text shadow-sm">
-            <strong>{tool.label}</strong>
-            <div className="mt-2 grid gap-2 border-t border-border pt-2">
-              <span>{tool.first}</span>
-              <span className="text-text-secondary">{tool.second}</span>
+      <div className="career-carousel-viewport">
+        <div className="career-carousel-track" style={{ transform: `translateX(-${index * 100}%)` }}>
+          {tools.map((tool, slide) => <Link key={tool.href} href={tool.href} className="career-carousel-slide" tabIndex={slide === index ? 0 : -1} aria-hidden={slide !== index}>
+            <div className={`career-carousel-art ${tool.tone}`} aria-hidden="true">
+              {slide === 1 || slide === 2 ? <div className="career-carousel-document"><DesignPreview document={slide === 2 ? GALLERY_LETTER : GALLERY_SAMPLE} layout={resumeLayout({ templateId: slide === 2 ? "design-archive-signature-original" : "design-meridian-signature-original" })} thumbnail /></div> : (
+                <div className="career-carousel-illustration">
+                  <strong>{tool.label}</strong>
+                  {slide === 0 && <span className="career-carousel-score">Resume → JD</span>}
+                  <span>{tool.first}</span><span>{tool.second}</span>
+                </div>
+              )}
             </div>
-          </div>
+            <div className="career-carousel-copy">
+              <strong>{tool.title}</strong>
+              <span>{tool.detail}</span>
+              <span className="career-carousel-link">Open {tool.title} →</span>
+            </div>
+          </Link>)}
         </div>
-        <div className="grid gap-1 p-3">
-          <strong>{tool.title}</strong>
-          <span className="text-sm text-text-secondary">{tool.detail}</span>
-        </div>
-      </Link>
+      </div>
       <div className="mt-3 flex items-center justify-between gap-2">
         <span className="text-sm text-text-muted">{index + 1} of {tools.length}</span>
-        <div className="flex gap-2">
-          <button className="p-outline" type="button" aria-label="Previous tool" onClick={() => setIndex((index + tools.length - 1) % tools.length)}>←</button>
-          <button className="p-outline" type="button" aria-label="Next tool" onClick={() => setIndex((index + 1) % tools.length)}>→</button>
+        <div className="career-carousel-controls flex gap-2">
+          <button className="product-button" type="button" aria-label={paused ? "Resume automatic slides" : "Pause automatic slides"} aria-pressed={paused} onClick={() => setPaused(value => !value)}>{paused ? "Play" : "Pause"}</button>
+          <button className="product-button" type="button" aria-label="Previous tool" onClick={() => setIndex((index + tools.length - 1) % tools.length)}>←</button>
+          <button className="product-button" type="button" aria-label="Next tool" onClick={() => setIndex((index + 1) % tools.length)}>→</button>
         </div>
       </div>
     </aside>

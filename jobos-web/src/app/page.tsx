@@ -261,7 +261,7 @@ export default async function Home({ searchParams }: HomeProps) {
         {/* Track authenticated session activity (non-blocking, once per day) */}
         <SessionTracker />
         <JobAlertPrompt />
-        <div className="mb-6 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_16rem]">
+        <div className="mb-6 grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]">
           <Suspense fallback={<section className="product-panel"><p className="product-kicker">Career Assistant</p><h1>Find your next opportunity.</h1><p className="mt-3 text-sm text-text-secondary">Loading your career workspace…</p></section>}><CareerHome userId={user.id} name={typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name.trim().split(/\s+/)[0].slice(0, 30) : undefined} /></Suspense>
           <CareerToolsCarousel />
         </div>
