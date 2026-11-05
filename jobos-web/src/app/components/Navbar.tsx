@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import AuthButton from "./AuthButton";
 import Brand from "./Brand";
 import DesktopNav from "./DesktopNav";
+import { CAREER_TOOL_LINKS } from "./navItems";
 
 /**
  * Shared brand, desktop navigation and account controls. Phone navigation uses
@@ -24,6 +25,12 @@ export default async function Navbar() {
       <DesktopNav />
 
       <div className="flex items-center gap-2 sm:gap-3">
+        <details className="relative md:hidden">
+          <summary className="cursor-pointer rounded-lg px-2 py-2 text-sm">Tools</summary>
+          <div className="absolute right-0 z-50 mt-2 grid min-w-52 gap-1 rounded-lg border border-border bg-surface p-2 shadow-lg">
+            {CAREER_TOOL_LINKS.map(item => <Link key={item.href} href={item.href} className="rounded-md px-3 py-2 text-sm">{item.label}</Link>)}
+          </div>
+        </details>
         <Link href="/profile" className="product-account-link" aria-label="Your profile and settings">Profile</Link>
         <AuthButton userEmail={user?.email} />
       </div>

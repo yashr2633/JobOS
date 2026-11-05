@@ -41,7 +41,7 @@ export default async function RecruitersPage({ searchParams }: {
         <p className="product-kicker">Career tools</p>
         <h1>Recruiter Outreach</h1>
         <p className="mt-2 max-w-prose text-sm text-text-secondary">Find recruiting contacts and write a short introduction for the role you want.</p>
-        {!pro && <p className="mt-4 rounded-lg border border-border bg-bg p-3 text-sm">Browse recruiter profiles for free. Work email and outreach drafts require Pro.</p>}
+        {!pro && <div className="mt-4 rounded-lg border border-border bg-bg p-3 text-sm"><p>Browse recruiter profiles for free. Work email and outreach drafts require Pro.</p><Link href="/plans" className="mt-2 inline-block font-medium text-accent underline">See Pro access</Link></div>}
       </section>
       {contact && <OutreachDraft key={contact.email} contact={contact} />}
       <section className="product-panel" aria-labelledby="recruiter-directory-title">
