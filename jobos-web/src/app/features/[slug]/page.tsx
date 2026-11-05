@@ -5,6 +5,13 @@ import PublicInfoPage from "../../components/PublicInfoPage";
 import { publicPageMetadata } from "@/lib/seo/metadata";
 
 const features = {
+  "recruiter-outreach": {
+    title: "Recruiter Outreach: HR Contacts & Cold Email Drafts", heading: "Reach the right recruiter with a relevant introduction.",
+    description: "Browse 3,000+ HR and recruiter contacts in JobTrackOS. Explore names and companies for free; Pro unlocks work emails and personal outreach drafts.",
+    steps: ["Sign in and search the recruiter directory by name or company.", "Read the available profile details to choose a relevant contact.", "With Pro, unlock the work email and prepare an introduction using your target role and real experience.", "Review and edit your draft, open it in Gmail or copy it to your email app, attach your resume and send it yourself."],
+    section: "Make your cold email useful to the person reading it", detail: "Mention the role or team you are interested in and explain one relevant skill or achievement. Keep your introduction concise, add a clear question, and attach a resume tailored to the opportunity. Directory access is not a job referral or a promise that someone is hiring. Check the company and role before approaching a contact. Work email access and outreach drafts are part of Pro; you stay in control of each message, and JobTrackOS does not send a mass campaign on your behalf.",
+    action: "Explore Recruiter Outreach", href: "/recruiters",
+  },
   "resume-match": {
     title: "Resume Match & Job Description Comparison", heading: "Understand how your resume fits the job.",
     description: "Compare your resume with a job description. Review matching skills, weak evidence and relevant improvements before tailoring your application.",

@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 
 export const SITE_ORIGIN = "https://www.jobtrackos.online";
-export const HOME_TITLE = "JobTrackOS | Find Jobs in India, Resume Match & Templates";
-export const HOME_DESCRIPTION = "Explore jobs in India, compare your resume with a job description, and prepare tailored resumes and cover letters with JobTrackOS.";
+export const HOME_TITLE = "JobTrackOS | Jobs, Resume Match & Recruiter Outreach";
+export const HOME_DESCRIPTION = "Find jobs in India, match your resume to the JD, build tailored resumes and cover letters, and explore 3,000+ HR and recruiter contacts with JobTrackOS.";
 export const PRODUCT_DESCRIPTION = HOME_DESCRIPTION;
 
 /** Only these anonymous, public pages belong in the sitemap. */
-export const PUBLIC_PATHS = ["/", "/jobs", "/features/resume-match", "/features/resume-builder", "/features/cover-letter", "/about", "/privacy-policy", "/terms"] as const;
+export const PUBLIC_PATHS = ["/", "/jobs", "/features/resume-match", "/features/resume-builder", "/features/cover-letter", "/features/recruiter-outreach", "/about", "/contact", "/privacy-policy", "/terms", "/refund-policy"] as const;
 
 export const PRIVATE_ROBOTS: Metadata["robots"] = {
   index: false,
@@ -51,7 +51,7 @@ export function jobsPageMetadata(cookieNames: string[], params: Record<string, u
 export const PUBLIC_STRUCTURED_DATA = {
   "@context": "https://schema.org",
   "@graph": [
-    { "@type": "Organization", "@id": `${SITE_ORIGIN}/#organization`, name: "JobTrackOS", url: `${SITE_ORIGIN}/`, description: PRODUCT_DESCRIPTION, logo: `${SITE_ORIGIN}/brand-mark.svg` },
+    { "@type": "Organization", "@id": `${SITE_ORIGIN}/#organization`, name: "JobTrackOS", url: `${SITE_ORIGIN}/`, description: PRODUCT_DESCRIPTION, logo: { "@type": "ImageObject", url: `${SITE_ORIGIN}/brand-logo.png`, width: 512, height: 512 } },
     { "@type": "WebSite", "@id": `${SITE_ORIGIN}/#website`, name: "JobTrackOS", alternateName: ["Job Track OS", "jobtrackos.online"], url: `${SITE_ORIGIN}/`,
       description: PRODUCT_DESCRIPTION, publisher: { "@id": `${SITE_ORIGIN}/#organization` } },
   ],

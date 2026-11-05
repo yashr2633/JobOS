@@ -23,6 +23,11 @@ export const metadata: Metadata = {
     template: "%s · JobTrackOS",
   },
   applicationName: "JobTrackOS",
+  icons: {
+    icon: [{ url: "/favicon.png", type: "image/png", sizes: "96x96" }],
+    shortcut: "/favicon.png",
+    apple: "/apple-icon.png",
+  },
   verification: {
     google: "u1gIp8A23DWVeW47dbsKaoFSsMXwIGvH9LyRQcEFSPw",
   },
