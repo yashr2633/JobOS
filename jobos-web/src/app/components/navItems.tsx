@@ -100,6 +100,14 @@ export const NAV_ITEMS: readonly NavItem[] = [
   },
 ];
 
+export const CAREER_TOOL_LINKS = [
+  { href: "/resumes", label: "Resume Match" },
+  { href: "/resume-builder", label: "Resume Templates" },
+  { href: "/cover-letter", label: "Cover Letter Templates" },
+  { href: "/recruiters", label: "Recruiter Outreach" },
+  { href: "/settings/alerts", label: "Job Alerts" },
+] as const;
+
 /** Whether a nav item owns the current path. Shared so both bars agree. */
 export function isNavItemActive(item: NavItem, pathname: string): boolean {
   if (item.exact ? pathname === item.href : pathname.startsWith(item.href)) {

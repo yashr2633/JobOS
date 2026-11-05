@@ -30,11 +30,11 @@ export default function CareerToolsCarousel() {
       <h2>Career tools</h2>
       <Link href={tool.href} className="mt-3 block rounded-lg border border-border bg-surface">
         <div className={`grid min-h-36 place-items-center rounded-t-lg p-4 ${tool.tone}`} aria-hidden="true">
-          <div className="w-full max-w-44 rounded-lg border border-black/10 bg-white p-3 text-xs text-slate-800 shadow-sm">
+          <div className="w-full max-w-44 rounded-lg border border-border bg-surface p-3 text-xs text-text shadow-sm">
             <strong>{tool.label}</strong>
-            <div className="mt-2 grid gap-2 border-t border-slate-200 pt-2">
+            <div className="mt-2 grid gap-2 border-t border-border pt-2">
               <span>{tool.first}</span>
-              <span className="text-slate-600">{tool.second}</span>
+              <span className="text-text-secondary">{tool.second}</span>
             </div>
           </div>
         </div>
