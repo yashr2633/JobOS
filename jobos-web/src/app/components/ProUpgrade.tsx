@@ -43,7 +43,7 @@ export function ProUpgradeButton({ label = "Explore Pro", reason = "Prepare your
         <div className="pro-dialog-hero"><div><p className="product-kicker">Your next move, upgraded</p><h2 id={titleId}>Improve your chances<br />of being shortlisted.</h2><p id={reasonId}>{reason}</p></div><div className="pro-dialog-art"><ProToolkitVisual /></div></div>
         <div className="pro-dialog-body"><ul>{proBenefits.map(([title, detail]) => <li key={title}><ProductIcon name="check" /><div><strong>{title}</strong><p>{detail}</p></div></li>)}</ul>
           <div className="pro-dialog-price"><div><strong>₹349<span>/month</span></strong><p>Yearly plan available with 20% savings.</p></div><span className="product-badge">All Free tools included</span></div>
-          <Link className="product-button product-button-primary pro-dialog-continue" href="/plans">See plans &amp; upgrade <ProductIcon name="arrow" /></Link><div className="pro-dialog-bottom"><button type="button" onClick={() => setOpen(false)}>Not now</button><span>Secure checkout with Razorpay</span></div>
+          <Link className="product-button product-button-primary pro-dialog-continue" href="/plans">See plans &amp; upgrade <ProductIcon name="arrow" /></Link><div className="pro-dialog-bottom"><button type="button" onClick={() => setOpen(false)}>Not now</button><span>Secure checkout with PayU</span></div>
         </div><footer><Link href="/terms">Terms</Link><Link href="/privacy-policy">Privacy</Link><Link href="/refund-policy">Refund policy</Link><Link href="/contact">Contact</Link></footer>
       </div>
     </dialog>}
