@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { isDocumentRequestOrigin } from "@/lib/documents/requestOrigin";
 import { createPayUCheckout } from "@/lib/billing/payu";
-import { isBillingPlan } from "@/lib/billing/plans";
+import { validatePayUCheckout } from "@/lib/billing/payuCheckoutInput";
 export const runtime = "nodejs";
 export async function POST(request: Request) {
   const headers = { "Cache-Control": "private, no-store" };
@@ -13,10 +13,9 @@ export async function POST(request: Request) {
     if (raw.length > 2000) return Response.json({ error: "Invalid checkout request." }, { status: 400, headers });
     const body = JSON.parse(raw);
     if (!body || typeof body !== "object" || Array.isArray(body)) return Response.json({ error: "Invalid checkout request." }, { status: 400, headers });
-    const name = typeof body.firstname === "string" ? body.firstname.trim() : "";
-    const phone = typeof body.phone === "string" ? body.phone.replace(/[\s()-]/g, "").replace(/^\+91/, "") : "";
-    if (!isBillingPlan(body.plan) || body.purchaseConsent !== true || !/^[\p{L}\p{M} .'-]{2,70}$/u.test(name) || !/^[6-9]\d{9}$/.test(phone)) return Response.json({ error: "Choose a plan, enter your name and Indian mobile number, and accept the one-time purchase terms." }, { status: 400, headers });
-    return Response.json(await createPayUCheckout(user, body.plan, name, phone), { headers });
+    const input = validatePayUCheckout(body);
+    if (!input.ok) return Response.json({ error: input.error, field: input.field }, { status: 400, headers });
+    return Response.json(await createPayUCheckout(user, input.value.plan, input.value.firstname, input.value.phone), { headers });
   } catch {
     return Response.json({ error: "Checkout could not start. Your payment has not been initiated. Refresh your payment status before retrying." }, { status: 503, headers });
   }

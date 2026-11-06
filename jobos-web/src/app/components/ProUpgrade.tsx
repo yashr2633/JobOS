@@ -40,10 +40,10 @@ export function ProUpgradeButton({ label = "Explore Pro", reason = "Prepare your
     {open && <dialog ref={dialog} className="pro-dialog" aria-labelledby={titleId} aria-describedby={reasonId} onCancel={() => setOpen(false)} onClose={() => setOpen(false)} onClick={event => { if (event.target === event.currentTarget) setOpen(false); }}>
       <div className="pro-dialog-content">
         <header><span className="pro-dialog-brand"><Image src="/brand-mark.svg" width={30} height={30} alt="" />JobTrackOS <b>Pro</b></span><button type="button" className="pro-dialog-close" aria-label="Close Pro upgrade" onClick={() => setOpen(false)}>×</button></header>
-        <div className="pro-dialog-hero"><div><p className="product-kicker">Your next move, upgraded</p><h2 id={titleId}>Improve your chances<br />of being shortlisted.</h2><p id={reasonId}>{reason}</p></div><div className="pro-dialog-art"><ProToolkitVisual /></div></div>
-        <div className="pro-dialog-body"><ul>{proBenefits.map(([title, detail]) => <li key={title}><ProductIcon name="check" /><div><strong>{title}</strong><p>{detail}</p></div></li>)}</ul>
-          <div className="pro-dialog-price"><div><strong>₹349<span>/month</span></strong><p>Yearly plan available with 20% savings.</p></div><span className="product-badge">All Free tools included</span></div>
+        <div className="pro-dialog-hero"><div><p className="product-kicker">Built for your next opportunity</p><h2 id={titleId}>Increase your chances<br />of being shortlisted.</h2><p id={reasonId}>{reason}</p></div><div className="pro-dialog-art"><ProToolkitVisual /></div></div>
+        <div className="pro-dialog-body">          <div className="pro-dialog-price"><div><strong>₹349<span>/month</span></strong><p>Yearly plan available with 20% savings.</p></div><span className="product-badge">All Free tools included</span></div>
           <Link className="product-button product-button-primary pro-dialog-continue" href="/plans">See plans &amp; upgrade <ProductIcon name="arrow" /></Link><div className="pro-dialog-bottom"><button type="button" onClick={() => setOpen(false)}>Not now</button><span>Secure checkout with PayU</span></div>
+<ul>{proBenefits.map(([title, detail]) => <li key={title}><ProductIcon name="check" /><div><strong>{title}</strong><p>{detail}</p></div></li>)}</ul>
         </div><footer><Link href="/terms">Terms</Link><Link href="/privacy-policy">Privacy</Link><Link href="/refund-policy">Refund policy</Link><Link href="/contact">Contact</Link></footer>
       </div>
     </dialog>}
