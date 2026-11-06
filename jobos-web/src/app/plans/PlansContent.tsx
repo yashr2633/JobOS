@@ -59,7 +59,9 @@ export default function PlansContent({ signedIn, initiallyAvailable }: { signedI
         if (typeof value !== "string") throw new Error("Invalid payment field.");
         const input = document.createElement("input"); input.type = "hidden"; input.name = name; input.value = value; form.append(input);
       }
-      document.body.append(form); form.submit(); form.remove();
+      // Keep the form connected until navigation completes; removing it here can cancel the browser POST.
+      form.hidden = true;
+      document.body.append(form); form.submit();
     } catch (error) { setBusy(false); setMessage(error instanceof Error ? error.message : "Checkout could not open."); }
   }
   async function cancel() {
