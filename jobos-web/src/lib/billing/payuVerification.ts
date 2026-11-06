@@ -33,6 +33,6 @@ export function capturedPayUPayment(row: { txnid: string; amount: number; produc
   if (payment.txnid !== row.txnid || (typeof payment.mihpayid === "number" && !Number.isSafeInteger(payment.mihpayid))) return null;
   const amounts = [payment.amount, payment.transaction_amount, payment.amt].filter(v => v !== undefined);
   if (!amounts.length || amounts.some(v => payuPaise(v) !== row.amount)) return null;
-  if (payment.productinfo !== row.productinfo || (payment.email !== undefined && payment.email.toLowerCase() !== row.email.toLowerCase())) return null;
+  if (payment.productinfo !== row.productinfo || (payment.email != null && payment.email !== "" && payment.email.toLowerCase() !== row.email.toLowerCase())) return null;
   return String(payment.mihpayid);
 }

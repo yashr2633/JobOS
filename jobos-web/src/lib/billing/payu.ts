@@ -53,7 +53,9 @@ async function verifyProvider(row: Checkout): Promise<PayUTransaction | null> {
   });
   if (!response.ok) throw new Error("PayU verification is temporarily unavailable.");
   const body = await response.json();
-  return body.transaction_details?.[row.txnid] ?? null;
+  const transaction = body.transaction_details?.[row.txnid];
+  if (!transaction) throw new Error("PayU could not verify this transaction yet.");
+  return transaction;
 }
 async function settle(row: Checkout) {
   if (row.mode !== payuMode()) throw new Error("Payment environment mismatch.");
@@ -80,7 +82,10 @@ export async function receivePayU(fields: PayUFields) {
   const row = found.data as Checkout | null;
   if (!row || fields.productinfo !== row.productinfo || fields.firstname !== row.firstname || fields.email !== row.email || fields.amount !== (row.amount / 100).toFixed(2)) return { valid: false, confirmed: false };
   if (row.status === "paid") return { valid: true, confirmed: true };
-  return { valid: true, confirmed: await settle(row) };
+  const confirmed = await settle(row);
+  // A success notification can arrive before the verification API catches up; request a retry, never silently drop it.
+  if (fields.status === "success" && !confirmed) throw new Error("Payment confirmation pending. Retry notification.");
+  return { valid: true, confirmed };
 }
 export async function reconcilePayU(userId: string) {
   const rows = await billingDatabase().from("billing_payu_checkouts").select("*").eq("user_id", userId).eq("mode", payuMode()).in("status", ["pending", "paid"]).order("created_at", { ascending: false }).limit(3);
