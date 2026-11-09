@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { productEvent } from "@/lib/analytics/productClient";
 
 type Contact = { name: string | null; company: string; email: string };
 
@@ -13,6 +14,7 @@ export default function OutreachDraft({ contact }: { contact: Contact }) {
   const ready = !!subject.trim() && !!message.trim();
 
   function draft() {
+    productEvent("outreach_draft_created");
     const greeting = contact.name ? `Hi ${contact.name.split(/\s+/)[0]},` : "Hello,";
     const relevantEvidence = evidence.trim();
     setSubject(`${role.trim()} opportunities at ${contact.company}`);
@@ -51,7 +53,7 @@ export default function OutreachDraft({ contact }: { contact: Contact }) {
           <label className="grid gap-1 text-sm font-medium">Subject<input className="rounded-lg border border-border bg-surface p-3" value={subject} maxLength={280} onChange={event => setSubject(event.target.value)} /></label>
           <label className="grid gap-1 text-sm font-medium">Message<textarea className="rounded-lg border border-border bg-surface p-3" rows={8} value={message} maxLength={2000} onChange={event => setMessage(event.target.value)} /></label>
           <div className="flex flex-wrap gap-2">
-            {ready && <a className="product-button product-button-primary" href={gmail.href} target="_blank" rel="noopener noreferrer">Open in Gmail</a>}
+            {ready && <a className="product-button product-button-primary" href={gmail.href} onClick={() => productEvent("mail_composer_open")} target="_blank" rel="noopener noreferrer">Open in Gmail</a>}
             <button className="product-button" type="button" disabled={!ready} onClick={() => void copy()}>Copy draft</button>
           </div>
           <p className="text-sm text-text-muted" role="status">{copyStatus || "Review the draft and send from your own account."}</p>

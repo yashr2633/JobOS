@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isDocumentRequestOrigin } from "@/lib/documents/requestOrigin";
 import { DOCUMENT_ID, MAX_DOCUMENT_BYTES, documentPath, readWorkspaceDocument, type DocumentKind } from "@/lib/documents/model";
+import { recordProductEvent } from "@/lib/analytics/productServer";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -62,6 +63,7 @@ export async function POST(request: Request) {
     }
     const { error } = await bucket.upload(path, new Blob([JSON.stringify(document)], { type: "application/json" }), { contentType: "application/json", upsert: Boolean(input.id) });
     if (error) return json({ error: "Draft was not saved. Keep this page open and retry." }, 502);
+    await recordProductEvent(user.id, "document_saved", { kind: document.kind, template: document.formatting.templateId });
     return json({ id, savedAt: new Date().toISOString() }, input.id ? 200 : 201);
   } catch { return json({ error: "Draft could not be saved. Keep this page open and retry." }, 502); }
 }

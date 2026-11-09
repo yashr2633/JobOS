@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "npm run test:ai && npm run test:resume && npm run test:documents && npm run test:gmail && npm run test:applications && npm run test:dashboard && npm run test:ui && npm run test:jobs && npm run test:alerts && npm run test:billing",
+    "test": "npm run test:ai && npm run test:resume && npm run test:documents && npm run test:gmail && npm run test:applications && npm run test:dashboard && npm run test:ui && npm run test:jobs && npm run test:alerts && npm run test:billing && npm run test:analytics",
     "test:alerts": "node --test src/lib/alerts/model.test.ts",
     "test:billing": "node --test src/lib/billing/verification.test.ts src/lib/billing/payuVerification.test.ts src/lib/billing/payuCheckoutInput.test.ts",
     "test:documents": "node --test src/lib/documents/model.test.ts src/lib/documents/requestOrigin.test.ts src/lib/jobs/publicBrowsing.test.ts",
@@ -17,7 +17,8 @@
     "test:ai": "node --test src/lib/ai/scoring.test.ts src/lib/ai/provider.test.ts src/lib/ai/gateway.test.ts src/lib/ai/tailorResume.test.ts",
     "test:gmail": "node --test src/lib/gmail/oauth.test.ts src/lib/supabase/oauthRedirect.test.ts src/lib/gmail/tokens.test.ts src/lib/gmail/applicationEvidence.test.ts src/lib/gmail/evidenceGate.integration.test.ts src/lib/gmail/scanWindow.test.ts src/lib/gmail/scanMode.test.ts src/lib/gmail/scanRepair.test.ts src/lib/gmail/bodyEscalation.test.ts src/lib/gmail/stuckEvidence.test.ts src/lib/gmail/employer.test.ts src/lib/gmail/jobOpportunity.test.ts src/lib/gmail/pipeline.test.ts src/lib/gmail/tracking.test.ts src/lib/gmail/proposals.test.ts src/lib/gmail/autoImport.test.ts src/lib/gmail/reconcile.test.ts src/lib/gmail/pendingDecisions.test.ts src/lib/gmail/company-portal.test.ts src/lib/gmail/incremental.test.ts src/lib/gmail/regate.test.ts src/lib/gmail/security.test.ts src/lib/api/gmailActivity.test.ts src/lib/gmail/browserScan.test.ts src/lib/gmail/localApplications.test.ts",
     "test:applications": "node --test src/lib/applications/lifecycle.test.ts src/lib/api/applicationStatus.test.ts src/app/applications/filters.test.ts",
-    "test:dashboard": "node --test src/app/dashboard/metrics.test.ts src/app/dashboard/recentActivity.test.ts src/app/dashboard/reportingWindow.test.ts src/app/dashboard/windowReporting.test.ts src/app/dashboard/statusConsistency.test.ts src/app/dashboard/activityChart.test.ts"
+    "test:dashboard": "node --test src/app/dashboard/metrics.test.ts src/app/dashboard/recentActivity.test.ts src/app/dashboard/reportingWindow.test.ts src/app/dashboard/windowReporting.test.ts src/app/dashboard/statusConsistency.test.ts src/app/dashboard/activityChart.test.ts",
+    "test:analytics": "node --test src/lib/analytics/productModel.test.ts"
   },
   "dependencies": {
     "@capacitor/android": "^6.0.0",

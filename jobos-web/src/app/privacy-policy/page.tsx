@@ -17,7 +17,7 @@ import { publicPageMetadata } from "@/lib/seo/metadata";
  */
 export const metadata: Metadata = publicPageMetadata("/privacy-policy", "Privacy Policy", "How JobTrackOS handles your account information and optional Gmail data.");
 
-const LAST_UPDATED = "November 5, 2026";
+const LAST_UPDATED = "November 9, 2026";
 
 /** Official monitored support address (matches Google OAuth Branding). */
 const SUPPORT_EMAIL = "kenilja946@gmail.com";
@@ -45,6 +45,11 @@ export default function PrivacyPolicyPage() {
         </header>
 
         <div className="space-y-8 text-sm leading-6 text-text-secondary">
+          <section>
+            <h2 className="mb-2 text-lg font-semibold text-text">First-party product analytics</h2>
+            <p>We record limited product events, such as page views, job application-link clicks, document exports and checkout activity, to understand usage and diagnose failures. Browser-tab storage holds a random session identifier and campaign source for up to 30 minutes of inactivity; these are not advertising cookies or cross-site identifiers. Signed-in events may be linked to your account. Browser Do Not Track and Global Privacy Control signals disable optional client event collection.</p>
+            <p className="mt-2">Our private admin report uses aggregate activity and account records. Analytics does not collect resume contents, Gmail message bodies, outreach message text, recruiter email addresses, or payment credentials. Raw IP addresses and user agents are not stored in product analytics. Account deletion removes associated account-linked product events. Essential account, security, consent and financial records are handled separately.</p>
+          </section>
           <section>
             <h2 className="mb-2 text-lg font-semibold text-text">Optional job emails</h2>
             <p>When you enable email job updates, JobTrackOS stores your selected role or company, location, frequency, and consent record. We use your verified account email to send matching job recommendations through Brevo when delivery is configured. Brevo receives your email address and the message content. Your resume and Gmail contents are not included.</p>

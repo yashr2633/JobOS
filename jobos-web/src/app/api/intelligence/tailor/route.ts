@@ -24,6 +24,7 @@ import { getApplicationIntelligenceInput } from "@/lib/api/intelligence";
 import { fetchResume } from "@/lib/api/resumes";
 import { validateInputText } from "@/lib/ai/schemas";
 import { generateStructured, AiGatewayError } from "@/lib/ai/gateway";
+import { recordProductEvent } from "@/lib/analytics/productServer";
 import {
   TAILOR_RESUME_SYSTEM,
   TAILORING_NOTE,
@@ -110,6 +111,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // does not literally appear in the resume is dropped. A prompt instruction
     // cannot enforce that; this can.
     const verified = verifyTailoredResume(result.value, resumeText);
+    await recordProductEvent(user.id, "resume_tailored", { workflow: "resume_tailor" });
 
     return NextResponse.json(
       {
@@ -121,6 +123,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 200 }
     );
   } catch (error: unknown) {
+    await recordProductEvent(user.id, "generation_failed", { workflow: "resume_tailor", reason: error instanceof AiGatewayError ? error.category : "unavailable" });
     if (error instanceof AiGatewayError) {
       console.error(
         "[tailor] AI gateway exhausted:",

@@ -7,6 +7,7 @@ import { renderResumeDocx } from "@/lib/resume/docx";
 import { formatResumeDocument, resumePlainText } from "@/lib/resume/templates";
 import { isFreeTemplate } from "@/lib/resume/templateAccess";
 import { hasCandidateProAccess } from "@/lib/recruiters/server";
+import { recordProductEvent } from "@/lib/analytics/productServer";
 
 export const runtime = "nodejs";
 const headers = { "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex, nofollow" };
@@ -33,6 +34,7 @@ export async function POST(request: Request) {
     if (format === "pdf" && [...text].some(char => char.codePointAt(0)! > 255 && !/[\u2010-\u201f\u2022\u2026\u2000-\u200d\u202f\u2032\u2033\u20ac\ufeff]/.test(char))) return err("Use DOCX or TXT for these characters so your text is preserved. PDF currently supports Latin-script standard fonts.", 422);
     const bytes = format === "txt" ? new TextEncoder().encode(text) : format === "pdf" ? await renderResumePdf(model, document.formatting) : await renderResumeDocx(model, document.formatting);
     const name = document.label.normalize("NFKD").replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 90) || document.kind;
+    await recordProductEvent(user.id, "document_exported", { kind: document.kind, template: document.formatting.templateId, format, plan: isFreeTemplate(document.formatting.templateId) ? "free" : "premium" });
     return new NextResponse(Uint8Array.from(bytes).buffer, { headers: { ...headers,
       "Content-Type": format === "pdf" ? "application/pdf" : format === "docx" ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document" : "text/plain; charset=utf-8",
       "Content-Disposition": `attachment; filename="${name}.${format}"`, "X-Content-Type-Options": "nosniff",

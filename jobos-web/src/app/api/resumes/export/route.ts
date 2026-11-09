@@ -45,6 +45,7 @@ import { renderResumePdf } from "@/lib/resume/pdf";
 import { validateResumeFormat } from "@/lib/resume/templates";
 import { isFreeTemplate } from "@/lib/resume/templateAccess";
 import { hasCandidateProAccess } from "@/lib/recruiters/server";
+import { recordProductEvent } from "@/lib/analytics/productServer";
 
 /** Generous for a resume, small enough that a paste cannot exhaust memory. */
 const MAX_CONTENT_LENGTH = 60_000;
@@ -133,6 +134,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // A fresh ArrayBuffer slice, so the response body is exactly the rendered
     // bytes regardless of the underlying pool buffer.
     const output = bytes.slice();
+    await recordProductEvent(user.id, "document_exported", { kind: "resume", template: options.templateId, format, plan: isFreeTemplate(options.templateId) ? "free" : "premium" });
 
     return new NextResponse(output as unknown as BodyInit, {
       status: 200,

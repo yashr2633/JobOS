@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "@/lib/supabase/env";
+import { recordProductEvent } from "@/lib/analytics/productServer";
 
 export const CONTACT_PAGE_SIZE = 20;
 
@@ -52,5 +53,6 @@ export async function readProRecruiterContact(userId: string, id: string) {
     .is("removed_at", null)
     .maybeSingle();
   if (error) throw new Error("Recruiter contact could not be loaded.");
+  if (data) await recordProductEvent(userId, "recruiter_unlocked", { company: data.company });
   return data;
 }

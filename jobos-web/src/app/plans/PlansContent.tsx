@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { productEvent } from "@/lib/analytics/productClient";
 import { useEffect, useRef, useState } from "react";
 import { BILLING_PLANS, BILLING_SUPPORT_EMAIL, formatInr, type BillingPlan } from "@/lib/billing/plans";
 
@@ -92,7 +93,7 @@ export default function PlansContent({ signedIn, initiallyAvailable }: { signedI
     <div className="billing-cards">
       <article className="billing-card"><p className="product-kicker">Get started</p><h2>Free</h2><p className="billing-price">₹0 <span>/month</span></p><p>Find opportunities and prepare your application.</p><ul><li>Job search and employer application links</li><li>Resume Match</li><li>10 Free resume &amp; cover letter designs</li><li>Edit and export your Free designs</li><li>Browse recruiter names and companies</li><li>Optional matching job emails</li></ul><Link href="/jobs" className="product-button">Continue with Free →</Link></article>
       <article className="billing-card billing-card-pro"><div className="billing-card-title"><div><p className="product-kicker">For your next step</p><h2>Pro</h2></div><span className="billing-label">{plan === "yearly" ? "20% yearly saving" : "One-time payment · no auto-renewal"}</span></div><p className="billing-price">{price.label}<span>{price.suffix}</span></p><p>{plan === "yearly" ? "₹279.20/month equivalent. Pay ₹3,350.40 once for 1 year; save ₹837.60 versus 12 monthly purchases. No automatic renewal." : "Pay ₹349 once for 1 month of Pro access. No automatic renewal."}</p><ul>{benefits.map(benefit => <li key={benefit}>{benefit}</li>)}</ul>
-        {status?.pro ? <Link href="/resume-builder" className="product-button product-button-primary">Your Pro tools are ready →</Link> : !signedIn ? <Link href="/login?next=%2Fplans" className="product-button product-button-primary">Sign in to get Pro →</Link> : <button ref={continueButton} type="button" className="product-button product-button-primary" disabled={busy || loading || !status || !available} onClick={() => { setCheckoutError(""); setDetailsOpen(true); }}>{loading ? "Checking your plan…" : available ? "Continue with Pro →" : "Payments are being enabled"}</button>}
+        {status?.pro ? <Link href="/resume-builder" className="product-button product-button-primary">Your Pro tools are ready →</Link> : !signedIn ? <Link href="/login?next=%2Fplans" className="product-button product-button-primary">Sign in to get Pro →</Link> : <button ref={continueButton} type="button" className="product-button product-button-primary" disabled={busy || loading || !status || !available} onClick={() => { setCheckoutError(""); setDetailsOpen(true); productEvent("checkout_open", { plan }); }}>{loading ? "Checking your plan…" : available ? "Continue with Pro →" : "Payments are being enabled"}</button>}
         <p className="billing-small">Secure checkout by PayU. Your card or UPI details are entered with the payment provider.</p>{!available && <p className="billing-small">Checkout will open here once merchant setup and payment testing are complete.</p>}
       </article>
     </div>

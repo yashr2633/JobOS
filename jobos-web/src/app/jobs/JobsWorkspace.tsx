@@ -1,4 +1,5 @@
 "use client";
+import { productEvent } from "@/lib/analytics/productClient";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type FormEvent } from "react";
 import Link from "next/link";
@@ -150,7 +151,7 @@ export default function JobsWorkspace({ profile: initialProfile, states: initial
   }, [asOf]);
 
   useEffect(() => {
-    if (selected && dialog.current && !dialog.current.open) dialog.current.showModal();
+    if (selected && dialog.current && !dialog.current.open) { dialog.current.showModal(); productEvent("job_view", { jobId: selected }); }
     if (!selected) dialog.current?.close();
   }, [selected]);
 
@@ -205,7 +206,9 @@ export default function JobsWorkspace({ profile: initialProfile, states: initial
       .sort((a, b) => compareRanked(a, b, view === "latest"));
   }, [view, discovering, unavailable, closedIds, catalog.jobs, allJobs, currentDetails, stateMap, profile, resume, initialQuery, initialLocation, mode, experience, posted, initialCompany, initialQualification, category, employment, personalized, now, ranking]);
 
+  useEffect(() => { productEvent("job_search", { location: initialLocation, category: initialQuery }); }, [initialLocation, initialQuery]);
   async function act(jobId: string, action: string) {
+    if (action === "apply") productEvent("apply_click", { jobId });
     if (personalUnavailable) { setError("Reload to restore your saved account data before using application actions. The original employer listing is still available."); return; }
     if (busy) return;
     setBusy(true); setError(null); setNotice(null);

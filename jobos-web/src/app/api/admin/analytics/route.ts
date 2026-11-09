@@ -1,62 +1,19 @@
-/**
- * GET /api/admin/analytics
- *
- * Founder analytics dashboard data aggregation.
- *
- * Security:
- * - Requires authenticated user
- * - Requires admin authorization (checked via service role)
- * - Non-admins receive 403
- *
- * Returns aggregate metrics from existing source-of-truth tables plus
- * minimal analytics_events tracking.
- */
-
-export const runtime = 'nodejs';
-export const maxDuration = 30;
-
-import { NextResponse, type NextRequest } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { requireAdmin, AdminAuthError } from '@/lib/analytics/admin';
-import { aggregateDashboardMetrics } from '@/lib/analytics/metrics';
-import type { DashboardMetrics } from '@/types/analytics';
-
-function ok(body: DashboardMetrics): NextResponse {
-  return NextResponse.json(body);
-}
-
-function err(message: string, status: number): NextResponse {
-  return NextResponse.json({ error: message }, { status });
-}
-
-export async function GET(_request: NextRequest): Promise<NextResponse> {
-  // ── 1. Authenticate ──────────────────────────────────────────────────────
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return err('Unauthorized.', 401);
-  }
-
-  // ── 2. Authorize admin access ────────────────────────────────────────────
-  try {
-    await requireAdmin(user.id);
-  } catch (error) {
-    if (error instanceof AdminAuthError) {
-      return err(error.message, error.statusCode);
-    }
-    console.error('[admin/analytics] Authorization error:', error);
-    return err('Authorization failed.', 500);
-  }
-
-  // ── 3. Aggregate metrics ─────────────────────────────────────────────────
-  try {
-    const metrics = await aggregateDashboardMetrics();
-    return ok(metrics);
-  } catch (error) {
-    console.error('[admin/analytics] Metrics aggregation error:', error);
-    return err('Failed to aggregate metrics.', 500);
-  }
+import { createClient } from "@/lib/supabase/server";
+import { requireAdmin, AdminAuthError } from "@/lib/analytics/admin";
+import { analyticsPeriod } from "@/lib/analytics/productModel";
+import { adminSnapshot } from "@/lib/analytics/snapshot";
+export const runtime = "nodejs";
+export const maxDuration = 40;
+export const dynamic = "force-dynamic";
+const headers = { "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex, nofollow", "Vary": "Cookie" };
+export async function GET(request: Request) {
+  const { data: { user } } = await (await createClient()).auth.getUser();
+  if (!user) return Response.json({ error: "Please sign in." }, { status: 401, headers });
+  try { await requireAdmin(user.id); }
+  catch (error) { return Response.json({ error: "Admin access is required." }, { status: error instanceof AdminAuthError ? error.statusCode : 500, headers }); }
+  const params = new URL(request.url).searchParams, days = analyticsPeriod(params.get("days"));
+  const page = Number(params.get("page") ?? 1), query = (params.get("q") ?? "").trim(), plan = params.get("plan") ?? "all", staff = params.get("staff") ?? "false";
+  if (!days || !Number.isSafeInteger(page) || page < 1 || page > 10000 || query.length > 80 || !["all", "free", "pro"].includes(plan) || !["true", "false"].includes(staff)) return Response.json({ error: "Choose a valid reporting period and filters." }, { status: 400, headers });
+  try { return Response.json(await adminSnapshot({ days, page, query, plan, includeStaff: staff === "true" }), { headers }); }
+  catch (error) { return Response.json({ error: error instanceof Error ? error.message : "Analytics are temporarily unavailable." }, { status: 503, headers }); }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { productEvent } from "@/lib/analytics/productClient";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import ProductIcon from "./ProductIcon";
@@ -36,7 +37,7 @@ export function ProUpgradeButton({ label = "Explore Pro", reason = "Prepare your
     return () => { modal.close(); document.body.style.overflow = previousOverflow; returnFocus?.focus(); };
   }, [open]);
   return <>
-    <button ref={trigger} type="button" className={className} onClick={() => setOpen(true)}>{label}</button>
+    <button ref={trigger} type="button" className={className} onClick={() => { setOpen(true); productEvent("pro_view"); }}>{label}</button>
     {open && <dialog ref={dialog} className="pro-dialog" aria-labelledby={titleId} aria-describedby={reasonId} onCancel={() => setOpen(false)} onClose={() => setOpen(false)} onClick={event => { if (event.target === event.currentTarget) setOpen(false); }}>
       <div className="pro-dialog-content">
         <header><span className="pro-dialog-brand"><Image src="/brand-mark.svg" width={30} height={30} alt="" />JobTrackOS <b>Pro</b></span><button type="button" className="pro-dialog-close" aria-label="Close Pro upgrade" onClick={() => setOpen(false)}>×</button></header>

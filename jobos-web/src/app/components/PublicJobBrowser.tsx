@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { productEvent } from "@/lib/analytics/productClient";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PublicFeedResult } from "@/lib/jobs/publicFeed";
 import { DEFAULT_PUBLIC_FILTERS, type PublicJobFilters } from "@/lib/jobs/publicBrowsing";
@@ -40,7 +41,9 @@ export default function PublicJobBrowser({ initial, initialFilters, initialError
   const [loginPrompt, setLoginPrompt] = useState<{ title?: string; next: string } | null>(null);
   const reminderShown = useRef(false);
   const rememberPrompt = () => { reminderShown.current = true; try { sessionStorage.setItem("jobtrackos-public-login-reminder", "shown"); } catch {} };
+  useEffect(() => { productEvent("job_search", { location: filters.location, category: filters.q }); }, [filters.location, filters.q]);
   function promptApply(job: Job) {
+    productEvent("apply_click", { jobId: job.id, company: job.company, location: job.location });
     rememberPrompt();
     setLoginPrompt({ title: job.title, next: `/jobs?job=${encodeURIComponent(job.id)}&jobSource=${encodeURIComponent(job.sourceUrl)}` });
   }
