@@ -4,5 +4,5 @@ import { GUIDES } from "../lib/seo/guides.ts";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   // No invented lastModified timestamps or authenticated/user-specific URLs.
-  return [...PUBLIC_PATHS.map(path => ({ url: new URL(path, SITE_ORIGIN).href })), { url: `${SITE_ORIGIN}/opportunities` }, { url: `${SITE_ORIGIN}/guides` }, ...GUIDES.map(g => ({ url: `${SITE_ORIGIN}/guides/${g.slug}` }))];
+  return [...PUBLIC_PATHS.map(path => ({ url: new URL(path, SITE_ORIGIN).href })), { url: `${SITE_ORIGIN}/opportunities` }, { url: `${SITE_ORIGIN}/job-search` }, { url: `${SITE_ORIGIN}/job-alerts` }, { url: `${SITE_ORIGIN}/guides` }, ...GUIDES.map(g => ({ url: `${SITE_ORIGIN}/guides/${g.slug}` }))];
 }

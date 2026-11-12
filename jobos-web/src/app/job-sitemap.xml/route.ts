@@ -2,6 +2,8 @@ import { getCachedCatalog } from "@/lib/jobs/cachedCatalog";
 import { JOB_CITIES, opportunitySitemap, isPublicListing } from "@/lib/seo/jobs";
 import { SITE_ORIGIN } from "@/lib/seo/metadata";
 
+import { buildJobCollections, collectionPath, MIN_COLLECTION_JOBS } from "@/lib/seo/jobCollections";
+
 export const dynamic = "force-dynamic";
 export async function GET() {
   try {
@@ -10,6 +12,9 @@ export async function GET() {
     const urls = opportunitySitemap(catalog.jobs);
     for (const city of JOB_CITIES) {
       if (catalog.jobs.some(job => isPublicListing(job) && city.aliases.test(job.location))) urls.push(`${SITE_ORIGIN}/locations/${city.slug}`);
+    }
+    for (const item of buildJobCollections(catalog.jobs)) {
+      if (item.jobs.length >= MIN_COLLECTION_JOBS) urls.push(SITE_ORIGIN + collectionPath(item));
     }
     const escape = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.map(url => `<url><loc>${escape(url)}</loc></url>`).join("")}</urlset>`;

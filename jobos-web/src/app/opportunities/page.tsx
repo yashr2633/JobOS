@@ -32,7 +32,7 @@ export default async function OpportunityDirectory({ searchParams }: Props) {
     <p className="seo-kicker">BROWSE EMPLOYER-SOURCED OPENINGS</p>
     <h1>India job directory{page > 1 ? ` — Page ${page}` : ""}</h1>
     <p className="seo-lead">Explore roles by company, read the employer’s requirements and prepare before applying. These are listings from connected sources, not a complete count of jobs in India.</p>
-    <div className="seo-actions"><Link className="seo-button" href="/jobs">Search and filter jobs</Link><Link className="seo-link" href="/guides/tailor-resume-to-job-description">Prepare a resume for your chosen role</Link></div>
+    <div className="seo-actions"><Link className="seo-button" href="/jobs">Search and filter jobs</Link><Link className="seo-link" href="/job-search">Browse jobs by role and city</Link><Link className="seo-link" href="/guides/tailor-resume-to-job-description">Prepare a resume for your chosen role</Link></div>
     <p>{total.toLocaleString("en-IN")} source-listed openings · Page {page} of {pages}. Listings can change as employers update their feeds.</p>
     {warnings.length > 0 && <p role="status">Some employer sources are temporarily unavailable; this directory may be incomplete.</p>}
     <section aria-label="Job openings">{jobs.map(job => <article className="seo-card" key={job.id}>

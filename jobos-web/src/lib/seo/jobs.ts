@@ -6,8 +6,10 @@ import { SITE_ORIGIN } from "./metadata.ts";
 
 export const JOB_CITIES = [
   { slug: "bangalore", name: "Bangalore", aliases: /bangalore|bengaluru/i },
+  { slug: "noida", name: "Noida", aliases: /\bnoida\b/i },
+  { slug: "delhi", name: "Delhi", aliases: /\bdelhi\b(?!\s+ncr)/i },
   { slug: "delhi-ncr", name: "Delhi NCR", aliases: /delhi|noida|gurgaon|gurugram|faridabad|ghaziabad/i },
-  ...["Mumbai", "Kolkata", "Hyderabad", "Pune", "Chennai", "Jaipur", "Ranchi", "Dhanbad", "Bokaro"].map(name => ({ slug: name.toLowerCase(), name, aliases: new RegExp(name, "i") })),
+  ...["Mumbai", "Kolkata", "Hyderabad", "Pune", "Chennai", "Jaipur", "Ranchi", "Dhanbad", "Bokaro", "Jamshedpur", "Deoghar", "Siliguri", "Patna"].map(name => ({ slug: name.toLowerCase(), name, aliases: new RegExp(name, "i") })),
 ];
 export function opportunityPath(id: string) { return `/opportunities/${encodeURIComponent(id)}`; }
 export function opportunityId(value: string) {

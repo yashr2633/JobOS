@@ -7,7 +7,7 @@ import { hasSessionCookie, homepageMetadata, jobsPageMetadata, PUBLIC_PATHS, PUB
 
 test("the sitemap contains only public canonical pages, never personal routes or fabricated dates", () => {
   const entries = sitemap();
-  assert.deepEqual(entries.map(entry => entry.url), [...PUBLIC_PATHS, "/opportunities", "/guides", ...GUIDES.map(guide => `/guides/${guide.slug}`)].map(path => new URL(path, SITE_ORIGIN).href));
+  assert.deepEqual(entries.map(entry => entry.url), [...PUBLIC_PATHS, "/opportunities", "/job-search", "/job-alerts", "/guides", ...GUIDES.map(guide => `/guides/${guide.slug}`)].map(path => new URL(path, SITE_ORIGIN).href));
   assert.ok(!entries.some(entry => /\/resumes|\/applications|\/login|\/profile/.test(entry.url)));
   assert.ok(entries.every(entry => entry.lastModified === undefined));
   assert.deepEqual(robots().sitemap, [`${SITE_ORIGIN}/sitemap.xml`, `${SITE_ORIGIN}/job-sitemap.xml`]);
