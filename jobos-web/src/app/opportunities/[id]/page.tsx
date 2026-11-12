@@ -9,6 +9,7 @@ import { plainText } from "@/lib/jobs/normalize";
 import { isPublicOpportunity, jobPosting, opportunityPath, opportunityId, safeJsonLd } from "@/lib/seo/jobs";
 import { publicPageMetadata } from "@/lib/seo/metadata";
 import { createClient } from "@/lib/supabase/server";
+import { refreshOpportunityIfStale } from "@/lib/seo/opportunityFreshness";
 
 export const dynamic = "force-dynamic";
 const read = unstable_cache((id: string) => getLiveJob(id), ["public-opportunity-detail-v1"], { revalidate: 60 });
@@ -17,7 +18,7 @@ const getOpportunity = cache(async (value: string) => {
   // exactly once, then validate before the allowlisted provider lookup.
   const id = opportunityId(value);
   if (!id) notFound();
-  const job = await read(id);
+  const job = await refreshOpportunityIfStale(await read(id), () => getLiveJob(id));
   if (!job || !isPublicOpportunity(job)) notFound();
   return job;
 });
