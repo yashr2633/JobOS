@@ -46,7 +46,7 @@ function signInMethods(identities: { provider?: string }[] | undefined): string 
   if (providers.length === 0) return "";
 
   const pretty = providers.map((provider) =>
-    provider === "email" ? "Email and password" : provider.charAt(0).toUpperCase() + provider.slice(1)
+    provider === "email" ? "Email" : provider.charAt(0).toUpperCase() + provider.slice(1)
   );
   return [...new Set(pretty)].join(", ");
 }
@@ -87,7 +87,7 @@ export default async function SettingsAccountPage() {
               </span>
             }
           />
-          <SettingsRow label="Sign-in method" value={signInMethods(user?.identities)} />
+          <SettingsRow label="Linked sign-in providers" value={signInMethods(user?.identities)} />
           <SettingsRow
             label="Account created"
             value={

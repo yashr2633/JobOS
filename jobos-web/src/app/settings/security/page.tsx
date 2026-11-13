@@ -4,9 +4,6 @@
  * Password management and session state. Everything here delegates to the auth
  * provider's own APIs; this app implements no credential storage of its own.
  *
- * Whether a password can be changed is decided from the account's identity
- * providers rather than assumed: an OAuth-only account has no JobTrackOS password, and
- * offering the form would be a control that cannot work.
  */
 
 import { createClient } from "@/lib/supabase/server";
@@ -33,21 +30,12 @@ export default async function SettingsSecurityPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // An email identity means there is a password this app can change. Absent it,
-  // credentials belong entirely to an external provider.
-  const hasEmailIdentity =
-    (user?.identities ?? []).some((identity) => identity.provider === "email") ||
-    // A user with no identity list but an email is an email account too.
-    ((user?.identities ?? []).length === 0 && Boolean(user?.email));
-
-  const passwordChangedAt = formatTimestamp(
-    // Supabase records this when a password is set or updated.
-    (user as { updated_at?: string } | null)?.updated_at
-  );
+  const hasVerifiedEmail = Boolean(user?.email && user.email_confirmed_at);
+  const accountUpdatedAt = formatTimestamp(user?.updated_at);
 
   return (
     <>
-      <PasswordForm canChange={hasEmailIdentity} />
+      <PasswordForm email={hasVerifiedEmail ? user?.email : undefined} />
 
       <SettingsCard
         title="Security details"
@@ -71,7 +59,7 @@ export default async function SettingsSecurityPage() {
           />
           <SettingsRow
             label="Account last updated"
-            value={passwordChangedAt}
+            value={accountUpdatedAt}
             hint="Changes when your password or profile is updated."
           />
           <SettingsRow

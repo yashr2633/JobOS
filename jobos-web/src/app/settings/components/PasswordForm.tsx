@@ -6,30 +6,10 @@ import { createClient } from "@/lib/supabase/client";
 import { MIN_PASSWORD_LENGTH, validateNewPassword } from "@/lib/account/profile";
 import SettingsCard from "./SettingsCard";
 
-/**
- * Change password.
- *
- * SECURITY POSTURE — deliberate and narrow
- *
- *  - The new password goes straight to `supabase.auth.updateUser({ password })`.
- *    This app never hashes, stores, compares, logs, or transmits a password
- *    anywhere else. There is no custom credential storage.
- *  - Supabase authorizes the change against the caller's own active session, so
- *    one user cannot change another's password.
- *  - The value lives in component state for the life of the form and is cleared
- *    on success. It is never written to localStorage, sessionStorage, or a cookie.
- *  - `autoComplete="new-password"` so a password manager offers to generate and
- *    store one rather than autofilling the old value.
- *  - Local validation only produces a faster, more specific message; the provider
- *    stays authoritative and its error is surfaced verbatim when it refuses.
- *
- * A current-password field is intentionally absent: Supabase re-authorizes from
- * the live session, so collecting the old password would be security theatre that
- * the API does not verify.
- */
+/** Add or update a password on the current authenticated account. */
 type State = "idle" | "saving" | "saved" | "error";
 
-export default function PasswordForm({ canChange }: { canChange: boolean }) {
+export default function PasswordForm({ email }: { email?: string }) {
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [reveal, setReveal] = useState(false);
@@ -75,11 +55,11 @@ export default function PasswordForm({ canChange }: { canChange: boolean }) {
     [password, confirmation]
   );
 
-  if (!canChange) {
+  if (!email) {
     return (
       <SettingsCard
         title="Password"
-        description="This account signs in with an external provider, so there is no JobTrackOS password to change. Manage your credentials with that provider."
+        description="Verify your account email to set a JobTrackOS password."
       />
     );
   }
@@ -90,7 +70,7 @@ export default function PasswordForm({ canChange }: { canChange: boolean }) {
     <form onSubmit={handleSubmit}>
       <SettingsCard
         title="Password"
-        description={`Choose a new password of at least ${MIN_PASSWORD_LENGTH} characters, including a letter and a number.`}
+        description={`Set or change the password for ${email}. Use at least ${MIN_PASSWORD_LENGTH} characters, including a letter and a number.`}
         footer={
           <div className="flex flex-wrap items-center gap-3">
             <button
@@ -98,12 +78,12 @@ export default function PasswordForm({ canChange }: { canChange: boolean }) {
               disabled={state === "saving"}
               className="rounded-md bg-accent px-3.5 py-2 text-sm font-medium text-accent-fg transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {state === "saving" ? "Updating..." : "Update password"}
+              {state === "saving" ? "Saving..." : "Save password"}
             </button>
 
             {state === "saved" && (
               <span role="status" className="text-sm text-success">
-                Password updated.
+                Password saved. You can now sign in with your account email and this password.
               </span>
             )}
             {state === "error" && error && (

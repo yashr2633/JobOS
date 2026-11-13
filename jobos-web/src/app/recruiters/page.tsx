@@ -41,6 +41,7 @@ export default async function RecruitersPage({ searchParams }: {
         {!pro && <div className="recruiter-access-note"><p><strong>Browse profiles for free.</strong> Only work emails and outreach drafting require Pro.</p><Link href="/plans" className="product-button">See Pro plans →</Link></div>}
       </section>
       {contact && <OutreachDraft key={contact.email} contact={contact} />}
+      {contactId && !contact && <p id="recruiter-draft-title" role="alert" className="product-notice mb-4">This draft could not open. Choose a recruiter below to try again.</p>}
       <section className="product-panel" aria-labelledby="recruiter-directory-title">
         <h2 id="recruiter-directory-title">Recruiter contacts</h2>
         <form action="/recruiters" className="my-4 flex flex-wrap items-end gap-2">

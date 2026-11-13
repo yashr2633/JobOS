@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import OutreachDraft, { type OutreachContact } from "./OutreachDraft";
 import { useRef, useState } from "react";
 import { ProUpgradeButton } from "../components/ProUpgrade";
 
@@ -21,6 +21,8 @@ export default function RecruiterDirectory({ initialContacts, total, query, pro,
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const loading = useRef(false);
+  const [draft, setDraft] = useState<{ id: string; contact?: OutreachContact; error?: string } | null>(null);
+  const draftRequest = useRef(0);
 
   async function loadMore() {
     if (loading.current || nextPage === null) return;
@@ -39,19 +41,30 @@ export default function RecruiterDirectory({ initialContacts, total, query, pro,
     finally { loading.current = false; setBusy(false); }
   }
 
-  function contactHref(id: string) {
-    const params = new URLSearchParams();
-    if (query) params.set("q", query);
-    params.set("contact", id);
-    return `/recruiters?${params}#recruiter-draft-title`;
+  async function openDraft(id: string) {
+    const request = ++draftRequest.current;
+    setDraft({ id });
+    try {
+      const params = new URLSearchParams({ contact: id });
+      const response = await fetch("/api/recruiters?" + params, { cache: "no-store", signal: AbortSignal.timeout(15000) });
+      const body = await response.json();
+      if (!response.ok || !body.contact?.email) throw new Error(body.error || "The draft could not open. Please try again.");
+      if (request === draftRequest.current) setDraft({ id, contact: body.contact });
+    } catch (failure) {
+      const message = failure instanceof Error && failure.name === "Error" ? failure.message : "The draft could not open. Please try again.";
+      if (request === draftRequest.current) setDraft({ id, error: message });
+    }
   }
 
   return <div aria-busy={busy}>
     {!contacts.length ? <p className="text-sm text-text-secondary">{query ? "No published contacts match this search. Try another name or company." : "No recruiter contacts have been published yet."}</p> : <div className="grid gap-3">
-      {contacts.map(item => <article key={item.id} className="recruiter-contact-row">
+      {contacts.map(item => <div key={item.id}><article className="recruiter-contact-row">
         <div><h3>{item.name || item.company}</h3><p>{[item.name && item.company, item.title, item.location].filter(Boolean).join(" · ")}</p></div>
-        {pro ? <Link className="product-button" href={contactHref(item.id)} prefetch={false}>View email &amp; draft →</Link> : <div className="recruiter-email-lock"><span className="recruiter-email-label">Work email <span className="pro-tag">Pro</span></span><span className="recruiter-email-placeholder" aria-hidden="true">name@company.com</span><ProUpgradeButton label="Unlock email →" reason="Unlock recruiter work emails and prepare a personal introduction." className="recruiter-unlock-button" /></div>}
-      </article>)}
+        {pro ? <button type="button" className="product-button" aria-expanded={draft?.id === item.id && !!draft.contact} disabled={draft?.id === item.id && !draft.contact && !draft.error} onClick={() => void openDraft(item.id)}>{draft?.id === item.id && !draft.contact && !draft.error ? "Opening draft…" : "View email & draft →"}</button> : <div className="recruiter-email-lock"><span className="recruiter-email-label">Work email <span className="pro-tag">Pro</span></span><span className="recruiter-email-placeholder" aria-hidden="true">name@company.com</span><ProUpgradeButton label="Unlock email →" reason="Unlock recruiter work emails and prepare a personal introduction." className="recruiter-unlock-button" /></div>}
+      </article>
+        {draft?.id === item.id && draft.error && <p role="alert" className="product-notice mt-2">{draft.error}</p>}
+        {draft?.id === item.id && draft.contact && <OutreachDraft key={item.id} contact={draft.contact} />}
+      </div>)}
     </div>}
     {!!contacts.length && <div className="recruiter-load-more"><p aria-live="polite">Showing <strong>{contacts.length.toLocaleString("en-IN")}</strong> of {count.toLocaleString("en-IN")} contacts</p>
       {nextPage !== null ? <button type="button" className="product-button product-button-primary" disabled={busy} onClick={() => void loadMore()}>{busy ? "Loading contacts…" : "Load more recruiters ↓"}</button> : <span className="text-sm text-text-secondary">All matching contacts loaded</span>}

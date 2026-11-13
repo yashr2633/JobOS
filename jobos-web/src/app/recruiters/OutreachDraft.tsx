@@ -1,28 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { productEvent } from "@/lib/analytics/productClient";
 
-type Contact = { name: string | null; company: string; email: string };
+export type OutreachContact = { name: string | null; company: string; email: string };
 
-export default function OutreachDraft({ contact }: { contact: Contact }) {
+function makeDraft(contact: OutreachContact, role: string, evidence: string) {
+  const firstName = contact.name?.trim().split(/\s+/)[0];
+  const target = role.trim();
+  const proof = evidence.trim();
+  return {
+    subject: (target ? target : "Career opportunities") + " at " + contact.company,
+    message: (firstName ? "Hi " + firstName + "," : "Hello,") + "\n\n" +
+      "I’m interested in " + (target ? target + " roles" : "opportunities") + " at " + contact.company + ".\n\n" +
+      (proof ? proof + "\n\n" : "") +
+      "Could you point me to an opening that might fit? I’d be happy to share my resume.\n\nThank you,",
+  };
+}
+
+export default function OutreachDraft({ contact }: { contact: OutreachContact }) {
   const [role, setRole] = useState("");
   const [evidence, setEvidence] = useState("");
-  const [subject, setSubject] = useState("");
-  const [message, setMessage] = useState("");
+  const [emailDraft, setEmailDraft] = useState(() => makeDraft(contact, "", ""));
+  const { subject, message } = emailDraft;
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { heading.current?.focus(); }, []);
   const [copyStatus, setCopyStatus] = useState("");
   const ready = !!subject.trim() && !!message.trim();
 
   function draft() {
     productEvent("outreach_draft_created");
-    const greeting = contact.name ? `Hi ${contact.name.split(/\s+/)[0]},` : "Hello,";
-    const relevantEvidence = evidence.trim();
-    setSubject(`${role.trim()} opportunities at ${contact.company}`);
-    setMessage(
-      `${greeting}\n\nI’m exploring ${role.trim()} opportunities at ${contact.company}.\n\n` +
-      (relevantEvidence ? `${relevantEvidence}\n\n` : "") +
-      "If your team has a suitable opening, could you point me to the right listing?\n\nThank you,",
-    );
+    setEmailDraft(makeDraft(contact, role, evidence));
     setCopyStatus("");
   }
 
@@ -40,18 +48,18 @@ export default function OutreachDraft({ contact }: { contact: Contact }) {
 
   return (
     <section className="product-panel mb-6" aria-labelledby="recruiter-draft-title">
-      <h2 id="recruiter-draft-title">Draft an email</h2>
+      <h2 ref={heading} tabIndex={-1} id="recruiter-draft-title">Draft an email</h2>
       <p className="mt-2 text-sm text-text-secondary">To {contact.name || contact.company} · {contact.email}</p>
-      <p className="mt-2 text-sm leading-7 text-text-secondary">Add the role you want and one relevant skill or achievement. Generate an editable introduction, then review it before opening your email app.</p>
-      <form className="mt-4 grid gap-3" onSubmit={event => { event.preventDefault(); if (role.trim()) draft(); }}>
-        <label className="grid gap-1 text-sm font-medium">Target role<input className="rounded-lg border border-border bg-surface p-3" value={role} maxLength={80} required onChange={event => setRole(event.target.value)} placeholder="e.g. Business Analyst" /></label>
+      <p className="mt-2 text-sm leading-7 text-text-secondary">Your draft is ready below. Add a target role and one real achievement to personalize it, then review before sending.</p>
+      <form className="mt-4 grid gap-3" onSubmit={event => { event.preventDefault(); draft(); }}>
+        <label className="grid gap-1 text-sm font-medium">Target role<input className="rounded-lg border border-border bg-surface p-3" value={role} maxLength={80} onChange={event => setRole(event.target.value)} placeholder="e.g. Business Analyst" /></label>
         <label className="grid gap-1 text-sm font-medium">A relevant achievement or skill<textarea className="rounded-lg border border-border bg-surface p-3" rows={2} value={evidence} maxLength={350} onChange={event => setEvidence(event.target.value)} placeholder="Use an example from your resume" /></label>
-        <button type="submit" className="product-button product-button-primary justify-self-start">Generate draft</button>
+        <button type="submit" className="product-button product-button-primary justify-self-start">Update draft</button>
       </form>
-      {subject && (
+      {(
         <div className="mt-4 grid gap-3">
-          <label className="grid gap-1 text-sm font-medium">Subject<input className="rounded-lg border border-border bg-surface p-3" value={subject} maxLength={280} onChange={event => setSubject(event.target.value)} /></label>
-          <label className="grid gap-1 text-sm font-medium">Message<textarea className="rounded-lg border border-border bg-surface p-3" rows={8} value={message} maxLength={2000} onChange={event => setMessage(event.target.value)} /></label>
+          <label className="grid gap-1 text-sm font-medium">Subject<input className="rounded-lg border border-border bg-surface p-3" value={subject} maxLength={280} onChange={event => setEmailDraft({ ...emailDraft, subject: event.target.value })} /></label>
+          <label className="grid gap-1 text-sm font-medium">Message<textarea className="rounded-lg border border-border bg-surface p-3" rows={8} value={message} maxLength={2000} onChange={event => setEmailDraft({ ...emailDraft, message: event.target.value })} /></label>
           <div className="flex flex-wrap gap-2">
             {ready && <a className="product-button product-button-primary" href={gmail.href} onClick={() => productEvent("mail_composer_open")} target="_blank" rel="noopener noreferrer">Open in Gmail</a>}
             <button className="product-button" type="button" disabled={!ready} onClick={() => void copy()}>Copy draft</button>
