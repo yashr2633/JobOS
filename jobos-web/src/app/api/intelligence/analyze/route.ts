@@ -39,6 +39,7 @@ import {
 import { fetchResume, saveResumeParse } from "@/lib/api/resumes";
 import { validateInputText, validateParsedJD, validateParsedResume, validateMatchInterpretation } from "@/lib/ai/schemas";
 import { scoreMatch } from "@/lib/ai/scoring";
+import { explainMatch, extractMatchJob, extractMatchResume } from "@/lib/ai/matchFallback";
 import { generateStructured, AiGatewayError } from "@/lib/ai/gateway";
 import type { AiFailureCategory } from "@/lib/ai/providers/types";
 import {
@@ -113,9 +114,8 @@ function describeAiFailure(category: AiFailureCategory): {
       };
     case "invalid_response":
       return {
-        message:
-          "Resume analysis could not be completed. Please try again in a moment.",
-        status: 502,
+        message: "We couldn’t identify enough skills in this job description. Try pasting the employer’s requirements section and scan again.",
+        status: 422,
       };
     case "unavailable":
     case "unknown":
@@ -267,6 +267,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   //   Validation failure   → 422 (bad AI output, retriable)
 
   try {
+    let textOnly = false;
+
     // -- Stage 2a: Parse JD (use cache if available) -------------------------
     let parsedJd: ParsedJD;
 
@@ -281,12 +283,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         task: "lightweight",
         validate: validateParsedJD,
         label: "jd_parse",
-        deadlineAt,
+        deadlineAt: Math.min(deadlineAt, Date.now() + 12_000),
+      }).catch(error => {
+        if (!(error instanceof AiGatewayError)) throw error;
+        const quick = extractMatchJob(jdText);
+        if (!quick) throw error;
+        textOnly = true;
+        return { value: quick };
       });
 
       parsedJd = jdResult.value;
-      // Persist cache so subsequent analyses skip this call.
-      if (applicationId) await saveParsedJD(supabase, applicationId, parsedJd);
+      if (applicationId && !textOnly) await saveParsedJD(supabase, applicationId, parsedJd);
     }
 
     // -- Stage 2b: Parse resume (use cache if available) ---------------------
@@ -294,6 +301,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (resume.parsed !== null) {
       parsedResume = resume.parsed;
+    } else if (textOnly) {
+      parsedResume = extractMatchResume(resumeText);
     } else {
       const resumeResult = await generateStructured({
         systemPrompt: RESUME_PARSE_SYSTEM,
@@ -301,22 +310,36 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         task: "lightweight",
         validate: validateParsedResume,
         label: "resume_parse",
-        deadlineAt,
+        deadlineAt: Math.min(deadlineAt, Date.now() + 12_000),
+      }).catch(error => {
+        if (!(error instanceof AiGatewayError)) throw error;
+        textOnly = true;
+        return { value: extractMatchResume(resumeText) };
       });
 
       parsedResume = resumeResult.value;
-      await saveResumeParse(supabase, resumeId.trim(), parsedResume);
+      if (!textOnly) await saveResumeParse(supabase, resumeId.trim(), parsedResume);
     }
 
     // -- Stage 3: Deterministic scoring (pure, no LLM) ----------------------
+    if (request.signal.aborted) {
+      await failAnalysisRun(supabase, run.id, "Analysis request was cancelled.");
+      return err("Analysis request was cancelled.", 499);
+    }
+    if (textOnly) {
+      // The quick scan assesses only skill mentions, so unknown experience and
+      // education never count against the candidate.
+      parsedJd = { ...parsedJd, minYearsExperience: null, educationRequirements: [] };
+    }
     const scoreResult = scoreMatch(parsedJd, parsedResume);
+    if (textOnly) scoreResult.confidence = "low";
 
     // -- Stage 4: LLM interpretation (reasoning model) ----------------------
     const matchedRequired = scoreResult.requiredSkills.filter((s) => s.matched).length;
     const matchedPreferred = scoreResult.preferredSkills.filter((s) => s.matched).length;
 
     // Interpretation is the "deep" task: strongest configured model tier.
-    const interpretationResult = await generateStructured({
+    const interpretationResult = textOnly ? null : await generateStructured({
       systemPrompt: INTERPRETATION_SYSTEM,
       userContent: buildInterpretationPrompt(
         scoreResult.score,
@@ -332,7 +355,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       task: "deep",
       validate: validateMatchInterpretation,
       label: "interpretation",
-      deadlineAt,
+      deadlineAt: Math.min(deadlineAt, Date.now() + 9_000),
+    }).catch(error => {
+      if (!(error instanceof AiGatewayError)) throw error;
+      return null;
     });
 
     // -- Stage 5: Persist and return ----------------------------------------
@@ -340,8 +366,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // so historical results stay auditable.
     const completed = await completeAnalysisRun(supabase, run.id, {
       score: scoreResult,
-      interpretation: interpretationResult.value,
-      model: `${interpretationResult.providerId}/${interpretationResult.model}`,
+      interpretation: interpretationResult?.value ?? explainMatch(scoreResult, textOnly),
+      model: interpretationResult ? `${interpretationResult.providerId}/${interpretationResult.model}` : "local/" + (textOnly ? "quick-skill-match" : "score-summary"),
     });
 
     return ok(completed, 200);
