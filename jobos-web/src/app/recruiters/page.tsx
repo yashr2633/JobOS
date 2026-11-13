@@ -35,12 +35,12 @@ export default async function RecruitersPage({ searchParams }: {
         <p className="recruiter-intro">Introduce yourself to recruiters at companies you want to join. Find a contact, prepare a relevant email, then review and send it from your own inbox.</p>
         <ol className="recruiter-how-it-works" aria-label="How Recruiter Outreach works">
           <li><span>1</span><div><h2>Find a recruiter</h2><p>Search by name or company. Browse the available role and location details.</p></div></li>
-          <li><span>2</span><div><h2>Prepare your introduction</h2><p>With Pro, open a work email and draft a message using your target role and a relevant skill or achievement.</p></div></li>
+          <li><span>2</span><div><h2>Prepare your introduction</h2><p>With Pro, open a work email and draft a message for your target role.</p></div></li>
           <li><span>3</span><div><h2>Review &amp; send</h2><p>Edit your draft, open it in Gmail or copy it to your email app. Attach your resume before sending.</p></div></li>
         </ol>
         {!pro && <div className="recruiter-access-note"><p><strong>Browse profiles for free.</strong> Only work emails and outreach drafting require Pro.</p><Link href="/plans" className="product-button">See Pro plans →</Link></div>}
       </section>
-      {contact && <OutreachDraft key={contact.email} contact={contact} />}
+      {contact && <div className="product-panel mb-6"><OutreachDraft key={contact.email} contact={contact} /></div>}
       {contactId && !contact && <p id="recruiter-draft-title" role="alert" className="product-notice mb-4">This draft could not open. Choose a recruiter below to try again.</p>}
       <section className="product-panel" aria-labelledby="recruiter-directory-title">
         <h2 id="recruiter-directory-title">Recruiter contacts</h2>

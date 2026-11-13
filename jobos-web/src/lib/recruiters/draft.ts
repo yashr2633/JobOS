@@ -1,44 +1,25 @@
 export type OutreachContact = { name: string | null; company: string; email: string };
 
-export type DraftDetails = {
-  role: string;
-  vacancy: boolean;
-  requirement: string;
-  evidence: string;
-  name: string;
-  portfolio: string;
-};
-
-function sentence(text: string) {
-  const value = text.trim();
-  return /[.!?]$/.test(value) ? value : value + ".";
-}
-
-export function buildOutreachDraft(contact: OutreachContact, details: DraftDetails) {
-  const role = details.role.trim() || "[target role]";
+export function buildOutreachDraft(contact: OutreachContact, role: string, name: string, skills: string[] = []) {
+  const target = role.trim();
   const firstName = contact.name?.trim().split(/\s+/)[0];
-  const opening = details.vacancy
-    ? "I’m reaching out about the " + role + " opening at " + contact.company + "."
-    : "I’m exploring " + role + " opportunities at " + contact.company + ".";
-  const fit = details.requirement.trim()
-    ? sentence(details.requirement)
-    : "[Say why the role or team interests you, using one detail from the job description.]";
-  const proof = details.evidence.trim()
-    ? sentence(details.evidence)
-    : "[Describe one relevant project or achievement, the tools you used, and the result.]";
-  const ask = details.vacancy
-    ? "Would you be open to reviewing my profile for this role?"
-    : "Would you be open to reviewing my profile for a current or upcoming role on your team?";
+  const focus = /\b(data analyst|business intelligence|analytics)\b/i.test(target) ? "turning data into reports that support business decisions"
+    : /\b(software|developer|frontend|backend)\b/i.test(target) ? "building and improving software that people rely on"
+    : /\b(marketing|seo)\b/i.test(target) ? "understanding what drives campaign results and improving them"
+    : /\b(support|customer service)\b/i.test(target) ? "resolving customer issues and making the next interaction easier"
+    : "";
+  const motivation = focus ? "I’m particularly interested in work that involves " + focus + "." : "";
+  const evidence = skills.length ? "My resume highlights " + new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(skills) + "." : "";
 
   return {
-    subject: role + (details.vacancy ? " application" : " enquiry") + " | " + (details.name.trim() || "[your name]"),
+    subject: target + " opportunities at " + contact.company + (name ? " | " + name : ""),
     message: [
       firstName ? "Hi " + firstName + "," : "Hello,",
-      opening + " " + fit,
-      proof,
-      ask + (details.portfolio.trim() ? "\nWork sample: " + details.portfolio.trim() : ""),
-      "Thank you,\n" + (details.name.trim() || "[your name]"),
-    ].join("\n\n"),
+      "I’m reaching out to express my interest in " + target + " opportunities at " + contact.company + ".",
+      [motivation, evidence].filter(Boolean).join(" "),
+      "If your team is hiring for this role, would you be open to reviewing my profile? I’d be happy to share a relevant work sample or discuss how I could contribute.",
+      name ? "Best regards,\n" + name : "Thank you for your time.",
+    ].filter(Boolean).join("\n\n"),
   };
 }
 
