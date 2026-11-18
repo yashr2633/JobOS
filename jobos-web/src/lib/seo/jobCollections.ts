@@ -14,6 +14,7 @@ const roles = [
   { slug: "sales", name: "Sales", query: "Sales", title: /\b(?:sales|business development)\b/i, tip: "Check if the role is field, inside or enterprise sales. Look for fixed pay, incentive terms and territory in the employer description." },
   { slug: "accounting", name: "Accounting", query: "Accountant", title: /\b(?:accountant|accounting|bookkeeper|accounts (?:payable|receivable|executive))\b/i, tip: "Check the tools, accounting standards and responsibilities. Highlight relevant reconciliation, reporting or bookkeeping work." },
   { slug: "data-analyst", name: "Data analyst", query: "Data Analyst", title: /\b(?:data analyst|analytics analyst|business intelligence analyst|bi analyst)\b/i, tip: "Show an analysis you can explain end to end, from the source data and SQL to the decision it supported." },
+  { slug: "data-analyst-fresher", name: "Data analyst fresher", query: "Data Analyst", title: /\b(?:data analyst|analytics analyst|business intelligence analyst|bi analyst)\b/i, tip: "Show one project where you cleaned data, ran an analysis and explained the result. Check whether the employer accepts applicants without full-time experience." },
   { slug: "digital-marketing", name: "Digital marketing", query: "Digital Marketing", title: /\b(?:digital marketing|seo (?:analyst|specialist|executive)|performance marketing|paid media)\b/i, tip: "Use one campaign or project to show the channel, goal, work you did and how you measured it." },
   { slug: "software", name: "Software engineering", query: "Software Engineer", title: /\b(?:software (?:engineer|developer)|frontend|backend|full.stack)\b/i, tip: "Read the stack and seniority requirements. Lead your resume with a project that shows the work this team needs." },
   { slug: "operations", name: "Operations", query: "Operations", title: /\boperations\b/i, tip: "Check the type of operations and shift requirements. Highlight a process you improved and describe the result." },
@@ -49,8 +50,9 @@ export const collectionPath = (item: JobCollection) => "/job-search/" + item.slu
 
 function matchesRole(job: Job, role: Role) {
   if (role.slug === "internships") return role.title.test(job.title) || /internship/i.test(job.employmentType ?? "");
-  if (role.slug !== "fresher" && role.slug !== "bba-fresher" && role.slug !== "software-fresher") return role.title.test(job.title);
-  if (role.slug === "software-fresher" && !role.title.test(job.title)) return false;
+  const entryLevelRole = role.slug === "software-fresher" || role.slug === "data-analyst-fresher";
+  if (!entryLevelRole && role.slug !== "fresher" && role.slug !== "bba-fresher") return role.title.test(job.title);
+  if (entryLevelRole && !role.title.test(job.title)) return false;
 
   const description = roleEvidenceText(job.description);
   const eligibility = [description, ...job.requirements].join("\n");
