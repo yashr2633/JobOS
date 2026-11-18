@@ -2,6 +2,7 @@ import type { Job } from "../jobs/types.ts";
 import { isActiveRecommendation } from "../jobs/ranking.ts";
 import { normalizeIndiaLocation } from "../jobs/sources-india.ts";
 import { plainText, safeJobUrl } from "../jobs/normalize.ts";
+import { resolveLocation, resolveState } from "../jobs/locations.ts";
 import { SITE_ORIGIN } from "./metadata.ts";
 
 export const JOB_CITIES = [
@@ -27,6 +28,26 @@ export function isPublicListing(job: Job, now = Date.now()) {
 export function isPublicOpportunity(job: Job, now = Date.now()) {
   return isPublicListing(job, now) && !job.descriptionPending && plainText(job.description).length >= 200;
 }
+
+function postingAddress(location: string) {
+  const parts = location.split(",").map(part => part.trim()).filter(Boolean);
+  const addressCountry = "IN";
+  if (/[;/|]|\s+\band\b\s+/i.test(location)) return { addressCountry };
+  const cityName = parts[0];
+  if (!cityName || resolveState(cityName) && parts.length === 1) {
+    const state = cityName && resolveState(cityName);
+    return state ? { addressCountry, addressRegion: state } : { addressCountry };
+  }
+  const states = [...new Set(parts.slice(1).map(resolveState).filter(Boolean))];
+  if (states.length > 1) return { addressCountry };
+  const state = states[0];
+  const city = state ? resolveLocation(`${cityName}, ${state}`) : resolveLocation(cityName);
+  if (city && parts.slice(1).every(part => /^india$/i.test(part) || resolveState(part) === city.state)) {
+    return { addressCountry, addressLocality: city.city, addressRegion: city.state };
+  }
+  return state ? { addressCountry, addressRegion: state } : { addressCountry };
+}
+
 export function jobPosting(job: Job, now = Date.now()) {
   // Unknown original posting dates never become fetch/release dates for Google.
   const posted = job.postedAt ? Date.parse(job.postedAt) : NaN;
@@ -42,7 +63,7 @@ export function jobPosting(job: Job, now = Date.now()) {
     identifier: { "@type": "PropertyValue", name: job.company, value: job.externalId },
     hiringOrganization: { "@type": "Organization", name: job.company },
     ...(remote ? { jobLocationType: "TELECOMMUTE", applicantLocationRequirements: { "@type": "Country", name: "India" } }
-      : { jobLocation: { "@type": "Place", name: job.location, address: { "@type": "PostalAddress", addressCountry: "IN" } } }),
+      : { jobLocation: { "@type": "Place", name: job.location, address: { "@type": "PostalAddress", ...postingAddress(job.location) } } }),
     ...(job.expiresAt && Number.isFinite(Date.parse(job.expiresAt)) ? { validThrough: new Date(job.expiresAt).toISOString() } : {}),
     ...(employment ? { employmentType: employment } : {}),
     directApply: false,
