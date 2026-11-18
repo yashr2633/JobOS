@@ -16,9 +16,13 @@ const catalogCities = new Map(INDIA_LOCATIONS.map(location => [
   },
 ]));
 const citiesBySlug = new Map([...catalogCities.values(), ...featured].map(city => [city.slug, city]));
+const states = new Map([...new Set(INDIA_LOCATIONS.map(city => city.state))].map(name => [
+  name, { slug: `state-${slugify(name)}`, name, filter: name },
+]));
+const statesBySlug = new Map([...states.values()].map(state => [state.slug, state]));
 
 export function findJobCity(slug: string): JobCity | undefined {
-  return citiesBySlug.get(slug);
+  return citiesBySlug.get(slug) ?? statesBySlug.get(slug);
 }
 
 export function matchesJobCity(job: Pick<Job, "location" | "workMode" | "remoteIndiaEligible">, city: JobCity) {
@@ -45,4 +49,18 @@ export function catalogJobCities(jobs: Job[], now = Date.now()) {
     }
   }
   return [...active.values()].sort((a, b) => a.name.localeCompare(b.name) || a.slug.localeCompare(b.slug));
+}
+
+/** State pages cover real openings and link back to the active city directory. */
+export function catalogJobLocations(jobs: Job[], now = Date.now()) {
+  const cities = catalogJobCities(jobs, now);
+  const activeStates = new Map<string, JobCity>();
+  for (const job of jobs) {
+    if (!isPublicListing(job, now) || (job.workMode === "Remote" && job.remoteIndiaEligible)) continue;
+    for (const part of job.location.split(/[,·/|;]+/)) {
+      const state = states.get(resolveState(part.trim()) ?? resolveLocation(part.trim())?.state ?? "");
+      if (state && matchesJobCity(job, state)) activeStates.set(state.slug, state);
+    }
+  }
+  return [...cities, ...[...activeStates.values()].sort((a, b) => a.name.localeCompare(b.name))];
 }

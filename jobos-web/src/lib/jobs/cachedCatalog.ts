@@ -8,6 +8,7 @@ import { mergeEmployerSnapshots, type EmployerSnapshot } from "./employerCatalog
 import { HIMALAYAS_CACHE_SECONDS, readHimalayasFeed } from "./himalayas";
 import { publicJobQuery } from "./searchSuggestions";
 import { JobRequestTimeout, withinJobDeadline } from "./response";
+import { normalizeIndiaLocation } from "./sources-india";
 
 // Only public employer data enters the persistent cache. No authentication,
 // resume, profile or saved state is read within this function.
@@ -19,7 +20,10 @@ async function loadEmployer(provider: string, board: string): Promise<EmployerSn
   const key = `${provider}:${board}`, active = employerPending.get(key);
   if (active) return active;
   if ((employerRetryAt.get(key) ?? 0) > Date.now()) throw new Error("Employer source is temporarily unavailable");
-  const promise = (async () => ({ jobs: await JOB_PROVIDERS[provider].list(board), checkedAt: new Date().toISOString() }))();
+  const promise = (async () => ({
+    jobs: (await JOB_PROVIDERS[provider].list(board)).filter(job => normalizeIndiaLocation(job.location).isIndia),
+    checkedAt: new Date().toISOString(),
+  }))();
   employerPending.set(key, promise);
   try {
     const snapshot = await promise;

@@ -2,7 +2,7 @@ import Link from "next/link";
 import PublicInfoPage from "../components/PublicInfoPage";
 import { getCachedCatalog } from "@/lib/jobs/cachedCatalog";
 import { buildJobCollections, collectionPath, MIN_COLLECTION_JOBS } from "@/lib/seo/jobCollections";
-import { catalogJobCities } from "@/lib/seo/jobCities";
+import { catalogJobLocations } from "@/lib/seo/jobCities";
 import { publicPageMetadata } from "@/lib/seo/metadata";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,7 @@ export const metadata = publicPageMetadata("/job-search", "Find jobs by role, ex
 export default async function JobSearchHub() {
   const { jobs, warnings } = await getCachedCatalog();
   const collections = buildJobCollections(jobs).filter(item => item.jobs.length >= MIN_COLLECTION_JOBS);
-  const cities = catalogJobCities(jobs);
+  const cities = catalogJobLocations(jobs);
   return (
     <PublicInfoPage>
       <h1>Find jobs by role and city</h1>

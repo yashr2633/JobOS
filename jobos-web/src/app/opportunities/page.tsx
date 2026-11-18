@@ -5,7 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import PublicInfoPage from "../components/PublicInfoPage";
 import { getCachedCatalog } from "@/lib/jobs/cachedCatalog";
 import { isPublicListing, opportunityPath } from "@/lib/seo/jobs";
-import { catalogJobCities } from "@/lib/seo/jobCities";
+import { catalogJobLocations } from "@/lib/seo/jobCities";
 import { publicPageMetadata } from "@/lib/seo/metadata";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ const readPage = cache(async (raw: string | string[] | undefined) => {
     .sort((a, b) => a.company.localeCompare(b.company) || a.title.localeCompare(b.title) || a.id.localeCompare(b.id));
   const pages = Math.max(1, Math.ceil(jobs.length / 50));
   if (page > pages) notFound();
-  return { page, pages, total: jobs.length, jobs: jobs.slice((page - 1) * 50, page * 50), warnings: catalog.warnings, cities: catalogJobCities(jobs) };
+  return { page, pages, total: jobs.length, jobs: jobs.slice((page - 1) * 50, page * 50), warnings: catalog.warnings, cities: catalogJobLocations(jobs) };
 });
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const { page, total } = await readPage((await searchParams).page);

@@ -29,6 +29,11 @@ export const INDIA_SOURCES: CompanySource[] = [
   { company: "Accor", provider: "smartrecruiters", board: "AccorHotel", country: "India", enabled: true, notes: "Public India postings and individual apply links verified 2026-10-26; hospitality, operations and sales. Release dates may represent republication." },
   // Board linked directly by https://razorpay.com/careers/; public API checked 2026-10-26.
   { company: "Razorpay", provider: "greenhouse", board: "razorpaysoftwareprivatelimited", country: "India", enabled: true, notes: "Official careers link and public GET verified; publication dates supplied. Includes some overseas roles, filtered by candidate location." },
+  { company: "Arcana Analytics", provider: "greenhouse", board: "arcanaanalytics", country: "India", enabled: true, notes: "Public employer feed verified 2026-11-18; data, portfolio and finance roles in Bengaluru and Coimbatore." },
+  { company: "WPP Media", provider: "greenhouse", board: "wppmedia", country: "Global", enabled: true, notes: "Public employer feed verified 2026-11-18; includes media, analytics and operations roles across India." },
+  { company: "Fam", provider: "lever", board: "fampay", country: "India", enabled: true, notes: "Public employer feed verified 2026-11-18; includes data analysis and internships in Bengaluru." },
+  { company: "CertifyOS", provider: "ashby", board: "certifyos", country: "Global", enabled: true, notes: "Public employer feed verified 2026-11-18; includes India operations roles." },
+  { company: "Glomo", provider: "ashby", board: "glomo", country: "India", enabled: true, notes: "Public employer feed verified 2026-11-18; includes finance and payment operations roles in Bengaluru." },
   // These are the ONLY verified working boards from the previous implementation
   // Palantir Lever board - confirmed working
   { company: "Palantir", provider: "lever", board: "palantir", country: "Global", enabled: false, notes: "Public feed verified 2026-10-26 but no India listings found. Excluded from default India synchronization; adapter retained for explicitly configured sources." },
