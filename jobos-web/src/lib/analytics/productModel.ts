@@ -1,5 +1,5 @@
 /** Deliberately small, content-free analytics payloads. Never accept arbitrary metadata. */
-export const CLIENT_EVENTS = ["page_view", "job_search", "job_view", "apply_click", "employer_open", "template_selected", "pro_view", "checkout_open", "recruiter_view", "outreach_draft_created", "mail_composer_open", "letter_tailored"] as const;
+export const CLIENT_EVENTS = ["page_view", "job_search", "job_view", "apply_login_prompt", "apply_click", "employer_open", "template_selected", "pro_view", "checkout_open", "recruiter_view", "outreach_draft_created", "mail_composer_open", "letter_tailored"] as const;
 export type ClientEvent = typeof CLIENT_EVENTS[number];
 export type ProductEvent = ClientEvent | "document_saved" | "document_exported" | "resume_tailored" | "letter_tailored" | "recruiter_unlocked" | "generation_failed";
 export const EVENT_NAMES: readonly string[] = [...CLIENT_EVENTS, "document_saved", "document_exported", "resume_tailored", "letter_tailored", "recruiter_unlocked", "generation_failed"];

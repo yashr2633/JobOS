@@ -43,7 +43,7 @@ export default function PublicJobBrowser({ initial, initialFilters, initialError
   const rememberPrompt = () => { reminderShown.current = true; try { sessionStorage.setItem("jobtrackos-public-login-reminder", "shown"); } catch {} };
   useEffect(() => { productEvent("job_search", { location: filters.location, category: filters.q }); }, [filters.location, filters.q]);
   function promptApply(job: Job) {
-    productEvent("apply_click", { jobId: job.id, company: job.company, location: job.location });
+    productEvent("apply_login_prompt", { jobId: job.id, company: job.company, location: job.location });
     rememberPrompt();
     setLoginPrompt({ title: job.title, next: `/jobs?job=${encodeURIComponent(job.id)}&jobSource=${encodeURIComponent(job.sourceUrl)}` });
   }

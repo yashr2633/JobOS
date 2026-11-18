@@ -23,7 +23,8 @@ interface OtpStepProps {
   onBack: () => void;
   /** Heading, so signup and sign-in can word it appropriately. */
   title?: string;
-  description?: string;
+  description?: React.ReactNode;
+  resendNotice?: string;
 }
 
 /**
@@ -50,6 +51,7 @@ export default function OtpStep({
   onBack,
   title = "Enter your code",
   description,
+  resendNotice = "A new code is on its way.",
 }: OtpStepProps) {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState<"verify" | "resend" | null>(null);
@@ -113,7 +115,7 @@ export default function OtpStep({
     try {
       await onResend();
       setCode("");
-      setNotice("A new code is on its way.");
+      setNotice(resendNotice);
       inputRef.current?.focus();
     } catch (err: unknown) {
       setError(
@@ -122,7 +124,7 @@ export default function OtpStep({
     } finally {
       setBusy(null);
     }
-  }, [onResend]);
+  }, [onResend, resendNotice]);
 
   const complete = code.length === OTP_LENGTH;
 

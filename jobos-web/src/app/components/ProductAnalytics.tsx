@@ -20,8 +20,7 @@ export default function ProductAnalytics() {
         const url = new URL(target.href, location.origin);
         if (url.origin === location.origin) {
           if (url.pathname === "/plans") productEvent("pro_view");
-          if (!target.closest(".p-job-card") && url.pathname === "/login" && /^\/jobs\?/.test(url.searchParams.get("next") ?? "")) productEvent("apply_click");
-        } else if (/^(jobs\.|job-boards\.|boards\.|apply\.)/.test(url.hostname) || /himalayas\.app$/.test(url.hostname)) productEvent("employer_open");
+        } else if (target.hasAttribute("data-employer-application") || /^(jobs\.|job-boards\.|boards\.|apply\.)/.test(url.hostname) || /himalayas\.app$/.test(url.hostname)) productEvent("employer_open");
       } catch {}
     };
     document.addEventListener("click", click, true); return () => document.removeEventListener("click", click, true);

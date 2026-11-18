@@ -10,6 +10,7 @@ import {
   VERIFY_OTP_TYPE,
   describeOtpError,
   isPlausibleEmail,
+  maskEmail,
 } from "@/lib/account/otp";
 import { buildSupabaseOAuthCallbackUrl } from "@/lib/supabase/oauthRedirect";
 import { safeNextPath } from "@/lib/supabase/safeNextPath";
@@ -130,9 +131,7 @@ export default function SignupPage() {
 
       if (signUpError) throw new Error(signUpError.message);
 
-      // No session means Supabase requires email confirmation, and has just
-      // emailed a code. Move to the code step rather than redirecting into a
-      // protected route the user cannot reach yet.
+      // Auth can return no session without confirming delivery.
       if (!data.session) {
         setCodeSentAt(Date.now());
         setAwaitingCode(true);
@@ -194,8 +193,12 @@ export default function SignupPage() {
             setError(null);
           }}
           title="Confirm your email"
-          description={undefined}
+          description={<>Check <strong>{maskEmail(email)}</strong> for your verification code, including Spam. If nothing arrives, you can request another code below.</>}
+          resendNotice="Code requested. Check your inbox and Spam."
         />
+        <p className="mt-4 text-sm text-text-secondary">
+          Already have an account? <Link className="font-semibold text-accent underline" href={`/login?next=${encodeURIComponent(signUpDestination())}`}>Sign in</Link>
+        </p>
       </div>
     );
   }
