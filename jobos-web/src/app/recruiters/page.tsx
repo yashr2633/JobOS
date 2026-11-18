@@ -32,7 +32,11 @@ export default async function RecruitersPage({ searchParams }: {
       <section className="product-panel mb-6">
         <p className="product-kicker">Career tools</p>
         <h1>Recruiter Outreach</h1>
-        <p className="recruiter-intro">Introduce yourself to recruiters at companies you want to join. Find a contact, prepare a relevant email, then review and send it from your own inbox.</p>
+        <div className="product-notice my-4" aria-labelledby="recruiter-outreach-benefit">
+          <h2 id="recruiter-outreach-benefit">Email recruiters directly</h2>
+          <p className="mt-2">Use current job listings to find companies hiring for your role. Choose a relevant HR contact, write a personal email, and send it from Gmail or your own inbox.</p>
+          <p className="mt-2 text-sm">Browse profiles for free. Pro unlocks work emails and personalised outreach drafts.</p>
+        </div>
         <ol className="recruiter-how-it-works" aria-label="How Recruiter Outreach works">
           <li><span>1</span><div><h2>Find a recruiter</h2><p>Search by name or company. Browse the available role and location details.</p></div></li>
           <li><span>2</span><div><h2>Prepare your introduction</h2><p>With Pro, open a work email and draft a message for your target role.</p></div></li>
