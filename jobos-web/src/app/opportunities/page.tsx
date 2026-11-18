@@ -4,7 +4,8 @@ import { cache } from "react";
 import { notFound, redirect } from "next/navigation";
 import PublicInfoPage from "../components/PublicInfoPage";
 import { getCachedCatalog } from "@/lib/jobs/cachedCatalog";
-import { isPublicListing, JOB_CITIES, opportunityPath } from "@/lib/seo/jobs";
+import { isPublicListing, opportunityPath } from "@/lib/seo/jobs";
+import { catalogJobCities } from "@/lib/seo/jobCities";
 import { publicPageMetadata } from "@/lib/seo/metadata";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +20,7 @@ const readPage = cache(async (raw: string | string[] | undefined) => {
     .sort((a, b) => a.company.localeCompare(b.company) || a.title.localeCompare(b.title) || a.id.localeCompare(b.id));
   const pages = Math.max(1, Math.ceil(jobs.length / 50));
   if (page > pages) notFound();
-  return { page, pages, total: jobs.length, jobs: jobs.slice((page - 1) * 50, page * 50), warnings: catalog.warnings };
+  return { page, pages, total: jobs.length, jobs: jobs.slice((page - 1) * 50, page * 50), warnings: catalog.warnings, cities: catalogJobCities(jobs) };
 });
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const { page, total } = await readPage((await searchParams).page);
@@ -27,7 +28,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   return total ? metadata : { ...metadata, robots: { index: false, follow: true } };
 }
 export default async function OpportunityDirectory({ searchParams }: Props) {
-  const { page, pages, total, jobs, warnings } = await readPage((await searchParams).page);
+  const { page, pages, total, jobs, warnings, cities } = await readPage((await searchParams).page);
   return <PublicInfoPage>
     <p className="seo-kicker">BROWSE EMPLOYER-SOURCED OPENINGS</p>
     <h1>India job directory{page > 1 ? ` — Page ${page}` : ""}</h1>
@@ -45,6 +46,6 @@ export default async function OpportunityDirectory({ searchParams }: Props) {
       {Array.from({ length: pages }, (_, i) => i + 1).map(number => <Link key={number} prefetch={false} href={pagePath(number)} aria-current={page === number ? "page" : undefined}>{number}</Link>)}
       {page < pages && <Link prefetch={false} href={pagePath(page + 1)}>Next page →</Link>}
     </nav>
-    <section className="seo-card"><h2>Explore by location</h2><div className="seo-info-links">{JOB_CITIES.map(city => <Link key={city.slug} href={`/locations/${city.slug}`}>{city.name}</Link>)}</div></section>
+    {cities.length > 0 && <section className="seo-card"><h2>Explore by location</h2><div className="seo-info-links">{cities.map(city => <Link key={city.slug} prefetch={false} href={`/locations/${city.slug}`}>{city.filter}</Link>)}</div></section>}
   </PublicInfoPage>;
 }

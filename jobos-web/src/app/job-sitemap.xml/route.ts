@@ -1,5 +1,6 @@
 import { getCachedCatalog } from "@/lib/jobs/cachedCatalog";
-import { JOB_CITIES, opportunitySitemap, isPublicListing } from "@/lib/seo/jobs";
+import { opportunitySitemap } from "@/lib/seo/jobs";
+import { catalogJobCities } from "@/lib/seo/jobCities";
 import { SITE_ORIGIN } from "@/lib/seo/metadata";
 
 import { buildJobCollections, collectionPath, MIN_COLLECTION_JOBS } from "@/lib/seo/jobCollections";
@@ -10,9 +11,7 @@ export async function GET() {
     const catalog = await getCachedCatalog();
     if (!catalog.jobs.length && catalog.warnings.length) throw new Error("Sources unavailable");
     const urls = opportunitySitemap(catalog.jobs);
-    for (const city of JOB_CITIES) {
-      if (catalog.jobs.some(job => isPublicListing(job) && city.aliases.test(job.location))) urls.push(`${SITE_ORIGIN}/locations/${city.slug}`);
-    }
+    for (const city of catalogJobCities(catalog.jobs)) urls.push(`${SITE_ORIGIN}/locations/${city.slug}`);
     for (const item of buildJobCollections(catalog.jobs)) {
       if (item.jobs.length >= MIN_COLLECTION_JOBS) urls.push(SITE_ORIGIN + collectionPath(item));
     }
