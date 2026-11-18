@@ -4,6 +4,7 @@ import { jobsPageMetadata } from "@/lib/seo/metadata";
 import { Suspense } from "react";
 import PublicLanding from "../components/PublicLanding";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import AppShell from "../components/AppShell";
 import { createClient } from "@/lib/supabase/server";
 import { discoveryData } from "@/lib/jobs/data";
@@ -22,8 +23,15 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
 export default async function JobsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return <PublicLanding params={await searchParams} />;
   const params = await searchParams;
+  if (!user && params.mobile === "1" && typeof params.job === "string" && params.job.length <= 150) {
+    const destination = new URLSearchParams({ job: params.job });
+    if (typeof params.jobSource === "string" && params.jobSource.length <= 1_000) {
+      destination.set("jobSource", params.jobSource);
+    }
+    redirect("/login?" + new URLSearchParams({ next: "/jobs?" + destination }));
+  }
+  if (!user) return <PublicLanding params={params} />;
   return <AppShell>
     <JobAlertPrompt key={`${params.q ?? ""}:${params.location ?? ""}`} query={(params.q ?? "").slice(0,100)} location={(params.location ?? "").slice(0,100)} />
     <Suspense fallback={<WorkspaceLoading title="Find jobs" message="Checking employer listings and loading your preferences…" />}>
