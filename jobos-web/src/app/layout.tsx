@@ -5,6 +5,8 @@ import { THEME_INIT_SCRIPT, ThemeProvider } from "./components/theme";
 import { GmailTokenProvider } from "@/lib/gmail/GmailTokenProvider";
 import { HOME_TITLE, HOME_DESCRIPTION, PRIVATE_ROBOTS, SITE_ORIGIN } from "@/lib/seo/metadata";
 import ProductAnalytics from "./components/ProductAnalytics";
+import { Suspense } from "react";
+import MetaPixel from "./components/MetaPixel";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -71,7 +73,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-full flex flex-col">
         <GmailTokenProvider>
-          <ThemeProvider><ProductAnalytics />{children}</ThemeProvider>
+          <ThemeProvider><ProductAnalytics /><Suspense fallback={null}><MetaPixel /></Suspense>{children}</ThemeProvider>
         </GmailTokenProvider>
       </body>
     </html>

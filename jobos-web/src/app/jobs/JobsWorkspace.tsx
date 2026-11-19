@@ -1,4 +1,5 @@
 "use client";
+import { metaJobView } from "@/lib/analytics/metaPixel";
 import { productEvent } from "@/lib/analytics/productClient";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type FormEvent } from "react";
@@ -154,6 +155,12 @@ export default function JobsWorkspace({ profile: initialProfile, states: initial
     if (selected && dialog.current && !dialog.current.open) { dialog.current.showModal(); productEvent("job_view", { jobId: selected }); }
     if (!selected) dialog.current?.close();
   }, [selected]);
+
+  const viewedJobId = selected && job ? job.id : null;
+  useEffect(() => {
+    metaJobView(viewedJobId);
+    return () => metaJobView(null);
+  }, [viewedJobId]);
 
   useEffect(() => {
     const selectedJob = selected ? allJobs.get(selected) : undefined;

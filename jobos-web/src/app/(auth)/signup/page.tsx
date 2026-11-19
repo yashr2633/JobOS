@@ -15,6 +15,7 @@ import {
 import { buildSupabaseOAuthCallbackUrl } from "@/lib/supabase/oauthRedirect";
 import { safeNextPath } from "@/lib/supabase/safeNextPath";
 import OtpStep from "../OtpStep";
+import { metaRegistrationComplete, metaSignupIntent } from "@/lib/analytics/metaPixel";
 
 function signUpDestination() {
   return typeof window === "undefined" ? "/" : safeNextPath(new URL(window.location.href).searchParams.get("next"));
@@ -80,13 +81,14 @@ export default function SignupPage() {
    * compare the code ourselves.
    */
   async function verifySignupCode(code: string): Promise<void> {
-    const { error: verifyError } = await supabase.auth.verifyOtp({
+    const { data, error: verifyError } = await supabase.auth.verifyOtp({
       email: email.trim(),
       token: code,
       type: VERIFY_OTP_TYPE.signup,
     });
 
     if (verifyError) throw new Error(describeOtpError(verifyError.message));
+    if (data.session && data.user) metaRegistrationComplete(data.user.id);
 
     // Verified: a session now exists, so land the user in the product.
     router.push(destination());
@@ -141,6 +143,7 @@ export default function SignupPage() {
 
       // Confirmation is disabled on this project, so the account is already
       // usable and there is no code to enter.
+      if (data.user) metaRegistrationComplete(data.user.id);
       router.push(destination());
       router.refresh();
     } catch (err: unknown) {
@@ -156,6 +159,7 @@ export default function SignupPage() {
   async function handleGoogleSignup() {
     setError(null);
     setLoading("google");
+    metaSignupIntent(true);
 
     try {
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
@@ -167,6 +171,7 @@ export default function SignupPage() {
 
       if (oauthError) throw new Error(oauthError.message);
     } catch (err: unknown) {
+      metaSignupIntent(false);
       setError(
         err instanceof Error ? err.message : "Failed to sign up with Google."
       );

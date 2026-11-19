@@ -17,7 +17,7 @@ import { publicPageMetadata } from "@/lib/seo/metadata";
  */
 export const metadata: Metadata = publicPageMetadata("/privacy-policy", "Privacy Policy", "How JobTrackOS handles your account information and optional Gmail data.");
 
-const LAST_UPDATED = "November 9, 2026";
+const LAST_UPDATED = "November 20, 2026";
 
 /** Official monitored support address (matches Google OAuth Branding). */
 const SUPPORT_EMAIL = "kenilja946@gmail.com";
@@ -49,6 +49,10 @@ export default function PrivacyPolicyPage() {
             <h2 className="mb-2 text-lg font-semibold text-text">First-party product analytics</h2>
             <p>We record limited product events, such as page views, job application-link clicks, document exports and checkout activity, to understand usage and diagnose failures. Browser-tab storage holds a random session identifier and campaign source for up to 30 minutes of inactivity; these are not advertising cookies or cross-site identifiers. Signed-in events may be linked to your account. Browser Do Not Track and Global Privacy Control signals disable optional client event collection.</p>
             <p className="mt-2">Our private admin report uses aggregate activity and account records. Analytics does not collect resume contents, Gmail message bodies, outreach message text, recruiter email addresses, or payment credentials. Raw IP addresses and user agents are not stored in product analytics. Account deletion removes associated account-linked product events. Essential account, security, consent and financial records are handled separately.</p>
+          </section>
+          <section>
+            <h2 className="mb-2 text-lg font-semibold text-text">Meta marketing cookies</h2>
+            <p>With your permission, we load the Meta Pixel to measure permitted page visits, public job views and successful registrations for advertising measurement. Meta receives browser and network information, including the page URL and IP address, and may use advertising cookies. We send public job identifiers, without adding your account email, resume content, messages or payment information. We exclude private workspaces and URLs containing account or search parameters from Pixel events. Rejecting marketing cookies prevents the Pixel from loading. You can withdraw permission through Cookie preferences. Do Not Track and Global Privacy Control also disable this tracking.</p>
           </section>
           <section>
             <h2 className="mb-2 text-lg font-semibold text-text">Optional job emails</h2>

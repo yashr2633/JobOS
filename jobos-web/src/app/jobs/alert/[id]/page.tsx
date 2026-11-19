@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import MetaJobView from '../../../components/MetaJobView';
 import { notFound } from 'next/navigation';
 import PublicInfoPage from '../../../components/PublicInfoPage';
 import { getCachedCatalog } from '@/lib/jobs/cachedCatalog';
@@ -23,6 +24,7 @@ export default async function AlertJobPage({params}: {params: Promise<{id:string
   const next=`/jobs?${new URLSearchParams({job:job.id,jobSource:job.sourceUrl,q:job.title,location:job.location})}`;
   const apply=user ? next : `/login?next=${encodeURIComponent(next)}`;
   return <PublicInfoPage>
+    <MetaJobView jobId={job.id} />
     <Link className="seo-link" href="/jobs">← Explore more jobs</Link>
     <p className="seo-kicker">{job.company} is hiring</p><h1>{job.title}</h1>
     <div className="seo-meta"><span>{job.location}</span>{job.workMode&&<span>{job.workMode}</span>}{job.employmentType&&<span>{job.employmentType}</span>}</div>
