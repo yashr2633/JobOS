@@ -68,15 +68,51 @@ test("initializes exactly this Pixel once and deduplicates mount/consent refresh
   assert.equal(e.events("ViewContent").length, 0);
 });
 
-test("blocks auth tokens, search text, fragments and private routes", () => {
+test("blocks auth tokens, personal search data, fragments and private routes", () => {
   const e = environment();
-  for (const path of ["/?code=secret", "/?email=someone@example.test", "/jobs?q=private", "/#access_token=secret", "/profile", "/resumes", "/settings/account", "/api/jobs", "/auth/callback"]) {
+  for (const path of ["/?code=secret", "/?email=someone@example.test", "/jobs?q=someone%40example.test", "/jobs?q=9876543210", "/jobs?q=%2B91%2098765%2043210", "/jobs?location=someone%40example.test", "/jobs?resume=private-resume-id", "/jobs?token=secret", "/jobs?mode=secret", "/jobs?q=" + "a".repeat(121), "/jobs?q=Developer&unknown=secret", "/jobs?jobSource=https%3A%2F%2Fjobs.lever.co%2Facme%2Fjob%3Ftoken%3Dsecret", "/jobs?jobSource=https%3A%2F%2Fuser%3Apassword%40jobs.lever.co%2Facme", "/jobs?jobSource=https%3A%2F%2Fevil.example%2Facme", "/jobs?fbp_debug=person%40example.test", "/#access_token=secret", "/profile", "/resumes", "/settings/account", "/api/jobs", "/auth/callback"]) {
     assert.equal(e.api.permittedPixelPage(new URL("https://www.jobtrackos.online" + path)), false, path);
   }
   e.context.location = new URL("https://www.jobtrackos.online/?code=secret");
   e.api.setMarketingConsent("granted");
   assert.equal(e.scripts.length, 0);
   assert.equal(e.api.permittedPixelPage(new URL("https://www.jobtrackos.online/?utm_source=linkedin")), true);
+});
+
+test("permits Meta test parameters and the site's public job-search URLs", () => {
+  const e = environment();
+  for (const path of [
+    "/?fbp_debug=1234567890123456&test_event_code=TEST12345",
+    "/jobs?q=Data+Analyst&location=Bangalore&experience=entry&mode=Hybrid&days=30&assistant=1",
+    "/job-search?q=C%2B%2B+Developer&company=Acme&qualification=BTech",
+    "/opportunities?q=Customer+Support&location=Delhi+NCR&employment=Full+Time&salary=300000&experience=1",
+    "/locations/kolkata?q=Sales&days=7",
+    "/jobs?job=smartrecruiters%3AAcme%3A744000160114649&jobSource=https%3A%2F%2Fjobs.smartrecruiters.com%2FAcme%2F744000160114649&fbp_debug=1",
+    "/jobs/alert/greenhouse%3Aacme%3A123?fbp_debug=1&utm_source=facebook",
+  ]) assert.equal(e.api.permittedPixelPage(new URL("https://www.jobtrackos.online" + path)), true, path);
+  assert.equal(e.api.permittedPixelPage(new URL("https://www.jobtrackos.online/signup?q=anything")), false);
+});
+
+test("public search and Meta test URLs still require consent and deduplicate events", () => {
+  const e = environment();
+  e.context.location = new URL("https://www.jobtrackos.online/jobs?q=Data+Analyst&location=Delhi+NCR&fbp_debug=1");
+  e.api.syncMetaPixel();
+  e.api.metaJobView("greenhouse:example:123");
+  assert.equal(e.scripts.length, 0);
+  e.api.setMarketingConsent("granted");
+  e.api.syncMetaPixel();
+  e.api.metaJobView("greenhouse:example:123");
+  assert.equal(e.events("PageView").length, 1);
+  assert.equal(e.events("ViewContent").length, 1);
+  e.context.navigator.doNotTrack = "1";
+  e.api.syncMetaPixel();
+  assert.equal(e.events("PageView").length, 0);
+  assert.equal(e.events("ViewContent").length, 0);
+  const gpc = environment();
+  gpc.context.location = e.context.location;
+  gpc.context.navigator.globalPrivacyControl = true;
+  gpc.api.setMarketingConsent("granted");
+  assert.equal(gpc.scripts.length, 0);
 });
 
 test("job details emit once per listing and page, including Strict Mode cleanup", () => {

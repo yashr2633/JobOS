@@ -37,9 +37,38 @@ export function privacySignal(): boolean {
 /** Pixel includes the document URL. Never run it on credential or private-data URLs. */
 export function permittedPixelPage(url: URL): boolean {
   if (url.hash || !/^(\/|\/jobs|\/plans|\/signup|\/about|\/terms|\/privacy-policy|\/job-search|\/opportunities(?:\/[^/]+)?|\/jobs\/alert\/[^/]+|\/locations\/[^/]+|\/features\/[^/]+|\/guides(?:\/[^/]+)?)$/.test(url.pathname)) return false;
+  const jobSearch = /^(\/|\/jobs|\/job-search|\/opportunities|\/locations\/[^/]+)$/.test(url.pathname);
+  const publicText = (value: string, limit: number) => value.length <= limit
+    && !/[@<>]|https?:|\d(?:[\s().+-]*\d){7}/i.test(value)
+    && (!value || /^[\p{L}\p{N}\p{M}\s&/+.#(),'-]+$/u.test(value));
+  const choices: Record<string, readonly string[]> = {
+    experience: ["", "entry", "0", "1", "2", "3", "5", "10", "unknown"],
+    mode: ["", "Remote", "Hybrid", "On-site"],
+    employment: ["", "Full Time", "Part Time", "Internship", "Contract"],
+    salary: ["", "300000", "500000", "600000", "1000000"],
+    days: ["", "1", "3", "7", "14", "30", "90", "180"],
+    qualification: ["", "BBA", "BCom", "MBA", "BTech", "Graduate"],
+    assistant: ["", "1"],
+  };
   for (const [key, value] of url.searchParams) {
-    if (!/^(utm_(source|medium|campaign|content|term)|fbclid)$/.test(key)
-      || value.length > 200 || !/^[a-zA-Z0-9_.~-]*$/.test(value)) return false;
+    if (/^(utm_(source|medium|campaign|content|term)|fbclid|fbp_debug|test_event_code)$/.test(key)) {
+      if (value.length > 200 || !/^[a-zA-Z0-9_.~-]*$/.test(value)) return false;
+    } else if (jobSearch && ["q", "company", "location"].includes(key)) {
+      if (!publicText(value, key === "q" ? 120 : 100)) return false;
+    } else if (jobSearch && Object.hasOwn(choices, key)) {
+      if (!choices[key].includes(value)) return false;
+    } else if (jobSearch && key === "job") {
+      if (!/^[a-zA-Z0-9:_-]{1,150}$/.test(value)) return false;
+    } else if (jobSearch && key === "jobSource") {
+      // Only public listing URLs: no nested credentials, queries or fragments.
+      try {
+        const source = new URL(value);
+        if (value.length > 500 || source.protocol !== "https:" || source.username || source.password
+          || source.port || source.search || source.hash
+          || !/^(jobs\.lever\.co|jobs\.ashbyhq\.com|(?:boards|job-boards|boards-api)\.greenhouse\.io|(?:jobs|careers)\.smartrecruiters\.com|himalayas\.app)$/.test(source.hostname)
+          || !/^\/[a-zA-Z0-9/_.,~-]*$/.test(decodeURIComponent(source.pathname))) return false;
+      } catch { return false; }
+    } else return false;
   }
   return true;
 }
