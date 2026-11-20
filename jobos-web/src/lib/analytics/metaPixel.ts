@@ -71,6 +71,13 @@ function pixel(): Pixel | undefined {
       const script = document.createElement("script");
       script.async = true;
       script.src = "https://connect.facebook.net/en_US/fbevents.js";
+      // The real SDK pauses queue processing at the initial revoke. Resume
+      // only after it has loaded and the current permission is checked again.
+      script.onload = () => {
+        try {
+          window.fbq?.("consent", permitted() ? "grant" : "revoke");
+        } catch { /* Vendor failures must not affect navigation. */ }
+      };
       document.head.appendChild(script);
     }
   }
@@ -96,6 +103,14 @@ function syncPermittedEvents() {
   if (!permitted()) {
     if (initialized) window.fbq?.("consent", "revoke");
     if (marketingConsent() !== "granted" || privacySignal()) {
+      // Discard events awaiting SDK download instead of sending them after
+      // permission is later restored.
+      if (window.fbq?.queue) {
+        window.fbq.queue = window.fbq.queue.filter(command =>
+          command[0] !== "trackSingle" && !(command[0] === "consent" && command[1] === "grant"));
+      }
+      lastPage = "";
+      viewedJobs.clear();
       try { sessionStorage.removeItem(REGISTRATION_KEY); sessionStorage.removeItem(OAUTH_KEY); } catch {}
     }
     return;

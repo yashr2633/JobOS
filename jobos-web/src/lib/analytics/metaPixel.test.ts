@@ -64,7 +64,7 @@ test("initializes exactly this Pixel once and deduplicates mount/consent refresh
   e.api.metaJobView("greenhouse:example:999");
   e.context.location = new URL("https://www.jobtrackos.online/jobs");
   e.api.syncMetaPixel();
-  assert.equal(e.events("PageView").length, 3);
+  assert.equal(e.events("PageView").length, 0, "Withdrawal discards unsent events");
   assert.equal(e.events("ViewContent").length, 0);
 });
 
@@ -115,4 +115,18 @@ test("vendor errors and blocked storage never break signup or navigation", () =>
   assert.doesNotThrow(() => e.api.metaRegistrationComplete("test-user"));
   e.context.localStorage.getItem = () => { throw new Error("storage blocked"); };
   assert.doesNotThrow(() => e.api.syncMetaPixel());
+});
+
+test("real SDK load resumes the revoked queue only while consent is still valid", () => {
+  const e = environment();
+  e.api.setMarketingConsent("granted");
+  const script = e.scripts[0] as { onload: () => void };
+  script.onload();
+  assert.deepEqual(Array.from(e.calls().at(-1)), ["consent", "grant"]);
+  e.api.setMarketingConsent("denied");
+  script.onload();
+  assert.deepEqual(Array.from(e.calls().at(-1)), ["consent", "revoke"]);
+  assert.equal(e.events("PageView").length, 0, "Unsent events must be dropped after withdrawal");
+  e.api.setMarketingConsent("granted");
+  assert.equal(e.events("PageView").length, 1);
 });
